@@ -1,0 +1,113 @@
+# EDMS — electron-builder configuration (Windows x64 NSIS installer).
+appId: sa.edms.archive
+productName: أرشيف
+copyright: Copyright © 2026 — وزارة التخطيط (مثال)
+electronVersion: 43.4.0
+
+# The packaged app loads its REAL main from dist/electron/main.cjs (obfuscated
+# copy staged by build-electron.cjs); package.json's `main` stays pointing at
+# electron/main.cjs for direct dev runs.
+extraMetadata:
+  main: dist/electron/main.cjs
+
+directories:
+  output: dist/release
+  buildResources: resources
+
+# IMPORTANT: `files` patterns are ADDED to the implicit default (**/*), they
+# do not replace it. An explicit negative pattern must come first or the
+# whole node_modules tree ends up inside app.asar.
+files:
+  - "!**/*"
+  - "dist/electron/**/*"
+  - "dist/resources/**/*"
+  - "package.json"
+  # electron-updater + its runtime deps must ship INSIDE the asar so the
+  # obfuscated main.cjs can require("electron-updater") for auto-updates.
+  - "node_modules/electron-updater/**/*"
+  - "node_modules/builder-util-runtime/**/*"
+  - "node_modules/fs-extra/**/*"
+  - "node_modules/js-yaml/**/*"
+  - "node_modules/lazy-val/**/*"
+  - "node_modules/lodash.escaperegexp/**/*"
+  - "node_modules/lodash.isequal/**/*"
+  - "node_modules/semver/**/*"
+  - "node_modules/tiny-typed-emitter/**/*"
+  - "node_modules/graceful-fs/**/*"
+  - "node_modules/jsonfile/**/*"
+  - "node_modules/universalify/**/*"
+  - "node_modules/argparse/**/*"
+  - "node_modules/sprintf-js/**/*"
+  - "node_modules/esprima/**/*"
+  - "node_modules/debug/**/*"
+  - "node_modules/ms/**/*"
+  - "node_modules/sax/**/*"
+
+# The Next standalone server (server.js + node_modules) must stay readable on
+# disk because it is spawned as a child process (ELECTRON_RUN_AS_NODE) — Node
+# cannot exec from inside an asar, and electron-builder prunes node_modules
+# from extraResources. So it is NOT packaged via electron-builder at all:
+# scripts/after-pack.cjs copies dist/standalone -> resources/standalone
+# directly into the unpacked app after packaging.
+afterPack: scripts/after-pack.cjs
+
+# Everything writable lives in userData — the scan script and env are shipped
+# OUTSIDE the asar so the child process can exec them.
+extraResources:
+  - from: dist/resources
+    to: .
+
+asar: true
+
+# Ship only the locales the UI actually uses; the default 46 MB of Chromium
+# .pak files is pure dead weight for this app.
+electronLanguages:
+  - ar
+  - en
+# Auto-update channel — electron-updater reads app-update.yml at runtime.
+# The generic URL below is the DEFAULT; main.cjs overrides it at boot from
+# resources/env (UPDATE_URL) when present, and skips checks if unset.
+publish:
+  provider: generic
+  url: https://updates.example.com/edms
+  useMultipleRangeRequest: false
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  icon: resources/icon/icon.ico
+  executableName: edms-archive
+  artifactName: ${productName}-${version}-${target}-${arch}.${ext}
+
+portable:
+  artifactName: ${productName}-${version}-Portable-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  shortcutName: أرشيف
+  uninstallDisplayName: أرشيف — إزالة التثبيت
+  deleteAppDataOnUninstall: false
+  installerIcon: resources/icon/icon.ico
+  uninstallerIcon: resources/icon/icon.ico
+  artifactName: ${productName}-${version}-Setup-${arch}.${ext}
+  # Custom installer logic: detects a previous installation (same version ->
+  # abort; older version -> update in place). See build/installer.nsi.
+  include: build/installer.nsi
+
+# No signing certificate is available in this environment; leaving this block
+# empty produces an unsigned installer (SmartScreen warning on first run).
+# To sign: uncomment and provide cert paths (see README).
+# win:
+#   certificateFile: cert.pfx
+#   certificatePassword: ''
+
+compression: maximum
+npmRebuild: false

@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# Next.js
+.next/
+out/
+build/
+next-env.d.ts
+
+# Environment
+.env
+.env*.local
+
+# Object storage (uploaded documents — never commit binaries)
+/storage/
+
+# SQLite database (users, hashes, audit) — created at runtime
+data/
+data/*.db-wal
+data/*.db-shm
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# TypeScript
+*.tsbuildinfo
+
+# Build artifacts - never commit
+dist/
+*.exe
+*.blockmap
+win-unpacked/
+
+
+# Tool caches - never commit
+.freebuff/
+.codedev-mcp/
+graphify-out/
+.claude/
+anchor-summary.md
+dev-server.log
+prod-server*.log
+tsconfig.tsbuildinfo
+

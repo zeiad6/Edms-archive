@@ -1,0 +1,359 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------------------
+   Design tokens — light & dark
+   Institutional indigo palette ("أرشيفي") — deeper primary (#4f46e5) for a
+   calmer ministry-grade feel; status colors deepened to pass WCAG AA for
+   text-on-white; muted-foreground deepened for AA on the page background.
+   All names stay identical so components relying on them keep working.
+--------------------------------------------------------------------------- */
+:root {
+  /* Day palette — calm blue-grey paper instead of stark white:
+     background/card/muted all step away from pure #fff so surfaces feel
+     quiet; foregrounds (AA contrast) are untouched. */
+  --background: #f2f5fa;
+  --foreground: #0f172a;
+  --card: #fbfcfe;
+  --card-foreground: #0f172a;
+  --muted: #e9edf5;
+  --muted-foreground: #5b6b85;
+  --border: #dbe1ec;
+  --input: #dbe1ec;
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --accent: #e9eefb;
+  --accent-foreground: #3730a3;
+  --ring: #6366f1;
+  --sidebar: #f8fafd;
+  --titlebar: #e0e6f1;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+
+  /* Soft multi-layer elevation (day). Every layer carries the
+     var(--tw-shadow-color, …) fallback so Tailwind colored shadow utilities
+     (shadow-primary/25, shadow-slate-950/40, …) keep tinting the shadow.
+     Layers are sized so near-white surfaces read as clearly elevated off the
+     #f2f5fa page background, but stay diffuse (generous blur, negative
+     spread) so the edge is soft, not harsh. */
+  --shadow-soft: 0 1px 2px var(--tw-shadow-color, rgb(15 23 42 / 0.08)), 0 4px 12px -3px var(--tw-shadow-color, rgb(15 23 42 / 0.13));
+  --shadow-card: 0 1px 2px var(--tw-shadow-color, rgb(15 23 42 / 0.07)), 0 6px 16px -4px var(--tw-shadow-color, rgb(15 23 42 / 0.12)), 0 20px 44px -14px var(--tw-shadow-color, rgb(15 23 42 / 0.16));
+  --shadow-pop: 0 2px 8px -2px var(--tw-shadow-color, rgb(15 23 42 / 0.12)), 0 14px 32px -8px var(--tw-shadow-color, rgb(15 23 42 / 0.2)), 0 32px 72px -18px var(--tw-shadow-color, rgb(15 23 42 / 0.22));
+
+  /* Remap Tailwind's default shadow scale onto the softer layered palette so
+     every existing shadow-sm/md/lg/xl/2xl usage softens automatically. */
+  --shadow-sm: var(--shadow-soft);
+  --shadow-md: 0 2px 4px var(--tw-shadow-color, rgb(15 23 42 / 0.08)), 0 10px 24px -6px var(--tw-shadow-color, rgb(15 23 42 / 0.15));
+  --shadow-lg: 0 2px 6px var(--tw-shadow-color, rgb(15 23 42 / 0.09)), 0 16px 36px -8px var(--tw-shadow-color, rgb(15 23 42 / 0.18));
+  --shadow-xl: var(--shadow-pop);
+  --shadow-2xl: 0 12px 34px -10px var(--tw-shadow-color, rgb(15 23 42 / 0.18)), 0 36px 72px -16px var(--tw-shadow-color, rgb(15 23 42 / 0.24));
+}
+
+.dark {
+  --background: #080c17;
+  --foreground: #e7ecf6;
+  --card: #121b30;
+  --card-foreground: #e7ecf6;
+  --muted: #1a2338;
+  --muted-foreground: #9aa9c2;
+  --border: #263049;
+  --input: #263049;
+  --primary: #818cf8;
+  --primary-foreground: #0b1020;
+  --accent: #212c4d;
+  --accent-foreground: #c7d2fe;
+  --ring: #6366f1;
+--sidebar: #0b1322;
+  --titlebar: #0b1322;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+
+  /* Dark-mode shadows: deeper black layers so surfaces lift off the dark bg.
+     Color tokens above are untouched — shadows only. */
+  --shadow-soft: 0 1px 2px var(--tw-shadow-color, rgb(0 0 0 / 0.5)), 0 4px 12px -2px var(--tw-shadow-color, rgb(0 0 0 / 0.6));
+  --shadow-card: 0 1px 3px var(--tw-shadow-color, rgb(0 0 0 / 0.55)), 0 8px 20px -6px var(--tw-shadow-color, rgb(0 0 0 / 0.65)), 0 24px 52px -16px var(--tw-shadow-color, rgb(0 0 0 / 0.7));
+  --shadow-pop: 0 2px 10px -2px var(--tw-shadow-color, rgb(0 0 0 / 0.65)), 0 18px 44px -10px var(--tw-shadow-color, rgb(0 0 0 / 0.75)), 0 36px 80px -18px var(--tw-shadow-color, rgb(0 0 0 / 0.8));
+  --shadow-sm: var(--shadow-soft);
+  --shadow-md: 0 2px 4px var(--tw-shadow-color, rgb(0 0 0 / 0.5)), 0 12px 28px -8px var(--tw-shadow-color, rgb(0 0 0 / 0.6));
+  --shadow-lg: 0 2px 6px var(--tw-shadow-color, rgb(0 0 0 / 0.55)), 0 18px 40px -10px var(--tw-shadow-color, rgb(0 0 0 / 0.65));
+  --shadow-xl: var(--shadow-pop);
+  --shadow-2xl: 0 14px 40px -12px var(--tw-shadow-color, rgb(0 0 0 / 0.65)), 0 40px 80px -18px var(--tw-shadow-color, rgb(0 0 0 / 0.7));
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+--color-sidebar: var(--sidebar);
+  --color-titlebar: var(--titlebar);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+}
+
+/* Custom shadow utilities backed by the elevation tokens above (light/dark
+   aware via :root/.dark). Declared with @utility so they compose with
+   variants exactly like built-ins (e.g. hover:shadow-card). */
+@utility shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+@utility shadow-card {
+  box-shadow: var(--shadow-card);
+}
+@utility shadow-pop {
+  box-shadow: var(--shadow-pop);
+}
+
+/* Shared card surface (.rounded-2xl + .border-border + .bg-card) gets a soft
+   elevation by default. Lives in the components layer, so an explicit shadow
+   utility (shadow-xl on popovers, shadow-2xl on dialogs, …) still wins. */
+@layer components {
+  .rounded-2xl.border.border-border.bg-card {
+    box-shadow: var(--shadow-soft);
+  }
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-cairo), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* The app shell owns all scrolling: body is a fixed flex column
+     (Electron title bar + Shell) with overflow hidden, so the Shell's
+     <main> is the only scroll container and the title bar/header never
+     scroll out of view. */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--background);
+  color: var(--foreground);
+  /* Refined ambient gradients — lower tint %, tighter stops so the brand
+     colour reads as a subtle wash rather than a visible glow. */
+  background-image:
+    radial-gradient(980px 540px at 100% -8%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 62%),
+    radial-gradient(780px 520px at -4% 110%, color-mix(in srgb, var(--primary) 5%, transparent), transparent 58%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* Brand-tinted text selection */
+::selection {
+  background-color: color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+   Typography helpers
+   IMPORTANT (RTL/Arabic): Arabic glyphs join — letter-spacing would visually
+   break them. Headings must keep letter-spacing: 0; tracking utilities are
+   only safe on Latin/digit runs (e.g. `.tnum` phone numbers, file extensions).
+--------------------------------------------------------------------------- */
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: 0;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   Focus visibility fallback for links (components use ring utilities; this
+   guarantees keyboard users always see a target even in un-owned markup).
+   `:where()` keeps specificity at zero so class-based rings win.
+--------------------------------------------------------------------------- */
+:where(a):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted-foreground) 38%, transparent);
+  border-radius: 9999px; border: 2px solid transparent; background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--muted-foreground) 60%, transparent); background-clip: content-box;
+}
+
+@keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fadein { animation: fadein 0.35s ease both; }
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Search match highlight (Mark.js) */
+mark {
+  background-color: #fde68a;
+  color: #111827;
+  padding: 0 0.15em;
+  border-radius: 3px;
+  font-weight: 700;
+}
+.dark mark {
+  background-color: #fbbf24;
+  color: #1f2937;
+}
+
+/* AG Grid — Quartz driven by the app tokens (auto light/dark).
+   Double-class selector outranks the JS theme's injected single-class CSS
+   (`.ag-theme-quartz { --ag-... }`) so the app tokens always win. */
+.ag-theme-quartz.ag-theme-quartz {
+  --ag-font-family: var(--font-cairo), system-ui, sans-serif;
+  --ag-font-size: 13px;
+  --ag-background-color: var(--card);
+  --ag-foreground-color: var(--foreground);
+  --ag-secondary-foreground-color: var(--muted-foreground);
+  --ag-disabled-foreground-color: color-mix(in srgb, var(--muted-foreground) 50%, transparent);
+  --ag-header-background-color: color-mix(in srgb, var(--primary) 4%, var(--muted));
+  --ag-header-foreground-color: var(--foreground);
+  --ag-odd-row-background-color: transparent;
+  --ag-row-hover-color: color-mix(in srgb, var(--primary) 6%, transparent);
+  --ag-selected-row-background-color: color-mix(in srgb, var(--primary) 11%, transparent);
+  --ag-border-color: var(--border);
+  --ag-row-border-color: var(--border);
+  --ag-header-column-separator-color: var(--border);
+  --ag-modal-overlay-background-color: rgba(2, 6, 23, 0.5);
+  --ag-control-panel-background-color: var(--card);
+  --ag-control-panel-border-color: var(--border);
+  --ag-input-focus-border-color: var(--ring);
+  --ag-input-focus-box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+  --ag-checkbox-checked-color: var(--primary);
+  --ag-range-selection-border-color: var(--primary);
+  --ag-active-color: var(--primary);
+  --ag-icon-font-color: var(--muted-foreground);
+  --ag-paging-page-summary-panel-text-color: var(--muted-foreground);
+  --ag-chip-background-color: var(--muted);
+  --ag-header-height: 50px;
+  --ag-row-height: 52px;
+  --ag-border-radius: 12px;
+  --ag-cell-horizontal-padding: 14px;
+  --ag-list-item-height: 38px;
+}
+.ag-theme-quartz.ag-theme-quartz .ag-header-cell-label { font-weight: 700; }
+.ag-theme-quartz.ag-theme-quartz .ag-paging-panel {
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.ag-theme-quartz.ag-theme-quartz .ag-paging-panel .ag-paging-button {
+  border-radius: 8px;
+  margin: 0 2px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.ag-theme-quartz.ag-theme-quartz .ag-paging-panel .ag-paging-button:hover:not(.ag-disabled) {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+.ag-theme-quartz.ag-theme-quartz .ag-paging-panel .ag-paging-button.ag-disabled {
+  color: color-mix(in srgb, var(--muted-foreground) 45%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+ * Documents page — viewport-fit grid.
+ * The DataGrid card (un-owned markup) sets its own fixed height via
+ * max(580px, calc(100vh - 360px)) — too tall at 1280x800 / 960x600. These
+ * scoped rules, applied through the .documents-grid-area wrapper, make the
+ * card flex-fill the space the page gives it (rows scroll inside the grid
+ * instead of pushing the page) and give it the same elevation as Card.
+ * ------------------------------------------------------------------------- */
+.documents-grid-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.documents-grid-area > div {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-card);
+}
+.documents-grid-area > div > div[style^="height:"] {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100% !important;
+}
+.documents-grid-area > div > div:not([style]) {
+  flex-shrink: 0;
+}
+
+
+/* Vertically center the content of every HTML table cell so records read
+   consistently across pages (permissions matrix, report tables, CSV preview). */
+table th,
+table td {
+  vertical-align: middle;
+}
+
+/* ---------------------------------------------------------------------------
+ * Space-adaptive grid helpers.
+ *
+ * `grid-auto-fit-*` uses CSS `auto-fit / minmax()` so cards reflow to fill the
+ * available width on any screen size — no hard breakpoints needed. The column
+ * count grows automatically as the viewport widens (and vice versa), which
+ * makes better use of space on wide monitors and collapses gracefully on
+ * phones/tablets.
+ * ------------------------------------------------------------------------- */
+.grid-auto-fit-sm {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 1.25rem;
+}
+
+.grid-auto-fit-md {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 1.25rem;
+}
+
+.grid-auto-fit-lg {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1.25rem;
+}
+
+.grid-auto-fit-xl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+  gap: 1.25rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * Electron custom title bar — drag region (only in the packaged app).
+ * ---------------------------------------------------------------------------
+ */
+[data-edms-titlebar] {
+  -webkit-app-region: drag;
+  -webkit-user-select: none;
+  user-select: none;
+}
+[data-edms-titlebar] button,
+[data-edms-titlebar-buttons] {
+  -webkit-app-region: no-drag;
+}
