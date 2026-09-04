@@ -64,13 +64,15 @@ asar: true
 electronLanguages:
   - ar
   - en
-# Auto-update channel — electron-updater reads app-update.yml at runtime.
-# The generic URL below is the DEFAULT; main.cjs overrides it at boot from
-# resources/env (UPDATE_URL) when present, and skips checks if unset.
-publish:
-  provider: generic
-  url: https://updates.example.com/edms
-  useMultipleRangeRequest: false
+# Auto-update channel — DISABLED by default (no dummy feed).
+# To enable a REAL signed channel: (1) uncomment `publish` below and point it at a signed feed
+# (electron-updater + GitHub provider or generic S3 URL serving signed latest.yml + .sig/.blockmap),
+# then wire update check with signature verification; (2) code-sign on Windows via env
+# CSC_LINK=<path/to/cert.pfx> + CSC_KEY_PASSWORD=<password> (or Azure Trusted Signing) before packaging.
+# publish:
+#   provider: generic
+#   url: https://updates.example.com/edms
+#   useMultipleRangeRequest: false
 
 win:
   target:
@@ -102,12 +104,13 @@ nsis:
   # abort; older version -> update in place). See build/installer.nsi.
   include: build/installer.nsi
 
-# No signing certificate is available in this environment; leaving this block
-# empty produces an unsigned installer (SmartScreen warning on first run).
-# To sign: uncomment and provide cert paths (see README).
+# Windows code signing: set CSC_LINK=<path/to/cert.pfx> + CSC_KEY_PASSWORD=<pwd> env vars
+# (or Azure Trusted Signing via CSC_LINK=AzureKeyVault://...); unsigned builds show SmartScreen warning.
 # win:
 #   certificateFile: cert.pfx
 #   certificatePassword: ''
-
+# Native ABI note: @libsql/client + sharp ship prebuilt win32-x64 binaries; keep npmRebuild=false
+# and rebuild explicitly via `npm run electron:rebuild` (electron-rebuild -f -w @libsql/client,sharp)
+# after `npm ci` on the packaging host to avoid ABI mismatch with Electron 43.
 compression: maximum
 npmRebuild: false

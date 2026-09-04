@@ -42,8 +42,9 @@ function runtimeDirs() {
 }
 
 /**
- * AUTH_SECRET source file. Packaged: resources/env (copied by the pack
- * script next to the standalone build); dev: project .env. Returns null when
+ * Config source file (non-secret only). Packaged: resources/env holds only
+ * non-secret values (UPDATE_URL etc. — never AUTH_SECRET since per-install
+ * secret lives in userData/auth_secret); dev: project .env. Returns null when
  * neither exists — the config part is then skipped.
  */
 function configFileSource(): string | null {

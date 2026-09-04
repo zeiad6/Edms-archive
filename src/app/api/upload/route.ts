@@ -69,9 +69,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `حجم الملف يتجاوز الحد الأقصى ${MAX_FILE_SIZE / 1024 / 1024} ميجابايت` }, { status: 413 });
   }
 
-  // File extension validation
+  // File extension validation — extension is required (no extensionless files)
   const ext = extFromName(file.name);
-  if (ext && !ALLOWED_EXTENSIONS.has(ext.toLowerCase())) {
+  if (!ext || !ALLOWED_EXTENSIONS.has(ext.toLowerCase())) {
     return NextResponse.json({ error: "نوع الملف غير مدعوم" }, { status: 400 });
   }
 
@@ -84,6 +84,9 @@ export async function POST(request: NextRequest) {
   // extension so an SVG/HTML payload cannot be stored as a safe image type.
   const mime = EXTRA_MIME[ext] || mimeFromExt(ext) || "application/octet-stream";
   const bytes = Buffer.from(await file.arrayBuffer());
+  if (bytes.length > MAX_FILE_SIZE) {
+    return NextResponse.json({ error: `حجم الملف يتجاوز الحد الأقصى ${MAX_FILE_SIZE / 1024 / 1024} ميجابايت` }, { status: 413 });
+  }
   const key = genKey(ext || "bin");
   await writeKey(key, bytes);
   const thumbKey = await createImageThumbnail(key);

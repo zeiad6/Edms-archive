@@ -4,7 +4,7 @@
  *
  *   1. next build (output: standalone)           -> .next/standalone
  *   2. stage standalone + public + .next/static  -> dist/standalone
- *   3. copy scan-wia.ps1 + env (AUTH_SECRET)     -> dist/resources
+ *   3. copy scan-wia.ps1 (NO secrets — per-install AUTH_SECRET generated at first boot)
  *   4. bundle the Tesseract OCR runtime          -> dist/resources/tesseract
  *   5. obfuscate electron/main.cjs               -> dist/electron/main.cjs
  *   6. electron-builder (nsis, asar)             -> dist/release/*.exe
@@ -136,18 +136,10 @@ const scanScript = path.join(root, "scripts", "scan-wia.ps1");
 if (fs.existsSync(scanScript)) {
   fs.copyFileSync(scanScript, path.join(stageResources, "scan-wia.ps1"));
 }
-// AUTH_SECRET (and any other runtime secrets) go OUTSIDE the asar, into
-// resources/env — read by main.cjs at boot and injected into the server env.
-const envFile = path.join(root, ".env");
-if (fs.existsSync(envFile)) {
-  const envTxt = fs
-    .readFileSync(envFile, "utf8")
-    .split(/\r?\n/)
-    .filter((l) => /^\s*(AUTH_SECRET|NEXT_PUBLIC_APP_URL|UPDATE_URL)\s*=/.test(l))
-    .join("\n");
-  fs.writeFileSync(path.join(stageResources, "env"), envTxt + "\n");
-  console.log("resources/env written (AUTH_SECRET + NEXT_PUBLIC_APP_URL + UPDATE_URL only).");
-}
+// SECURITY: never bundle secrets into the installer. No .env is copied and
+// no resources/env containing AUTH_SECRET is ever written here. Each
+// install generates its own unique secret at first boot (see
+// electron/main.cjs ensureAuthSecret → userData/auth_secret).
 cpR(path.join(root, "resources", "icon"), path.join(stageResources, "icon"));
 
 console.log("=== [5/7] stage bundled Tesseract OCR runtime ===");
@@ -179,5 +171,7 @@ fs.copyFileSync(
 console.log("main.cjs obfuscated (stringArray + controlFlowFlattening + hex ids).");
 
 console.log("=== [7/7] electron-builder (nsis + portable x64, asar) ===");
-sh("npx electron-builder --win nsis portable --x64");
+// --publish never: update-info generation requires a configured publish
+// provider (GitHub repo); local/manual releases ship the exes as-is.
+sh("npx electron-builder --win nsis portable --x64 --publish never");
 console.log("DONE - see dist/release/ (Setup .exe + Portable .exe)");

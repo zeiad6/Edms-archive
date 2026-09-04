@@ -19,11 +19,21 @@ function rfc5987(name: string): string {
 }
 
 /**
- * Extensions whose content is safe to render inline. Everything else is forced
- * to download so an uploaded SVG/HTML payload can never execute script in the
- * application origin. Thumbnails are server-generated JPEGs and always safe.
+ * Extensions safe to render inline in the browser preview.
+ *
+ * - Raster images + BMP: natively rendered by <img>, no script risk.
+ * - SVG: scripts never run inside <img>; top-level opens are neutralized by
+ *   the `default-src 'none'; sandbox` CSP sent with SVG responses below.
+ * - PDF: rendered by the browser's built-in viewer (sandboxed by the browser).
+ * - TXT/CSV: rendered as plain text (no script execution for text/plain).
+ * - Everything else (Office, TIFF, RTF, ...) is forced to download so a
+ *   stored file can never execute script inside the application origin.
+ *   Thumbnails are server-generated JPEGs and always safe.
  */
-const SAFE_INLINE_RASTER = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
+const INLINE_PREVIEWABLE = new Set([
+  "png", "jpg", "jpeg", "webp", "gif", "bmp", "svg",
+  "pdf", "txt", "csv",
+]);
 
 // Streams the stored object directly from disk (no full buffering) — efficient
 // for large PDFs. Every request is gated by the RBAC check and logged.
@@ -71,28 +81,44 @@ export async function GET(
 
   const filename = doc.originalName || doc.fileName;
 
-  // Only server-generated thumbnails and safe raster images may render inline;
-  // every other type (SVG, HTML, PDF, Office, ...) is forced to download so a
-  // stored file can never execute script inside the application origin.
+  // Inline preview for safe types (images incl. SVG, PDF, plain text) so the
+  // <img>/<iframe> preview and the pdf.js viewer render instead of forcing a
+  // download. Office/TIFF/RTF/... stay as attachment (no native renderer and
+  // must never execute inside the application origin).
   const fileExt = (doc.fileExt || extFromName(doc.originalName || doc.fileName || "")).toLowerCase();
-  const inlineSafe = isThumb || SAFE_INLINE_RASTER.has(fileExt);
+  const inlineSafe = isThumb || INLINE_PREVIEWABLE.has(fileExt);
   const disposition = isDownload || !inlineSafe
     ? `attachment; filename="${(filename || "document").replace(/[^\w\u0600-\u06FF.\- ]/g, "_")}"; filename*=UTF-8''${rfc5987(filename || "document")}`
     : "inline";
 
   const stream = Readable.toWeb(createReadStream(absPath)) as ReadableStream<Uint8Array>;
 
+  // Per-type framing/CSP policy:
+  // - PDF: the built-in viewer needs same-origin framing and no sandbox CSP
+  //   (X-Frame-Options: DENY + `sandbox` produced a blank iframe).
+  // - SVG: keep a script-neutralizing CSP; <img> rendering is unaffected
+  //   (scripts never run in image context) while direct opens stay safe.
+  // - Others inline (raster/BMP/text): neutral frame-ancestors, no sandbox.
+  const headers: Record<string, string> = {
+    "Content-Type": doc.mimeType || "application/octet-stream",
+    "Content-Length": String(size),
+    "Accept-Ranges": "bytes",
+    "Content-Disposition": disposition,
+    "Cache-Control": "private, no-store",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+  };
+  if (disposition === "inline") {
+    headers["Content-Security-Policy"] =
+      fileExt === "svg"
+        ? "default-src 'none'; sandbox"
+        : "frame-ancestors 'self'";
+  } else {
+    headers["Content-Security-Policy"] = "default-src 'none'; sandbox";
+  }
+
   return new NextResponse(stream, {
     status: 200,
-    headers: {
-      "Content-Type": doc.mimeType || "application/octet-stream",
-      "Content-Length": String(size),
-      "Accept-Ranges": "bytes",
-      "Content-Disposition": disposition,
-      "Cache-Control": "private, no-store",
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Content-Security-Policy": "default-src 'none'; sandbox",
-    },
+    headers,
   });
 }

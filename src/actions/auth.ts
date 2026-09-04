@@ -6,10 +6,22 @@ import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { hashPassword, verifyPassword } from "@/lib/password";
+import { hashPassword, sanitizePastedPassword, verifyPassword } from "@/lib/password";
+import { clearLoginFailures, loginThrottled, recordLoginFailure } from "@/lib/login-throttle";
 import { getCurrentUser, logAudit } from "@/lib/server";
 import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS, signSession } from "@/lib/session";
 
+/**
+ * In-memory login brute-force guard: 8 failed attempts per account per
+ * 10 minutes, then a generic cool-down error. Keyed by account (not IP —
+ * server actions have no reliable client IP), counted ONLY on failure so
+ * legitimate users are never throttled.
+ *
+ * Single-process scope: the packaged/Electron and standalone deployments run
+ * exactly one Node process, so a Map is sufficient. A multi-process
+ * deployment in front of one DB must replace this with a shared store
+ * (SQLite table / Redis) — see the comment on deployment in README.
+ */
 export async function logoutUser() {
   const store = await cookies();
   store.set(SESSION_COOKIE, "", { ...SESSION_COOKIE_OPTIONS, maxAge: 0 });
@@ -36,7 +48,7 @@ export async function switchUser(
   formData: FormData
 ): Promise<{ error?: string }> {
   const id = Number(formData.get("userId"));
-  const password = String(formData.get("password") || "");
+  const password = sanitizePastedPassword(String(formData.get("password") || ""));
 
   const current = await getCurrentUser();
   if (current && current.role !== "admin") {
@@ -50,11 +62,18 @@ export async function switchUser(
     return { error: "كلمة المرور غير صحيحة" };
   }
 
+  const throttleKey = `uid:${Number.isInteger(id) && id > 0 ? id : "?"}`;
+  if (loginThrottled(throttleKey)) {
+    return { error: "محاولات كثيرة — حاول مجدداً بعد 10 دقائق" };
+  }
+
   const rows = await db.select().from(users).where(eq(users.id, id)).limit(1);
   const u = rows[0];
   if (!u?.passwordHash || !(await verifyPassword(password, u.passwordHash))) {
+    recordLoginFailure(throttleKey);
     return { error: "كلمة المرور غير صحيحة" };
   }
+  clearLoginFailures(throttleKey);
   if (!u.active) {
     return { error: "هذا الحساب معطّل. تواصل مع مدير النظام." };
   }
@@ -82,13 +101,20 @@ export async function loginUser(
   formData: FormData
 ): Promise<{ error?: string; mustChange?: boolean; success?: string }> {
   const username = String(formData.get("username") || "").trim().toLowerCase();
-  const password = String(formData.get("password") || "");
+  const password = sanitizePastedPassword(String(formData.get("password") || ""));
+
+  const throttleKey = `user:${username || "?"}`;
+  if (loginThrottled(throttleKey)) {
+    return { error: "محاولات كثيرة — حاول مجدداً بعد 10 دقائق" };
+  }
 
   const rows = await db.select().from(users).where(eq(users.username, username)).limit(1);
   const u = rows[0];
   if (!u?.passwordHash || !(await verifyPassword(password, u.passwordHash))) {
+    recordLoginFailure(throttleKey);
     return { error: "اسم المستخدم أو كلمة المرور غير صحيحة" };
   }
+  clearLoginFailures(throttleKey);
   if (!u.active) {
     return { error: "هذا الحساب معطّل. تواصل مع مدير النظام." };
   }

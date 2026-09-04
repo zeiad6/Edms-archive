@@ -18,7 +18,12 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const MAX_DOCS = 50;
-const MANIFEST_NAME = "كشف-المستندات.xlsx";
+// قرار البنية: الكشف في `report/` (اسم عربي) والمستندات في `documents/` (مجلد ASCII
+// مستقل) — روابط الكشف نسبية `../documents/<file>` وتُبنى في xlsx.ts.
+const REPORT_DIR = "report";
+const DOCUMENTS_DIR = "documents";
+const MANIFEST_NAME = `${REPORT_DIR}/كشف-المستندات.xlsx`;
+const DOCUMENTS_PREFIX = `${DOCUMENTS_DIR}/`;
 
 /**
  * Raster formats Excel can actually render inside a worksheet drawing.
@@ -38,8 +43,8 @@ const MAX_PREVIEW_BYTES = 6 * 1024 * 1024;
 /**
  * POST /api/documents/export-selected
  * Body: { ids: number[] }
- * Returns: ZIP stream containing the selected documents' files plus an Excel
- * manifest (`كشف-المستندات.xlsx`, real OOXML built by ./xlsx) with:
+ * Returns: ZIP stream with `report/كشف-المستندات.xlsx` plus the selected
+ * documents' files under `documents/` (real OOXML manifest built by ./xlsx) with:
  *  - a per-row hyperlink (external relationship) pointing at the document
  *    file inside the archive, and
  *  - a preview column embedding each document's thumbnail (or a generated
@@ -167,7 +172,7 @@ export async function POST(request: NextRequest) {
       fileStream.on("error", () => {
         /* skip locked/unreadable file */
       });
-      archive.append(fileStream, { name: entry.name });
+      archive.append(fileStream, { name: `${DOCUMENTS_PREFIX}${entry.name}` });
     } catch (e) {
       console.error("[export-selected] append failed:", e);
     }

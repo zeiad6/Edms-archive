@@ -14,11 +14,13 @@ import { DocViewerToolbar } from "@/components/documents/doc-viewer-toolbar";
 export function DocViewer({
   id,
   mime,
+  ext,
   title,
   onClose,
 }: {
   id: number;
   mime: string;
+  ext?: string | null;
   title: string;
   onClose: () => void;
 }) {
@@ -48,7 +50,7 @@ export function DocViewer({
     // pdfjs-dist (~1.4MB) is loaded on demand into its own chunk so it never
     // weighs down the initial bundle of pages that render the viewer.
     import("pdfjs-dist")
-      .then((pdfjs) => {
+      .then(async (pdfjs) => {
         if (cancelled) return null;
         // Bundle the PDF worker locally (offline-first) instead of a CDN.
         // A RELATIVE `new URL(..., import.meta.url)` asset reference makes
@@ -59,7 +61,19 @@ export function DocViewer({
           "./documents/pdf.worker.min.mjs",
           import.meta.url,
         ).toString();
-        return pdfjs.getDocument(url).promise;
+        // Bytes via the pdf-data JSON route: raw `application/pdf` responses
+        // are intercepted and emptied by download managers (IDM…), while JSON
+        // passes through untouched.
+        const res = await fetch(`/api/documents/${id}/pdf-data`);
+        const body = await res.json().catch(() => null);
+        if (cancelled) return null;
+        if (!res.ok || !body?.data) {
+          throw new Error(body?.error || `HTTP ${res.status}`);
+        }
+        const bin = atob(body.data);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return pdfjs.getDocument({ data: bytes }).promise;
       })
       .then((doc) => {
         if (cancelled || !doc) return;
@@ -148,6 +162,7 @@ export function DocViewer({
       />
       <DocViewerContent
         mime={mime}
+        ext={ext}
         url={url}
         download={download}
         title={title}
@@ -163,11 +178,13 @@ export function DocViewer({
 export function DocDetailClient({
   id,
   mime,
+  ext,
   title,
   isAdmin,
 }: {
   id: number;
   mime: string;
+  ext?: string | null;
   title: string;
   isAdmin: boolean;
 }) {
@@ -176,7 +193,7 @@ export function DocDetailClient({
 
   return (
     <>
-      {open && <DocViewer id={id} mime={mime} title={title} onClose={() => setOpen(false)} />}
+      {open && <DocViewer id={id} mime={mime} ext={ext} title={title} onClose={() => setOpen(false)} />}
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => setOpen(true)}>
           <Eye className="h-4 w-4" /> عرض المستند

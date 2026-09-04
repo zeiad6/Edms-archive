@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server";
+import { makeScanSvg } from "@/lib/doc-svg";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,13 +13,14 @@ export const runtime = "nodejs";
 const execFileAsync = promisify(execFile);
 
 /**
- * Scans one page from the WIA scanner physically connected to this machine
- * (USB / network / multi-function printer). No mock or generated samples:
- * this endpoint drives the real hardware scanner through the built-in
- * Windows WIA COM API (scripts/scan-wia.ps1).
+ * "محاكاة مسح" — tries the real WIA hardware scanner first (same as
+ * /api/scan/hardware with default settings); when no scanner is connected
+ * (or scanning fails for any reason) it falls back to a generated sample
+ * page so the simulation button ALWAYS produces a page. The response carries
+ * `simulated: true` in the fallback case so the UI can label it honestly.
  *
  * Authenticated like every other /api route — an anonymous caller gets 401.
- * Returns the same contract as /api/scan/hardware: { image, docNumber }.
+ * Returns `{ image, docNumber, simulated }`.
  */
 export async function GET() {
   const user = await getCurrentUser();
@@ -38,22 +40,37 @@ export async function GET() {
       ["-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File", script, out],
       { timeout: 90_000, windowsHide: true, maxBuffer: 8 * 1024 * 1024 },
     );
-    if (stdout.includes("NO_SCANNER")) {
-      return NextResponse.json(
-        { error: "لم يتم العثور على ماسح ضوئي متصل بالجهاز. تأكد من توصيله وتشغيله." },
-        { status: 500 },
-      );
+    if (!stdout.includes("NO_SCANNER")) {
+      const buf = await readFile(out);
+      await unlink(out).catch(() => {});
+      return NextResponse.json({
+        image: `data:image/jpeg;base64,${buf.toString("base64")}`,
+        docNumber: "",
+        simulated: false,
+      });
     }
-    const buf = await readFile(out);
     await unlink(out).catch(() => {});
-    return NextResponse.json({
-      image: `data:image/jpeg;base64,${buf.toString("base64")}`,
-      docNumber: "",
-    });
   } catch {
-    return NextResponse.json(
-      { error: "تعذر إجراء المسح من الماسح الضوئي المتصل بالجهاز." },
-      { status: 500 },
-    );
+    await unlink(out).catch(() => {});
+    // Hardware unavailable — fall through to the generated sample below.
   }
+
+  // Fallback: generated sample page (offline, no hardware needed).
+  const n = Math.floor(Math.random() * 9000) + 1000;
+  const docNumber = `SIM-${new Date().getFullYear()}-${n}`;
+  const svg = makeScanSvg({
+    title: "صفحة تجريبية من محاكاة المسح",
+    docNumber,
+    department: "تقنية المعلومات",
+    kind: "memo",
+    body: [
+      "هذه صفحة تجريبية مولّدة محلياً لغرض اختبار مسار المسح الضوئي دون الحاجة إلى ماسح متصل.",
+      "عند توصيل طابعة أو ماسح ضوئي سيُستخدم الجهاز الحقيقي تلقائياً بدل هذه العينة.",
+    ],
+  });
+  return NextResponse.json({
+    image: `data:image/svg+xml;base64,${Buffer.from(svg, "utf-8").toString("base64")}`,
+    docNumber,
+    simulated: true,
+  });
 }

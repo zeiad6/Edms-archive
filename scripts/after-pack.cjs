@@ -50,73 +50,36 @@ exports.default = async function afterPack(context) {
   // so resolution lands on the stub -> MODULE_NOT_FOUND -> HTTP 500 on
   // every page ("Failed to load external module ... Cannot find module
   // '@neon-rs/load/dist/index.js'"). Overwrite the stubs with the full
-  // packages from the project tree so the app is self-contained.
-  // ------------------------------------------------------------------
-  const EXTERNAL_PACKAGES = [
-    "@neon-rs/load", // libsql native loader (confirmed 500 cause)
-    "ws", // hrana-client ws transport
-    "libsql", // native sqlite binding wrapper
-    "@libsql/client",
-    "@libsql/core",
-    "@libsql/hrana-client",
-    "@libsql/isomorphic-ws",
+  // Overwrite Turbopack standalone stubs with full packages from the project
+  // tree so the app is self-contained. List is built DYNAMICALLY from
+  // package.json `dependencies` (top-level) + a small optional allowlist
+  // below for native/runtime subpaths Turbopack traces by hashed names.
+  // Extend without code change: AFTERPACK_EXTRA_PKGS="pkg-a,pkg-b/subpath".
+  const pkgJson = JSON.parse(
+    fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf8")
+  );
+  const TOP_LEVEL_DEPS = Object.keys(pkgJson.dependencies || {});
+  // Small allowlist: subpaths / platform binaries NOT enumerable as top-level
+  // deps but required at runtime (hashed .next/node_modules symlinks, libvips
+  // DLLs, Next compiled templates). Keep minimal; everything else auto-syncs
+  // with package.json so renames no longer break silently.
+  const RUNTIME_SUBPATH_ALLOWLIST = [
     "@libsql/win32-x64-msvc", // .node binary
-    "sharp", // image processing (thumbnails/tesseract)
     "@img/sharp-win32-x64", // libvips DLLs — NOT traced by Turbopack
     "@img/colour",
-    // Next.js compiled runtime templates. Turbopack's output tracing keeps
-    // only 3 of the ~70 files in next/dist/compiled/next-server and prunes
-    // the rest — including app-route-turbo.runtime.prod.js, which route
-    // chunks (e.g. api/backup) require at module-evaluation time. Result:
-    // HTTP 500 on every API route ("Failed to load external module ... app-
-    // route-turbo.runtime.prod.js"). Relative paths are copied from the
-    // project tree, parents created as needed.
-    "next/dist/compiled/next-server",
-    "next/dist/compiled/regenerator-runtime", // pruned path.js (runtime.js kept)
-    // archiver — the backup route requires it via createRequire() (dynamic
-    // require), which Turbopack's standalone trace cannot see, so the entire
-    // package is absent from the staged node_modules -> `archiver is not a
-    // function` (HTTP 500 on /api/backup) in packaged builds. Copy the full
-    // dependency closure (verified against node_modules/archiver/package.json).
-    "archiver",
-    "async",
-    "buffer-crc32",
-    "is-stream",
-    "lazystream",
-    "normalize-path",
-    "readable-stream",
-    "readdir-glob",
-    "tar-stream",
-    "zip-stream",
-    "compress-commons",
-    "crc-32",
-    "crc32-stream",
-    "minimatch",
-    "brace-expansion",
-    "balanced-match",
-    "concat-map",
-    "b4a",
-    "bare-events",
-    "bare-fs",
-    "bare-path",
-    "bare-stream",
-    "bare-url",
-    "fast-fifo",
-    "streamx",
-    "events-universal",
-    "text-decoder",
-    "teex",
-    // readable-stream v4 runtime deps (abort-controller, buffer, events,
-    // process, string_decoder + their own deps)
-    "abort-controller",
-    "event-target-shim",
-    "buffer",
-    "base64-js",
-    "ieee754",
-    "events",
-    "process",
-    "string_decoder",
-    "safe-buffer",
+    "@neon-rs/load", // libsql native loader (confirmed 500 cause, transitive)
+    "libsql", // native sqlite binding wrapper (transitive via @libsql/client)
+    "next/dist/compiled/next-server", // pruned app-route-turbo.runtime.prod.js
+    "next/dist/compiled/regenerator-runtime", // pruned path.js
+  ];
+  const envExtra = (process.env.AFTERPACK_EXTRA_PKGS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const EXTERNAL_PACKAGES = [
+    ...TOP_LEVEL_DEPS,
+    ...RUNTIME_SUBPATH_ALLOWLIST,
+    ...envExtra.filter((p) => !TOP_LEVEL_DEPS.includes(p)),
   ];
   const projectModules = path.resolve(__dirname, "..", "node_modules");
   const stagedModules = path.join(dest, "node_modules");

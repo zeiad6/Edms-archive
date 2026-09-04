@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Cairo } from "next/font/google";
+import { Cairo, IBM_Plex_Sans_Arabic } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { db } from "@/db";
@@ -19,6 +19,13 @@ const cairo = Cairo({
   weight: ["400", "500", "600", "700", "800"],
   display: "swap",
   variable: "--font-cairo",
+});
+
+const plexArabic = IBM_Plex_Sans_Arabic({
+  subsets: ["arabic", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-plex-arabic",
 });
 
 // Applied before first paint to avoid a flash of the wrong theme.
@@ -115,7 +122,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   }
 
   return (
-    <html lang="ar" dir="rtl" className={cairo.variable} suppressHydrationWarning>
+    <html lang="ar" dir="rtl" className={`${cairo.variable} ${plexArabic.variable}`} suppressHydrationWarning>
       <head>
         <Script id="theme-init" strategy="beforeInteractive">{themeInit}</Script>
         <Script id="lang-init" strategy="beforeInteractive">{langInit}</Script>

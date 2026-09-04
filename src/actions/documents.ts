@@ -212,7 +212,9 @@ export async function saveScannedDocument(input: {
     throw new Error(`حجم الملف يتجاوز الحد الأقصى ${MAX_SCAN_SIZE / 1024 / 1024} ميجابايت`);
   }
 
-  const ext = mime.includes("svg") ? "svg" : mime.includes("png") ? "png" : "jpg";
+  if (!["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(mime.toLowerCase())) throw new Error("صيغة الصورة غير مدعومة");
+  const ext = mime.toLowerCase().includes("png") ? "png" : mime.toLowerCase().includes("webp") ? "webp" : "jpg";
+  const safeMime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
   const key = genKey(ext);
   await writeKey(key, buf);
   const thumbKey = await createImageThumbnail(key);
@@ -241,7 +243,7 @@ export async function saveScannedDocument(input: {
       thumbKey,
       originalName: `${input.title || "scan"}.${ext}`,
       fileName: key.split("/").pop()!,
-      mimeType: mime,
+      mimeType: safeMime,
       fileExt: ext,
       fileSize: buf.length,
       contentText: input.description || null,
@@ -270,6 +272,98 @@ export async function saveScannedDocument(input: {
       entityType: "document",
       entityId: doc.id,
       details: `إيداع مستند ممسوح: ${input.title}`,
+    });
+  }
+  revalidatePath("/documents");
+  return { id: doc?.id };
+}
+
+/**
+ * Save a multi-page scan assembled by the hardware multi-scan window as a
+ * single PDF document. Mirrors `saveScannedDocument` (auth, 20MB cap, audit,
+ * version row) but accepts `data:application/pdf;base64,…` produced locally
+ * by `scannedDataUrlsToPdfDataUrl` — the bytes never leave the machine
+ * unencrypted beyond the existing session.
+ */
+export async function saveScannedPdfDocument(input: {
+  title: string;
+  description?: string;
+  docType?: string;
+  docNumber?: string;
+  departmentId?: number;
+  folderId?: number;
+  dataUrl: string;
+  pageCount: number;
+}) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("يجب تسجيل الدخول لحفظ المستند الممسوح");
+  const m = /^data:application\/pdf;base64,(.*)$/.exec(input.dataUrl);
+  if (!m) throw new Error("صيغة ملف PDF غير صحيحة");
+  const buf = Buffer.from(m[1], "base64");
+  if (buf.length < 5 || buf.toString("latin1", 0, 5) !== "%PDF-") {
+    throw new Error("ملف PDF غير صالح");
+  }
+
+  const MAX_SCAN_SIZE = 20 * 1024 * 1024; // 20 MB
+  if (buf.length > MAX_SCAN_SIZE) {
+    throw new Error(`حجم الملف يتجاوز الحد الأقصى ${MAX_SCAN_SIZE / 1024 / 1024} ميجابايت`);
+  }
+
+  const key = genKey("pdf");
+  await writeKey(key, buf);
+
+  const docTypeVal = (input.docType || "صورة ضوئية").trim();
+  let docTypeId: number | null = null;
+  const [typeRow] = await db
+    .select({ id: docTypes.id })
+    .from(docTypes)
+    .where(eq(docTypes.name, docTypeVal))
+    .limit(1);
+  docTypeId = typeRow?.id ?? null;
+
+  const [doc] = await db
+    .insert(documents)
+    .values({
+      title: input.title || "مستند ممسوح ضوئياً",
+      description: input.description || null,
+      docNumber: input.docNumber || null,
+      docType: docTypeVal,
+      docTypeId,
+      status: "active",
+      storageKey: key,
+      thumbKey: null,
+      originalName: `${input.title || "scan"}.pdf`,
+      fileName: key.split("/").pop()!,
+      mimeType: "application/pdf",
+      fileExt: "pdf",
+      fileSize: buf.length,
+      pageCount: input.pageCount > 0 ? input.pageCount : 1,
+      contentText: input.description || null,
+      ocrProcessed: 0,
+      departmentId: input.departmentId ?? user?.departmentId ?? null,
+      folderId: input.folderId ?? null,
+      uploadedById: user.id,
+      docDate: new Date().toISOString().slice(0, 10),
+    })
+    .returning({ id: documents.id });
+
+  if (doc?.id) {
+    await db.insert(documentVersions).values({
+      documentId: doc.id,
+      version: 1,
+      storageKey: key,
+      originalName: `${input.title || "scan"}.pdf`,
+      fileSize: buf.length,
+      note: `مسح ضوئي متعدد (${input.pageCount} صفحات) عبر نافذة الماسحة`,
+      uploadedById: user.id,
+    });
+    await logAudit({
+      userId: user?.id,
+      userName: user?.name,
+      action: "document.scan",
+      entityType: "document",
+      entityId: doc.id,
+      details: `إيداع مستند ممسوح PDF (${input.pageCount} صفحات): ${input.title}`,
     });
   }
   revalidatePath("/documents");

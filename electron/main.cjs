@@ -15,11 +15,15 @@
  */
 
 const { app, BrowserWindow, ipcMain } = require("electron");
+
+// Session cookie name — MUST mirror SESSION_COOKIE in src/lib/session.ts.
+const SESSION_COOKIE = "edms_uid";
 const { spawn } = require("child_process");
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const net = require("net");
+const crypto = require("crypto");
 
 // ---------------------------------------------------------------------------
 // Constants & user-data redirection (asar payload is read-only, so all
@@ -47,6 +51,35 @@ function userDataDir() {
 }
 
 // ---------------------------------------------------------------------------
+// Per-install AUTH_SECRET (first-boot generation). Stored in userData /
+// auth_secret with mode 0600, injected into process.env.AUTH_SECRET before
+// the Next server spawns. Never logged, never bundled in the installer.
+// ---------------------------------------------------------------------------
+function ensureAuthSecret() {
+  if (process.env.AUTH_SECRET?.trim()) return process.env.AUTH_SECRET.trim();
+  const file = path.join(app.getPath("userData"), "auth_secret");
+  try {
+    if (fs.existsSync(file)) {
+      const existing = fs.readFileSync(file, "utf8").trim();
+      if (existing) {
+        process.env.AUTH_SECRET = existing;
+        return existing;
+      }
+    }
+  } catch { /* fall through to generation */ }
+  const generated = crypto.randomBytes(48).toString("base64url");
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, generated + "\n", { mode: 0o600 });
+    try { fs.chmodSync(file, 0o600); } catch { /* Windows ACL — ignore */ }
+  } catch (err) {
+    throw new Error("[main] could not persist per-install AUTH_SECRET: " + err.message);
+  }
+  process.env.AUTH_SECRET = generated;
+  return generated;
+}
+
+// ---------------------------------------------------------------------------
 // Free-port selection.
 // ---------------------------------------------------------------------------
 
@@ -66,7 +99,7 @@ function getFreePort() {
 // Pending-restore swap (boot-time). The restore API never touches the live
 // DB (Windows file locks — libsql keeps the old inode) — it stages *.pending
 // files plus a restore-pending.json flag, and we apply the swap HERE, before
-// resources/env (AUTH_SECRET) is read and before the Next server spawns.
+// the per-install AUTH_SECRET is ensured and before the Next server spawns.
 // Failures are logged, never fatal — the app boots with whatever is on disk.
 // ---------------------------------------------------------------------------
 
@@ -88,15 +121,17 @@ function applyPendingRestore(dataDir) {
       swap("edms.db.pending-wal", "edms.db-wal");
       swap("edms.db.pending-shm", "edms.db-shm");
     }
+    // SECURITY: never restore secrets into resources/env (would reintroduce
+    // bundled-secret flaw). Packaged restores touching config are ignored;
+    // dev may restore .env locally.
     if (
       parts.includes("config") &&
       flag.configPath &&
       fs.existsSync(flag.configPath)
     ) {
-      const target = IS_DEV
-        ? path.join(process.cwd(), ".env")
-        : path.join(process.resourcesPath, "env");
-      fs.copyFileSync(flag.configPath, target);
+      if (IS_DEV) {
+        fs.copyFileSync(flag.configPath, path.join(process.cwd(), ".env"));
+      }
       fs.rmSync(flag.configPath, { force: true });
     }
     fs.rmSync(flagFile, { force: true });
@@ -175,23 +210,10 @@ async function bootNext(port) {
   env.EDMS_SCRIPTS_DIR = dirs.scripts;
   env.DATABASE_URL = `file:${dirs.data.replace(/\\/g, "/")}/edms.db`;
 
-  // AUTH_SECRET: from resources/env if packaged, else leave whatever the
-  // user exported (dev fallback only — never a hard-coded production key).
-  if (app.isPackaged) {
-    const envFile = path.join(process.resourcesPath, "env");
-    if (fs.existsSync(envFile)) {
-      const txt = fs.readFileSync(envFile, "utf8");
-      for (const line of txt.split(/\r?\n/)) {
-        const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-        if (m && !env[m[1]]) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-      }
-    }
-    if (!env.AUTH_SECRET) {
-      // sessions would fail closed (verifySession rejects) — better to crash
-      // loudly than run with an empty secret.
-      throw new Error("AUTH_SECRET missing from resources/env — packaging step must copy .env");
-    }
-  }
+  // AUTH_SECRET: per-install secret in userData/auth_secret (generated at
+  // first boot). Never bundled via resources/env, never logged.
+  ensureAuthSecret();
+  env.AUTH_SECRET = process.env.AUTH_SECRET;
 
   // Scan script lives outside asar too (child process must exec it).
   if (fs.existsSync(path.join(process.resourcesPath, "scan-wia.ps1"))) {
@@ -258,6 +280,37 @@ async function createWindow(url) {
   win.on("unmaximize", sendState);
   win.on("enter-full-screen", sendState);
   win.on("leave-full-screen", sendState);
+
+  // Closing the desktop window = logging out: wipe the session cookie first
+  // so the next launch always lands on the login screen. Best-effort and
+  // async-safe — the close is re-issued after the cookies are removed.
+  let loggingOut = false;
+  win.on("close", (e) => {
+    if (loggingOut) return; // second pass — really close
+    e.preventDefault();
+    loggingOut = true;
+    (async () => {
+      try {
+        const ses = win.webContents.session;
+        const all = await ses.cookies.get({});
+        await Promise.all(
+          all
+            .filter((c) => c.name === SESSION_COOKIE)
+            .map((c) => {
+              const scheme = c.secure ? "https" : "http";
+              const domain = (c.domain || "").replace(/^\./, "");
+              return ses.cookies
+                .remove(`${scheme}://${domain}${c.path || "/"}`, c.name)
+                .catch(() => {});
+            }),
+        );
+      } catch {
+        /* logout is best-effort — never trap the window */
+      } finally {
+        if (win && !win.isDestroyed()) win.close();
+      }
+    })();
+  });
 
   await win.loadURL(url);
   return win;

@@ -13,6 +13,22 @@ import crypto from "crypto";
 
 export const DEFAULT_PASSWORD = "Password@123";
 
+/**
+ * Sanitize a pasted/typed login password before verification.
+ *
+ * Copying the default password from an RTL page routinely grabs invisible
+ * junk around it (trailing spaces/newlines, LRM/RLM marks, zero-width
+ * characters) — and pasting it verbatim then fails verification, locking the
+ * user out with a correct password. Stripping that surrounding noise is safe:
+ * real passwords are never meant to start/end with it.
+ *
+ * NOTE: applied ONLY to the *current-password* check at login. New passwords
+ * chosen by the user are stored exactly as typed.
+ */
+export function sanitizePastedPassword(raw: string): string {
+  return raw.replace(/^[\s\u200B-\u200F\u202A-\u202E\u2066-\u2069]+|[\s\u200B-\u200F\u202A-\u202E\u2066-\u2069]+$/g, "");
+}
+
 const SCRYPT_N = 32768; // 2^15 — OWASP minimum-ish for interactive logins
 const SCRYPT_R = 8;
 const SCRYPT_P = 1;

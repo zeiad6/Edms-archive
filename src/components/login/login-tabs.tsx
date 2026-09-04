@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useActionState } from "react";
-import { AlertCircle, KeyRound, Loader2, Lock, UsersRound, X } from "lucide-react";
+import { AlertCircle, Check, Copy, KeyRound, Loader2, Lock, UsersRound, X } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/format";
 import { LoginForm } from "./login-form";
 import { Avatar } from "@/components/ui";
@@ -105,6 +106,48 @@ function UserPasswordPanel({
   );
 }
 
+/**
+ * Click-to-copy for the displayed default password (same literal as
+ * DEFAULT_PASSWORD in src/lib/password.ts — hardcoded here because that
+ * module imports node:crypto and cannot be bundled client-side).
+ */
+function DefaultPasswordCopy() {
+  const [copied, setCopied] = useState(false);
+  useLang();
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText("Password@123");
+    } catch {
+      // Clipboard API unavailable (permissions) — fallback via selection.
+      const ta = document.createElement("textarea");
+      ta.value = "Password@123";
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    setCopied(true);
+    toast.success(t("تم نسخ كلمة المرور الافتراضية"));
+    window.setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      title={t("اضغط للنسخ")}
+      aria-label={t("نسخ كلمة المرور الافتراضية")}
+      className="tnum inline-flex cursor-pointer items-center gap-1 rounded-md bg-white/10 px-1.5 py-0.5 font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/20 hover:ring-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+    >
+      <span dir="ltr">Password@123</span>
+      {copied ? <Check className="h-3 w-3 text-emerald-300" /> : <Copy className="h-3 w-3 opacity-70" />}
+    </button>
+  );
+}
+
 /** Login page tabs: password login (default) + quick user picker (demo). */
 export function LoginTabs({ users }: { users: LoginUserOption[] }) {
   const [tab, setTab] = useState<Tab>("password");
@@ -196,12 +239,7 @@ export function LoginTabs({ users }: { users: LoginUserOption[] }) {
         <div className="mt-4 space-y-2.5">
           <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-[11px] leading-relaxed text-white/65">
             {t("كلمة المرور الافتراضية لجميع الحسابات: ")}
-            <code
-              dir="ltr"
-              className="tnum rounded-md bg-white/10 px-1.5 py-0.5 font-semibold text-white ring-1 ring-inset ring-white/15"
-            >
-              Password@123
-            </code>
+            <DefaultPasswordCopy />
           </p>
           <details className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-[11px] text-white/65 shadow-sm backdrop-blur transition-colors duration-150 open:bg-white/[0.06] hover:border-primary/40">
             <summary className="cursor-pointer select-none font-semibold text-white/80">
@@ -221,9 +259,7 @@ export function LoginTabs({ users }: { users: LoginUserOption[] }) {
       <div className="mt-6 border-t border-white/10 pt-4 text-center text-[11px] leading-relaxed text-white/55">
         <p>{t("واجهة محاكاة صلاحيات · نظام تجريبي")}</p>
         <p className="mt-1">
-          {t("تم تطوير البرنامج بواسطة")}{" "}
-          <span className="font-semibold text-white/80">Ziad Al-hammadi</span> ·{" "}
-          <span dir="ltr" className="tnum">+967 784 908 515</span>
+          {t("نظام أرشفة إلكترونية مفتوح المصدر")}
         </p>
       </div>
     </>

@@ -323,18 +323,21 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
             ZIP
           </button>
 
-          {/* Export: ZIP + Excel manifest */}
+          {/* Export: ZIP + Excel manifest — emerald/teal glow identity */}
           <button
             onClick={handleExportSelected}
             disabled={busy === "export"}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-60"
+            title="تنزيل ZIP فيه الملفات + كشف Excel (غلاف EDMS، روابط تفتح داخل الحزمة)"
+            aria-busy={busy === "export"}
+            aria-label="تصدير ZIP مع كشف Excel"
+            className="group inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-4 py-2 text-xs font-bold text-white shadow-[0_0_18px_-4px_rgba(16,185,129,0.7)] ring-1 ring-emerald-300/40 transition hover:from-emerald-500 hover:to-teal-500 hover:shadow-[0_0_24px_-4px_rgba(16,185,129,0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:opacity-60"
           >
             {busy === "export" ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <FileSpreadsheet className="h-3.5 w-3.5" />
+              <FileSpreadsheet className="h-3.5 w-3.5 transition group-hover:scale-110" />
             )}
-            ZIP + كشف
+            {busy === "export" ? "جارٍ تجهيز الكشف…" : "ZIP + كشف"}
           </button>
         </div>
       </div>

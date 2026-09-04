@@ -110,21 +110,50 @@ export function mimeFromExt(ext: string): string {
     gif: "image/gif",
     webp: "image/webp",
     svg: "image/svg+xml",
+    bmp: "image/bmp",
+    tif: "image/tiff",
+    tiff: "image/tiff",
     doc: "application/msword",
     docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     xls: "application/vnd.ms-excel",
     xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ppt: "application/vnd.ms-powerpoint",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     txt: "text/plain",
+    csv: "text/csv",
+    rtf: "application/rtf",
   };
-  return map[ext] || "application/octet-stream";
+  return map[ext.toLowerCase()] || "application/octet-stream";
 }
 
 export function isImage(mime: string): boolean {
   return mime.startsWith("image/");
 }
 
+/** Images the browser renders natively in <img> (TIFF excluded — no browser support). */
+export function isBrowserImage(mime: string, ext?: string | null): boolean {
+  if (!isImage(mime)) return false;
+  const e = (ext || "").toLowerCase();
+  if (e === "tif" || e === "tiff" || mime === "image/tiff") return false;
+  return true;
+}
+
 export function isPdf(mime: string): boolean {
   return mime === "application/pdf";
+}
+
+/** Plain-text formats we render inline as <pre> (fetched client-side). */
+export function isTextPreviewable(mime: string, ext?: string | null): boolean {
+  const e = (ext || "").toLowerCase();
+  if (["txt", "csv"].includes(e)) return true;
+  return mime === "text/plain" || mime === "text/csv";
+}
+
+const OFFICE_EXTS = new Set(["doc", "docx", "xls", "xlsx", "ppt", "pptx", "rtf"]);
+
+/** Office formats with no native browser renderer — download-only with guidance. */
+export function isOfficeOnly(ext?: string | null): boolean {
+  return OFFICE_EXTS.has((ext || "").toLowerCase());
 }
 
 export function initials(name: string): string {

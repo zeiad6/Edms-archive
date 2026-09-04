@@ -55,7 +55,8 @@ export function ApprovalCard({ req, isApprover, canApprove }: ApprovalCardProps)
   const StatusIcon = st.icon;
 
   return (
-    <Card className="overflow-hidden transition hover:shadow-md">
+    <Card interactive className="relative overflow-hidden transition">
+      <span aria-hidden className="pointer-events-none absolute inset-y-0 start-0 w-1 bg-gradient-to-b from-primary/60 via-primary/20 to-transparent opacity-0 transition-opacity" />
       <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1 space-y-3">
           {/* Header */}
@@ -128,10 +129,10 @@ export function ApprovalCard({ req, isApprover, canApprove }: ApprovalCardProps)
             </div>
           )}
 
-          {/* Timestamps */}
-          <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-            <span>{req.createdAt ? `أُرسل: ${timeAgo(req.createdAt)}` : "أُرسل: —"}</span>
-            {req.respondedAt && <span>استُجيب: {formatDate(req.respondedAt)}</span>}
+          {/* Timestamps — approvals timeline meta */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 font-medium"><Clock className="h-3 w-3" />{req.createdAt ? `أُرسل: ${timeAgo(req.createdAt)}` : "أُرسل: —"}</span>
+            {req.respondedAt && <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 font-medium">استُجيب: {formatDate(req.respondedAt)}</span>}
           </div>
         </div>
 

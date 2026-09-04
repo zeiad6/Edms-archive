@@ -4,6 +4,7 @@ import {
   buildXlsxBuffer,
   buildXlsxParts,
   buildPlaceholderPng,
+  hyperlinkTarget,
   GALLERY_COLS,
   type XlsxDocRow,
   type XlsxPreview,
@@ -180,7 +181,7 @@ describe("buildXlsxParts", () => {
     );
     const sheet = parts.find((p) => p.name === "xl/worksheets/sheet1.xml")!.data.toString("utf8");
 
-    expect(sheet).toContain('<dimension ref="A1:J4"/>');
+    expect(sheet).toContain('<dimension ref="A1:J5"/>'); // +1 totals footer row (COUNT/SUM)
     // data rows are 52pt tall — 64px preview + breathing room
     expect(sheet).toContain('<row r="3" ht="52" customHeight="1">');
     expect(sheet).toContain('<row r="4" ht="52" customHeight="1">');
@@ -206,7 +207,7 @@ describe("buildXlsxParts", () => {
     const drawing = parts.find((p) => p.name === "xl/drawings/drawing1.xml")!.data.toString("utf8");
     const rels = parts.find((p) => p.name === "xl/drawings/_rels/drawing1.xml.rels")!.data.toString("utf8");
     // three anchors, three image rels — two of them point at the same icon part
-    expect(drawing.match(/<xdr:oneCellAnchor>/g)).toHaveLength(3);
+    expect(drawing.match(/<xdr:twoCellAnchor editAs="oneCell">/g)).toHaveLength(3);
     expect(rels.match(/relationships\/image"/g)).toHaveLength(3);
     expect(rels).toContain('Target="../media/image1.png"');
     expect(rels).toContain('Target="../media/image2.jpg"');
@@ -218,7 +219,7 @@ describe("buildXlsxParts", () => {
 // ───────────────────────────────────────────────────────────────────────────
 
 describe("hyperlinks", () => {
-  it("declares an external hyperlink per row with the raw Unicode file name as target", () => {
+  it("declares an external hyperlink per row with the relative documents path as target", () => {
     const parts = buildXlsxParts([makeRow({ entryName: "قرار إداري - 2026.pdf" })], OPTIONS);
     const sheet = parts.find((p) => p.name === "xl/worksheets/sheet1.xml")!.data.toString("utf8");
     const rels = parts.find((p) => p.name === "xl/worksheets/_rels/sheet1.xml.rels")!.data.toString("utf8");
@@ -226,15 +227,15 @@ describe("hyperlinks", () => {
     expect(sheet).toContain('<hyperlink ref="I3" r:id="rId1" tooltip="فتح الملف داخل الحزمة"/>');
     expect(rels).toContain('TargetMode="External"');
     // Excel does NOT percent-decode relative external targets — the target
-    // must be the literal sibling file name (see hyperlinkTarget).
-    expect(rels).toContain('Target="قرار إداري - 2026.pdf" TargetMode="External"');
+    // must be the literal path relative to the manifest folder (see hyperlinkTarget).
+    expect(rels).toContain('Target="../documents/قرار إداري - 2026.pdf" TargetMode="External"');
     expect(rels).not.toContain("%20");
     expect(rels).not.toContain("%D8%");
     // display text keeps the raw file name
     expect(sheet).toContain("<t xml:space=\"preserve\">قرار إداري - 2026.pdf</t>");
   });
 
-  it("every hyperlink target equals the exact ZIP entry name (raw, no percent-decoding)", () => {
+  it("every hyperlink target equals the relative documents path (raw, no percent-decoding)", () => {
     const names = ["عقد-توريد.pdf", "قرار إداري - 2026.pdf", "فاتورة (شهر 8).xlsx", "مذكرة#سرية?.doc"];
     const parts = buildXlsxParts(
       names.map((entryName, i) => makeRow({ index: i + 1, entryName })),
@@ -244,11 +245,51 @@ describe("hyperlinks", () => {
     const targets = [...rels.matchAll(/Target="([^"]+)" TargetMode="External"/g)].map((m) => m[1]);
     // raw equality — only the URI fragment delimiter # is escaped (%23)
     expect(targets).toEqual([
-      "عقد-توريد.pdf",
-      "قرار إداري - 2026.pdf",
-      "فاتورة (شهر 8).xlsx",
-      "مذكرة%23سرية?.doc",
+      "../documents/عقد-توريد.pdf",
+      "../documents/قرار إداري - 2026.pdf",
+      "../documents/فاتورة (شهر 8).xlsx",
+      "../documents/مذكرة%23سرية?.doc",
     ]);
+  });
+
+  it("file cell carries an external hyperlink rel matching the raw entryName", () => {
+    const entryName = "تقرير متابعة & مراجعة #2.pdf";
+    const parts = buildXlsxParts([makeRow({ entryName })], OPTIONS);
+    const sheet = parts.find((p) => p.name === "xl/worksheets/sheet1.xml")!.data.toString("utf8");
+    const rels = parts.find((p) => p.name === "xl/worksheets/_rels/sheet1.xml.rels")!.data.toString("utf8");
+    // display text is the raw file name (XML-escaped), hyperlink target is raw + #→%23
+    expect(sheet).toContain('<c r="I3" s="6" t="inlineStr">'); // first data row uses alt hyperlink style
+    expect(sheet).toContain('<hyperlink ref="I3" r:id="rId1"');
+    expect(rels).toContain('Target="../documents/تقرير متابعة &amp; مراجعة %232.pdf" TargetMode="External"');
+    expect(rels).not.toContain("%D8%");
+    expect(rels).not.toContain("%20");
+  });
+
+  it("adds AutoFilter, frozen pane, totals footer and landscape fit-to-page print setup", () => {
+    const parts = buildXlsxParts([makeRow({ index: 1 }), makeRow({ index: 2 })], OPTIONS);
+    const sheet = parts.find((p) => p.name === "xl/worksheets/sheet1.xml")!.data.toString("utf8");
+    expect(sheet).toContain('<autoFilter ref="A2:J4"/>');
+    expect(sheet).toContain('state="frozen"');
+    expect(sheet).toContain("الإجمالي — 2 مستند");
+    expect(sheet).toContain("<f>SUM(H3:H4)</f>");
+    expect(sheet).toContain('orientation="landscape"');
+    expect(sheet).toContain('fitToPage="1"');
+  });
+
+  it("emits an EDMS cover sheet with counts, totals and status/department summaries", () => {
+    const parts = buildXlsxParts(
+      [makeRow({ status: "ساري" }), makeRow({ status: "منتهي", departmentName: "المالية" })],
+      OPTIONS,
+    );
+    const names = parts.map((p) => p.name);
+    expect(names).toContain("xl/worksheets/sheet3.xml");
+    const workbook = parts.find((p) => p.name === "xl/workbook.xml")!.data.toString("utf8");
+    expect(workbook).toContain('name="الغلاف" sheetId="3" r:id="rId4"');
+    const cover = parts.find((p) => p.name === "xl/worksheets/sheet3.xml")!.data.toString("utf8");
+    expect(cover).toContain("EDMS ◆");
+    expect(cover).toContain("ملخص حسب الحالة");
+    expect(cover).toContain("ملخص حسب القسم");
+    expect(cover).toContain('rightToLeft="1"');
   });
 
   it("keeps the drawing relationship id distinct from the hyperlink ids", () => {
@@ -279,7 +320,13 @@ describe("drawing & media", () => {
     // 64px thumbnails centered in the 52pt row (rowOff 25400) and ~96px column (colOff 152400)
     expect(drawing).toContain("<xdr:colOff>152400</xdr:colOff>");
     expect(drawing).toContain("<xdr:rowOff>25400</xdr:rowOff>");
-    expect(drawing).toContain(`<xdr:ext cx="609600" cy="609600"/>`);
+    // twoCellAnchor repair guard: explicit editAs + from/to, no bare ext child
+    expect(drawing).toContain('<xdr:twoCellAnchor editAs="oneCell">');
+    expect(drawing).not.toContain("<xdr:oneCellAnchor>");
+    expect(drawing).not.toContain("<xdr:ext ");
+    // `to` reuses the from cell with start-offset + 64px size (762000 / 635000)
+    expect(drawing).toContain("<xdr:to><xdr:col>9</xdr:col><xdr:colOff>762000</xdr:colOff><xdr:row>2</xdr:row><xdr:rowOff>635000</xdr:rowOff></xdr:to>");
+    expect(drawing).toContain(`<a:ext cx="609600" cy="609600"/>`);
     expect(drawing).toContain('r:embed="rId1"');
     expect(drawing).toContain("<xdr:clientData/>");
   });
@@ -340,6 +387,90 @@ describe("drawing & media", () => {
 });
 
 // ───────────────────────────────────────────────────────────────────────────
+// Drawing repair guard (ECMA-376 CT_TwoCellAnchor): every anchor carries
+// editAs="oneCell" + from/to in schema order, every r:embed / hlinkClick
+// r:id resolves to a drawing rel, and every image rel target exists as a
+// media part. Fails on any future regression that makes Excel emit
+// "repaired parts: drawing1.xml / drawing2.xml".
+// ───────────────────────────────────────────────────────────────────────────
+
+describe("drawing repair guard (twoCellAnchor + rels consistency)", () => {
+  function xmlOf(parts: { name: string; data: Buffer }[], name: string): string {
+    return parts.find((p) => p.name === name)!.data.toString("utf8");
+  }
+
+  it("uses twoCellAnchor editAs=oneCell with from/to on every anchor, in schema order", () => {
+    const rows = [
+      makeRow({ index: 1, preview: previewJpg() }),
+      makeRow({ index: 2 }),
+      makeRow({ index: 3, preview: previewPng() }),
+    ];
+    const parts = buildXlsxParts(rows, OPTIONS);
+    for (const name of ["xl/drawings/drawing1.xml", "xl/drawings/drawing2.xml"]) {
+      const drawing = xmlOf(parts, name);
+      expect(drawing).not.toContain("oneCellAnchor");
+      const anchors = [...drawing.matchAll(/<xdr:twoCellAnchor editAs="oneCell">([\s\S]*?)<\/xdr:twoCellAnchor>/g)];
+      expect(anchors).toHaveLength(3);
+      for (const [, body] of anchors) {
+        const from = body.indexOf("<xdr:from>");
+        const to = body.indexOf("<xdr:to>");
+        const pic = body.indexOf("<xdr:pic>");
+        const client = body.indexOf("<xdr:clientData/>");
+        expect(from).toBeGreaterThanOrEqual(0);
+        expect(to).toBeGreaterThan(from);
+        expect(pic).toBeGreaterThan(to);
+        expect(client).toBeGreaterThan(pic);
+      }
+    }
+  });
+
+  it("every r:embed and hlinkClick r:id resolves to a drawing rel whose target exists", () => {
+    const rows = [
+      makeRow({ index: 1, preview: previewJpg(), entryName: "عقد-توريد.pdf" }),
+      makeRow({ index: 2, entryName: "قرار إداري - 2026.pdf" }),
+    ];
+    const parts = buildXlsxParts(rows, OPTIONS);
+    const mediaNames = parts.filter((p) => p.name.startsWith("xl/media/")).map((p) => p.name);
+    const pairs: Array<[string, string]> = [
+      ["xl/drawings/drawing1.xml", "xl/drawings/_rels/drawing1.xml.rels"],
+      ["xl/drawings/drawing2.xml", "xl/drawings/_rels/drawing2.xml.rels"],
+    ];
+    for (const [drawingName, relsName] of pairs) {
+      const drawing = xmlOf(parts, drawingName);
+      const rels = xmlOf(parts, relsName);
+      for (const id of [...drawing.matchAll(/r:embed="([^"]+)"/g)].map((m) => m[1])) {
+        const target = rels.match(new RegExp(`Id="${id}"[^>]*Target="([^"]+)"`))?.[1];
+        expect(target, `${drawingName} embed ${id}`).toBeTruthy();
+        expect(mediaNames, `${drawingName} embed ${id} target`).toContain(`xl/${target!.slice(3)}`);
+      }
+      for (const id of [...drawing.matchAll(/hlinkClick r:id="([^"]+)"/g)].map((m) => m[1])) {
+        expect(rels, `${drawingName} hlinkClick ${id}`).toContain(`Id="${id}"`);
+        expect(rels).toContain(`Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"`);
+      }
+      // cNvPr ids are unique within the drawing (duplicates trigger repair)
+      const ids = [...drawing.matchAll(/<xdr:cNvPr id="(\d+)"/g)].map((m) => m[1]);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+
+  it("shared placeholder icon resolves from both drawings to the single media part", () => {
+    const parts = buildXlsxParts([makeRow({ index: 1 }), makeRow({ index: 2 })], OPTIONS);
+    expect(parts.filter((p) => p.name.startsWith("xl/media/")).map((m) => m.name)).toEqual([
+      "xl/media/image1.png",
+    ]);
+    for (const relsName of [
+      "xl/drawings/_rels/drawing1.xml.rels",
+      "xl/drawings/_rels/drawing2.xml.rels",
+    ]) {
+      const rels = xmlOf(parts, relsName);
+      for (const target of [...rels.matchAll(/relationships\/image" Target="([^"]+)"/g)].map((m) => m[1])) {
+        expect(parts.some((p) => p.name === `xl/${target.slice(3)}`), `${relsName} ${target}`).toBe(true);
+      }
+    }
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────────
 // Gallery sheet «صور المستندات»
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -375,7 +506,7 @@ describe("gallery sheet «صور المستندات»", () => {
     expect(sheet).toContain('<hyperlink ref="A3" r:id="rId1" tooltip="فتح الملف داخل الحزمة"/>');
     expect(sheet).toContain('<hyperlink ref="B3" r:id="rId2" tooltip="فتح الملف داخل الحزمة"/>');
     expect(sheet).toContain('<drawing r:id="rId3"/>');
-    expect(rels).toContain('Target="عقد-توريد.pdf" TargetMode="External"');
+    expect(rels).toContain('Target="../documents/عقد-توريد.pdf" TargetMode="External"');
     expect(rels).toContain('<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing2.xml"/>');
   });
 
@@ -408,15 +539,20 @@ describe("gallery sheet «صور المستندات»", () => {
     const rels = parts.find((p) => p.name === "xl/drawings/_rels/drawing2.xml.rels")!.data.toString("utf8");
 
     // 150×110px = 1428750×1047750 EMU, centered in the 173px column / 130px row
-    expect(drawing).toContain(`<xdr:ext cx="1428750" cy="1047750"/>`);
+    expect(drawing).toContain(`<a:ext cx="1428750" cy="1047750"/>`);
     expect(drawing).toContain("<xdr:colOff>109538</xdr:colOff>");
     expect(drawing).toContain("<xdr:rowOff>98425</xdr:rowOff>");
+    // twoCellAnchor repair guard: explicit editAs + from/to (same cell, offset + size)
+    expect(drawing).toContain('<xdr:twoCellAnchor editAs="oneCell">');
+    expect(drawing).not.toContain("<xdr:oneCellAnchor>");
+    expect(drawing).not.toContain("<xdr:ext ");
+    expect(drawing).toContain("<xdr:to><xdr:col>0</xdr:col><xdr:colOff>1538288</xdr:colOff><xdr:row>1</xdr:row><xdr:rowOff>1146175</xdr:rowOff></xdr:to>");
     // 1pt thin border around the picture
     expect(drawing).toContain('<a:ln w="12700"><a:solidFill><a:srgbClr val="FFCBD5E1"/></a:solidFill></a:ln>');
     // image click opens the file (hyperlink rel lives after the image rels)
     expect(drawing).toContain('<a:hlinkClick r:id="rId2" tooltip="فتح الملف داخل الحزمة"/>');
     expect(rels).toContain('<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.png"/>');
-    expect(rels).toContain('<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="عقد-توريد.pdf" TargetMode="External"/>');
+    expect(rels).toContain('<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="../documents/عقد-توريد.pdf" TargetMode="External"/>');
   });
 
   it("every gallery image r:embed resolves to a media part and every hlinkClick to a raw file target", () => {
@@ -442,7 +578,7 @@ describe("gallery sheet «صور المستندات»", () => {
     const hlinkIds = [...drawing.matchAll(/r:id="(rId[4-6])"/g)].map((m) => m[1]);
     expect(hlinkIds).toEqual(["rId4", "rId5", "rId6"]);
     for (const name of ["عقد-توريد.pdf", "قرار إداري - 2026.pdf", "فاتورة.xlsx"]) {
-      expect(rels).toContain(`relationships/hyperlink" Target="${name}" TargetMode="External"`);
+      expect(rels).toContain(`relationships/hyperlink" Target="../documents/${name}" TargetMode="External"`);
     }
   });
 
@@ -476,8 +612,8 @@ describe("gallery sheet «صور المستندات»", () => {
     const drawing2 = parts.find((p) => p.name === "xl/drawings/drawing2.xml")!.data.toString("utf8");
     const rels2 = parts.find((p) => p.name === "xl/drawings/_rels/drawing2.xml.rels")!.data.toString("utf8");
 
-    expect(drawing1.match(/<xdr:oneCellAnchor>/g)).toHaveLength(2);
-    expect(drawing2.match(/<xdr:oneCellAnchor>/g)).toHaveLength(2);
+    expect(drawing1.match(/<xdr:twoCellAnchor editAs="oneCell">/g)).toHaveLength(2);
+    expect(drawing2.match(/<xdr:twoCellAnchor editAs="oneCell">/g)).toHaveLength(2);
     expect(rels1.match(/relationships\/image"/g)).toHaveLength(2);
     expect(rels2.match(/relationships\/image"/g)).toHaveLength(2);
     // both drawings reference the same single icon part
@@ -566,10 +702,10 @@ describe("buildXlsxBuffer (end-to-end)", () => {
     expect(byName.get("xl/drawings/drawing2.xml")!.toString("utf8")).toContain('<a:hlinkClick r:id="rId3"');
     expect(byName.get("[Content_Types].xml")!.toString("utf8")).toContain("spreadsheetml.sheet.main+xml");
 
-    // the hyperlink targets equal the exact document file names — raw, no decoding
+    // the hyperlink targets equal the relative documents paths — raw, no decoding
     const rels = byName.get("xl/worksheets/_rels/sheet1.xml.rels")!.toString("utf8");
     const targets = [...rels.matchAll(/Target="([^"]+)" TargetMode="External"/g)].map((m) => m[1]);
-    expect(targets).toEqual(["عقد-توريد.pdf", "قرار إداري - 2026.pdf"]);
+    expect(targets).toEqual(["../documents/عقد-توريد.pdf", "../documents/قرار إداري - 2026.pdf"]);
   });
 
   it("keeps the icon deduplicated end-to-end (3 placeholders → 1 media part, 3 rels per drawing)", async () => {
@@ -581,16 +717,179 @@ describe("buildXlsxBuffer (end-to-end)", () => {
 
     const drawing1 = entries.find((e) => e.name === "xl/drawings/drawing1.xml")!.data.toString("utf8");
     const rels1 = entries.find((e) => e.name === "xl/drawings/_rels/drawing1.xml.rels")!.data.toString("utf8");
-    expect(drawing1.match(/<xdr:oneCellAnchor>/g)).toHaveLength(3);
+    expect(drawing1.match(/<xdr:twoCellAnchor editAs="oneCell">/g)).toHaveLength(3);
     expect(rels1.match(/relationships\/image"/g)).toHaveLength(3);
     expect(rels1).toContain('Target="../media/image1.png"');
 
     const drawing2 = entries.find((e) => e.name === "xl/drawings/drawing2.xml")!.data.toString("utf8");
     const rels2 = entries.find((e) => e.name === "xl/drawings/_rels/drawing2.xml.rels")!.data.toString("utf8");
-    expect(drawing2.match(/<xdr:oneCellAnchor>/g)).toHaveLength(3);
+    expect(drawing2.match(/<xdr:twoCellAnchor editAs="oneCell">/g)).toHaveLength(3);
     expect(drawing2).toContain('<a:hlinkClick r:id="rId4"');
     expect(rels2.match(/relationships\/image"/g)).toHaveLength(3);
     expect(rels2.match(/relationships\/hyperlink"/g)).toHaveLength(3);
     expect(rels2).toContain('Target="../media/image1.png"');
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// ZIP layout contract: report/كشف-المستندات.xlsx + documents/<file>
+// ───────────────────────────────────────────────────────────────────────────
+
+describe("zip layout contract (report/ + documents/)", () => {
+  it("hyperlinkTarget builds a relative path from the manifest folder: raw unicode, #→%23 only", () => {
+    expect(hyperlinkTarget("عقد توريد.pdf", "../documents/")).toBe("../documents/عقد توريد.pdf");
+    expect(hyperlinkTarget("مذكرة#سرية.pdf", "../documents/")).toBe("../documents/مذكرة%23سرية.pdf");
+    // & stays raw here — the caller applies escapeXml for the XML attribute
+    expect(hyperlinkTarget("تقرير & مراجعة.pdf", "../documents/")).toBe("../documents/تقرير & مراجعة.pdf");
+    // no basePath keeps the legacy bare-name behaviour
+    expect(hyperlinkTarget("عقد-توريد.pdf")).toBe("عقد-توريد.pdf");
+  });
+
+  it("every hyperlink rel (sheet1/sheet2/drawing hlinkClick) matches the relative documents path", () => {
+    const names = ["عقد-توريد.pdf", "قرار إداري - 2026.pdf", "مذكرة#سرية?.doc"];
+    const rows = names.map((entryName, i) => makeRow({ index: i + 1, entryName }));
+    const parts = buildXlsxParts(rows, OPTIONS);
+    const xmlOf = (n: string) => parts.find((p) => p.name === n)!.data.toString("utf8");
+    const expected = [
+      "../documents/عقد-توريد.pdf",
+      "../documents/قرار إداري - 2026.pdf",
+      "../documents/مذكرة%23سرية?.doc",
+    ];
+    const sheet1 = [...xmlOf("xl/worksheets/_rels/sheet1.xml.rels").matchAll(/Target="([^"]+)" TargetMode="External"/g)].map((m) => m[1]);
+    const sheet2 = [...xmlOf("xl/worksheets/_rels/sheet2.xml.rels").matchAll(/Target="([^"]+)" TargetMode="External"/g)].map((m) => m[1]);
+    const drawingHlinks = [...xmlOf("xl/drawings/_rels/drawing2.xml.rels").matchAll(/relationships\/hyperlink" Target="([^"]+)" TargetMode="External"/g)].map((m) => m[1]);
+    expect(sheet1).toEqual(expected);
+    expect(sheet2).toEqual(expected);
+    expect(drawingHlinks).toEqual(expected);
+    // hlinkClick ids in drawing2 point at those hyperlink rels (rIdN+1..rId2N)
+    const drawing = xmlOf("xl/drawings/drawing2.xml");
+    const rels2 = xmlOf("xl/drawings/_rels/drawing2.xml.rels");
+    const hlinks = [...drawing.matchAll(/hlinkClick r:id="([^"]+)"/g)].map((m) => m[1]);
+    expect(hlinks).toEqual(["rId4", "rId5", "rId6"]);
+    for (const id of hlinks) expect(rels2).toContain(`Id="${id}"`);
+  });
+
+  it("the manifest opens: sheet1/2/3 + rels + contentTypes are mutually consistent", () => {
+    const parts = buildXlsxParts([makeRow({ index: 1 })], OPTIONS);
+    const xmlOf = (n: string) => parts.find((p) => p.name === n)!.data.toString("utf8");
+    const workbook = xmlOf("xl/workbook.xml");
+    const wbRels = xmlOf("xl/_rels/workbook.xml.rels");
+    const types = xmlOf("[Content_Types].xml");
+    expect(workbook).toContain('name="الغلاف" sheetId="3" r:id="rId4"');
+    expect(wbRels).toContain('Id="rId4"');
+    expect(wbRels).toContain('Target="worksheets/sheet3.xml"');
+    expect(types).toContain('PartName="/xl/worksheets/sheet3.xml"');
+    for (const s of ["xl/worksheets/sheet1.xml", "xl/worksheets/sheet2.xml", "xl/worksheets/sheet3.xml"]) {
+      expect(xmlOf(s)).toContain("<dimension ref=");
+      expect(xmlOf(s)).toContain("<sheetData>");
+    }
+    // sheet1 keeps dimension/autofilter/footer/print; the cover needs no rels part
+    expect(xmlOf("xl/worksheets/sheet1.xml")).toContain("<autoFilter");
+    expect(xmlOf("xl/worksheets/sheet1.xml")).toContain("<f>SUM(");
+    expect(xmlOf("xl/worksheets/sheet1.xml")).toContain('orientation="landscape"');
+    expect(parts.some((p) => p.name === "xl/worksheets/_rels/sheet3.xml.rels")).toBe(false);
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// OOXML repair guard: worksheet child order (ECMA-376 CT_Worksheet) +
+// merged-range cell presence + caption newline hygiene. Fails on any future
+// reorder that makes Excel emit "repaired parts" for sheet1/2/3.
+// ───────────────────────────────────────────────────────────────────────────
+
+describe("worksheet repair guard (ECMA-376 order)", () => {
+  const ORDER = [
+    "<sheetPr",
+    "<dimension",
+    "<sheetViews",
+    "<cols",
+    "<sheetData",
+    "<autoFilter",
+    "<mergeCells",
+    "<hyperlinks",
+    "<printOptions",
+    "<pageMargins",
+    "<pageSetup",
+    "<drawing",
+  ];
+
+  function expectSchemaOrder(xml: string, label: string): void {
+    let prev = -1;
+    for (const tag of ORDER) {
+      const idx = xml.indexOf(tag);
+      if (idx === -1) continue; // optional child absent — nothing to order
+      expect(idx, `${label}: ${tag} out of schema sequence`).toBeGreaterThan(prev);
+      prev = idx;
+    }
+  }
+
+  function xmlOf(parts: { name: string; data: Buffer }[], name: string): string {
+    return parts.find((p) => p.name === name)!.data.toString("utf8");
+  }
+
+  it("keeps sheet1/sheet2/sheet3 children in schema sequence (with and without rows)", () => {
+    const cases: XlsxDocRow[][] = [
+      [makeRow({ index: 1, preview: previewPng() }), makeRow({ index: 2 })],
+      [],
+    ];
+    for (const rows of cases) {
+      const parts = buildXlsxParts(rows, OPTIONS);
+      for (const name of [
+        "xl/worksheets/sheet1.xml",
+        "xl/worksheets/sheet2.xml",
+        "xl/worksheets/sheet3.xml",
+      ]) {
+        expectSchemaOrder(xmlOf(parts, name), `${name} (${rows.length} rows)`);
+      }
+    }
+  });
+
+  it("every merged range has all of its cells present", () => {
+    const parts = buildXlsxParts([makeRow({ index: 1 })], OPTIONS);
+    const sheet1 = xmlOf(parts, "xl/worksheets/sheet1.xml");
+    for (const ref of ["A1", "B1", "C1", "D1", "E1", "F1", "G1", "H1", "I1", "J1"]) {
+      expect(sheet1, `sheet1 ${ref}`).toContain(`<c r="${ref}"`);
+    }
+    const gallery = xmlOf(parts, "xl/worksheets/sheet2.xml");
+    for (const ref of ["A1", "B1", "C1", "D1"]) {
+      expect(gallery, `sheet2 ${ref}`).toContain(`<c r="${ref}"`);
+    }
+    const cover = xmlOf(parts, "xl/worksheets/sheet3.xml");
+    for (const ref of ["A1", "B1", "C1", "D1"]) {
+      expect(cover, `sheet3 ${ref}`).toContain(`<c r="${ref}"`);
+    }
+    // cover section merges (A{rr}:D{rr}) — every merged row keeps all 4 cells
+    for (const m of cover.matchAll(/<mergeCell ref="A(\d+):D\d+"\/>/g)) {
+      const r = m[1];
+      for (const col of ["A", "B", "C", "D"]) {
+        expect(cover, `sheet3 ${col}${r}`).toContain(`<c r="${col}${r}"`);
+      }
+    }
+  });
+
+  it("gallery captions preserve newlines and strip illegal controls", () => {
+    const bell = String.fromCharCode(7);
+    const parts = buildXlsxParts(
+      [makeRow({ index: 1, title: "line1\nline2" + bell + "tail" })],
+      OPTIONS,
+    );
+    const gallery = xmlOf(parts, "xl/worksheets/sheet2.xml");
+    const caption = gallery.match(/<c r="A3"[^>]*>[\s\S]*?<\/c>/)?.[0] ?? "";
+    // LF survives inside <t xml:space="preserve"> (wrapText shows the break),
+    // while the illegal BEL control is stripped by escapeXml.
+    expect(caption).toContain("line1\nline2tail");
+    expect(gallery).not.toContain(bell);
+    // no C0 control (other than tab/LF/CR) may leak into any sheet part
+    for (const name of [
+      "xl/worksheets/sheet1.xml",
+      "xl/worksheets/sheet2.xml",
+      "xl/worksheets/sheet3.xml",
+    ]) {
+      const xml = xmlOf(parts, name);
+      for (let i = 0; i < xml.length; i += 1) {
+        const c = xml.charCodeAt(i);
+        expect(c < 32 && c !== 9 && c !== 10 && c !== 13, `${name} offset ${i}`).toBe(false);
+      }
+    }
   });
 });

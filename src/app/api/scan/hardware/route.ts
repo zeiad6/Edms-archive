@@ -3,8 +3,9 @@ import { promisify } from "node:util";
 import { readFile, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/server";
+import { SCAN_COLORS, SCAN_DPIS, type ScanColorId } from "@/lib/scanner";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,12 +16,29 @@ const execFileAsync = promisify(execFile);
  * Scans a page from a WIA scanner physically connected to this machine
  * (USB / network / multi-function printer). Uses the built-in Windows WIA
  * COM API via a PowerShell script — real hardware scanning, no SDKs.
+ *
+ * Query params (all optional, validated against allowlists):
+ * - `device`: 1-based scanner index from GET /api/scan/devices (default 1).
+ * - `dpi`: one of 75/100/150/200/300/600 (default 300).
+ * - `color`: `color` | `gray` | `bw` (default `color`).
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
+  const sp = request.nextUrl.searchParams;
+
+  const deviceRaw = Number(sp.get("device") ?? "1");
+  const device = Number.isInteger(deviceRaw) && deviceRaw >= 1 && deviceRaw <= 32 ? deviceRaw : 1;
+
+  const dpiRaw = Number(sp.get("dpi") ?? "300");
+  const dpi = (SCAN_DPIS as readonly number[]).includes(dpiRaw) ? dpiRaw : 300;
+
+  const colorRaw = (sp.get("color") ?? "color") as ScanColorId;
+  const colorEntry = SCAN_COLORS.find((c) => c.id === colorRaw) ?? SCAN_COLORS[0];
+  const colorMode = colorEntry.wia;
+
   const out = path.join(tmpdir(), `edms-wia-${Date.now()}.jpg`);
   // The Electron shell sets EDMS_SCRIPTS_DIR (the packaged script lives in
   // resources next to the app; inside an asar it is not directly executable).
@@ -32,7 +50,11 @@ export async function GET() {
   try {
     await execFileAsync(
       "powershell.exe",
-      ["-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File", script, out],
+      [
+        "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File", script,
+        out, "-Dpi", String(dpi), "-ColorMode", String(colorMode),
+        "-DeviceIndex", String(device),
+      ],
       { timeout: 90_000, windowsHide: true, maxBuffer: 8 * 1024 * 1024 },
     );
     const buf = await readFile(out);
@@ -40,6 +62,9 @@ export async function GET() {
     return NextResponse.json({
       image: `data:image/jpeg;base64,${buf.toString("base64")}`,
       docNumber: "",
+      device,
+      dpi,
+      color: colorEntry.id,
     });
   } catch (e) {
     // scan-wia.ps1 exit codes: 0 = OK, 1 = scan failed, 2 = no scanner found

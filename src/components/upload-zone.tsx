@@ -177,7 +177,7 @@ export function UploadForm({
           type="file"
           className="hidden"
           multiple
-          accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt"
+          accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf"
           onChange={(e) => addFiles(e.target.files)}
         />
 

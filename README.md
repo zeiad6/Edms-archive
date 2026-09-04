@@ -1,187 +1,161 @@
-# أرشيف · نظام الأرشفة الإلكترونية (EDMS)
+<div align="center">
 
-منصة أرشفة إلكترونية مؤسسية آمنة مبنية على معمارية **الخادم الموحّد (Unified Backend)**:
-تُبنى الواجهة مرة واحدة بتقنيات الويب، ثم تُغلَّف لتعمل كتطبيق سطح مكتب عبر **Electron**
-للوصول إلى العتاد المحلي (الماسحة الضوئية). كل المعالجة، التخزين، البحث، والصلاحيات
-تجري مركزياً في الخادم.
+<img src="public/icon.svg" width="120" alt="شعار نظام الأرشفة الإلكترونية" />
 
-## التنفيذ الحالي (واجهة الويب — Next.js)
+# أرشيف — نظام الأرشفة الإلكترونية EDMS
 
-تم تنفيذ النواة الكاملة للنظام بواجهة عربية (RTL) باستخدام **Next.js (App Router) +
-PostgreSQL (Drizzle ORM)**، مع تطبيق نفس المبادئ المعمارية للنظام المؤسسي:
+**منصة أرشفة مؤسسية آمنة بواجهة عربية كاملة (RTL)** — من الماسح الضوئي إلى الإيداع الموثّق،
+تعمل على الويب وتُغلَّف كتطبيق سطح مكتب للوصول إلى عتاد المسح المحلي.
 
-| المبدأ المؤسسي | التطبيق هنا |
+![لوحة معلومات النظام](public/screenshot-dashboard.png)
+
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
+![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron)
+![SQLite](https://img.shields.io/badge/SQLite-libsql-003B57?logo=sqlite)
+![RTL](https://img.shields.io/badge/UI-Arabic_RTL-4f46e5)
+![Tests](https://img.shields.io/badge/tests-vitest-6E9F18?logo=vitest)
+
+[التشغيل السريع](#-التشغيل) · [الميزات](#-الميزات) · [نافذة المسح](#-نافذة-المسح-من-الطابعة) ·
+[سطح المكتب](#-تطبيق-سطح-المكتب) · [الأمان](#-الأمان) · [الاختبارات](#-الاختبارات)
+
+</div>
+
+---
+
+## ✨ الميزات
+
+| المجال | ما يقدمه النظام |
 | --- | --- |
-| التخزين الكائني (MinIO) | ملفات على قرص منفصل عن قاعدة البيانات، تُخدَم عبر مسار بث آمن يتحقق من الصلاحيات (`/api/documents/[id]/file`) |
-| محرك البحث (Meilisearch) | بحث نصّي شامل في PostgreSQL عبر `ILIKE` على العنوان والوصف ورقم المستند **والنص المستخرج من OCR** |
-| بث آمن للمستندات | عارض يبث الملف من الخادم (`inline`) دون حفظه محلياً، مع `Cache-Control: no-store` و `nosniff` |
-| صلاحيات (RBAC) | أدوار (مدير نظام / مشرف قسم / موظف) مع تقييد المستندات السرية والنطاق حسب القسم |
-| تدقيق كامل (Audit) | جدول `audit_logs` يسجّل كل عملية (عرض/تنزيل/رفع/تعديل/حذف/بحث/دخول) |
-| الجسر المحلي للماسحة | عميل WebSocket يتصل بـ `ws://127.0.0.1:8181` داخل Electron (مع محاكاة للوضع المتصفحي) |
+| 📊 **لوحة معلومات** | إحصاءات حية، توزيع الحالات والأقسام، أحدث المستندات، وموجز النشاط |
+| 📄 **المستندات** | تصفح وبحث شامل (العنوان، الوصف، الرقم، **نص OCR**) مع فلاتر الحالة/القسم/النوع/المجلد |
+| 👁️ **عارض آمن** | معاينة `inline` للصور و PDF و TXT/CSV دون حفظ محلي (`Cache-Control: no-store`) |
+| 🖨️ **المسح من الطابعة** | نافذة مسح فردي/متعدد: قائمة الأجهزة، اللون، الدقة، ترتيب ومعاينة قبل الإيداع |
+| 📷 **مسح الكاميرا** | التقاط مباشر + كشف باركود تلقائي (ZXing) يعبئ الرقم المرجعي |
+| ✅ **الموافقات** | طلب / اعتماد / رفض مع إشعارات داخل التطبيق وسجل تدقيق |
+| 💾 **النسخ الاحتياطي** | أرشيف ZIP مجزأ (`database`/`storage`/`scripts`/`config`) — للمدراء فقط |
+| 👥 **الإدارة** | الأقسام، المستخدمون، المجلدات، الأنواع، الوسوم، وسجل النشاط الكامل |
 
-### الميزات
-- **لوحة معلومات**: إحصاءات، توزيع الحالات والأقسام، أحدث المستندات، وموجز النشاط.
-- **المستندات**: تصفّح وبحث شامل مع تصفية (الحالة/القسم/النوع/المجلد) واحترام الصلاحيات.
-- **تفاصيل المستند**: عارض آمن (صور/PDF)، تعديل البيانات الوصفية، الإصدارات، وسجل الكيان.
-- **الرفع**: سحب وإفلات + بيانات وصفية، مع محاكاة لمرحلة المعالجة والفهرسة.
-- **الماسحة الضوئية**: جسر WebSocket مع معاينة Base64 فورية وحفظ في الأرشيف.
-- **الأقسام / المستخدمون / سجل النشاط**: إدارة كاملة.
+> **النظام يُهيّئ نفسه تلقائياً**: عند أول تشغيل تُنشأ الجداول والبيانات التجريبية دون أي خطوة يدوية.
 
-> النظام **يُهيّئ نفسه تلقائياً**: عند أول تشغيل يُنشئ الجداول ويُولّد مستندات عربية
-> واقعية (صور SVG ممسوحة + ملفات PDF) وبيانات تجريبية دون أي خطوات يدوية.
+---
 
-## حزمة التقنيات المستهدفة (Enterprise)
+## 🖨️ نافذة المسح من الطابعة
 
-- **الخادم**: C# .NET 8 (REST APIs) · **PostgreSQL** · **MinIO** · **Meilisearch**
-- **الواجهة**: React + TypeScript · **Tailwind CSS** (RTL) · **PDF.js** · **Electron**
-- **المعالجة**: **Tesseract OCR** (عربي/إنجليزي) · **Node.js + WebSockets** (جسر العتاد)
+زر واحد **«مسح من الطابعة»** يفتح نافذة فرع المسح — فردي أو متعدد — ثم تُضاف الصفحات إلى
+الواجهة الرئيسية، **ومن هناك فقط يتم الإيداع** في المستندات:
 
-## جسر الماسحة الضوئية (Electron + C# WIA)
-
-### 1) خادم WebSocket المحلي داخل Electron (`main.js`)
-يُفتح على `127.0.0.1:8181` حصراً، ويستدعي أداة المسح ويعيد الصورة كـ Base64:
-
-```js
-const { app, BrowserWindow } = require("electron");
-const WebSocket = require("ws");
-const { execFile } = require("child_process");
-const path = require("path");
-
-let wss;
-function startScannerBridge() {
-  wss = new WebSocket.Server({ port: 8181, host: "127.0.0.1" });
-  wss.on("connection", (ws) => {
-    console.log("✅ React Client connected to Scanner Bridge");
-    ws.on("message", async (message) => {
-      try {
-        const request = JSON.parse(message);
-        if (request.action === "START_SCAN") {
-          const base64Image = await performScan();
-          ws.send(JSON.stringify({
-            status: "SUCCESS",
-            image: `data:image/png;base64,${base64Image}`,
-          }));
-        }
-      } catch (error) {
-        ws.send(JSON.stringify({ status: "ERROR", message: error.message }));
-      }
-    });
-  });
-}
-
-// يستدعي أداة C# ويعيد Base64 النقي عبر stdout
-function performScan() {
-  return new Promise((resolve, reject) => {
-    const exePath = path.join(__dirname, "assets", "bin", "ScannerCLI.exe");
-    execFile(exePath, { maxBuffer: 1024 * 1024 * 50 }, (error, stdout, stderr) => {
-      if (error) return reject(new Error(stderr || error.message));
-      const base64Data = stdout.trim();
-      if (!base64Data) return reject(new Error("لم يتم استقبال أي بيانات من الماسحة."));
-      resolve(base64Data);
-    });
-  });
-}
-
-app.whenReady().then(() => {
-  startScannerBridge();
-  // createBrowserWindow() ...
-});
+```
+الطابعة (WIA) → نافذة المسح → الواجهة الرئيسية → الإيداع في الأرشيف
 ```
 
-### 2) أداة المسح C# عبر WIA (`ScannerCLI/Program.cs`)
-تعرض نافذة المسح الأصلية لويندوز وتعيد الصورة Base64 عبر stdout:
+- **الأجهزة المتصلة**: سرد تلقائي للماسحات والطابعات متعددة الوظائف (USB/شبكة) مع تحديث.
+- **خيارات المسح**: اللون (ألوان / رمادي / أسود وأبيض) والدقة (75 → 600 DPI).
+- **المعرض بالترتيب**: كل مسح يُلحق بالترتيب، مع سحب وإفلات وأزرار تحريك.
+- **تكبير وحذف**: ضغطة مزدوجة للتكبير، وحذف أي صورة بتأكيد مزدوج.
+- **الإيداع الذكي**: صفحة واحدة تُحفظ كصورة، وعدة صفحات تُدمج تلقائياً في **ملف PDF واحد**
+  يُبنى محلياً دون أي مكتبة خارجية أو اتصال بالإنترنت.
+- **محاكاة المسح**: تعمل دائماً — تستخدم العتاد إن وُجد، وإلا تولّد صفحة عينة محلية.
 
-```csharp
-using System;
-using System.IO;
-using WIA; // مرجع COM: Microsoft Windows Image Acquisition Library v2.0
+---
 
-namespace ScannerCLI
-{
-    class Program
-    {
-        [STAThread] // WIA يتطلب STA Thread
-        static void Main(string[] args)
-        {
-            try
-            {
-                CommonDialog wiaDialog = new CommonDialog();
-                ImageFile scannedImage = wiaDialog.ShowAcquireImage(
-                    WiaDeviceType.ScannerDeviceType,
-                    WiaImageIntent.ColorIntent,
-                    WiaImageBias.MaximizeQuality,
-                    "{B96B3CAF-0728-11D3-9D7B-0000F81EF32E}", // PNG
-                    false, true, true);
+## 🖥️ تطبيق سطح المكتب
 
-                if (scannedImage != null)
-                {
-                    string tempFilePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.png");
-                    scannedImage.SaveFile(tempFilePath);
-                    byte[] imageBytes = File.ReadAllBytes(tempFilePath);
-                    File.Delete(tempFilePath);
-                    Console.Write(Convert.ToBase64String(imageBytes));
-                    Environment.Exit(0);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.Error.Write($"SCAN_ERROR: {ex.Message}");
-                Environment.Exit(1);
-            }
-        }
-    }
-}
+يُغلَّف النظام عبر **Electron** (خادم Next.js مدمج + SQLite محلي + سكربت WIA):
+
+- شريط عنوان مخصص (RTL، بدون إطار ويندوز) مع أزرار تصغير/تكبير/إغلاق.
+- **إغلاق النافذة = تسجيل خروج**: يُمسح كوكي الجلسة عند الإغلاق، فتفتح النسخة التالية
+  دائماً على شاشة تسجيل الدخول.
+- مفتاح `AUTH_SECRET` فريد لكل تثبيت (يُولَّد عند أول إقلاع بتقييد `0600`).
+- تحديث تلقائي اختياري عبر `electron-updater` عند ضبط `UPDATE_URL`.
+
+---
+
+## 🧱 المعمارية
+
+| الطبقة | التقنية |
+| --- | --- |
+| الواجهة والخادم | **Next.js 16** (App Router) + React 19 + Tailwind CSS 4 |
+| قاعدة البيانات | **SQLite** عبر **libsql** + **Drizzle ORM** (`data/edms.db`) |
+| كلمات المرور | **scrypt** (`node:crypto`) بصيغة `scrypt$N$r$p$salt$hash` |
+| الجلسات | كوكي `edms_uid` موقّع **HMAC-SHA256** بمفتاح `AUTH_SECRET` |
+| التخزين | ملفات على القرص (`storage/`) تُخدَم عبر مسار بث آمن يتحقق من الصلاحيات |
+| OCR | **Tesseract** (عربي/إنجليزي) + استخراج نص PDF محلياً |
+| الصلاحيات | RBAC (مدير / مشرف / موظف) + عزل المستندات السرية حسب القسم |
+| التدقيق | جدول `audit_logs` يسجل كل عملية (عرض/تنزيل/رفع/تعديل/حذف/بحث/دخول) |
+
+```
+├── src/app            ← صفحات App Router + مسارات API
+│   ├── api/scan       ← المسح (محاكاة/hardware/الأجهزة)
+│   └── api/documents  ← بث الملفات الآمن + الإصدارات
+├── src/components/scanner  ← الواجهة الرئيسية + نافذة المسح من الطابعة
+├── src/actions        ← إيداع الممسوح (صورة/PDF) والموافقات
+├── src/lib            ← scrypt، الجلسات، PDF المحلي، WIA، OCR
+├── scripts/scan-wia.ps1    ← سائق المسح (WIA COM، بلا تعريفات خارجية)
+└── electron/          ← غلاف سطح المكتب (main + preload)
 ```
 
-> **الأمان:** الربط بـ `127.0.0.1` حتمي لمنع أي جهاز على الشبكة المحلية من الوصول للماسحة.
+---
 
-## التشغيل (واجهة الويب)
+## 🚀 التشغيل
 
 ```bash
 npm install
-npm run dev      # تطوير
-npm run build    # إنتاج
+npm run dev      # تطوير — http://localhost:3000
+npm run build    # بناء إنتاجي
+npm start        # تشغيل إنتاجي
 ```
 
-قاعدة البيانات تُهيّأ ذاتياً عبر `DATABASE_URL`. لا حاجة لأي ترحيل يدوي.
+الحسابات التجريبية (كلمة المرور الافتراضية للجميع: `Password@123` — تُطلب عند أول دخول):
 
-## النشر (إنتاج)
+| المستخدم | الدور |
+| --- | --- |
+| `k.alomari` | مدير النظام |
+| `s.almalki` / `a.alharbi` | مشرف قسم |
+| `n.alqahtani` / `f.aldosari` / `m.alzahrani` | موظف |
 
-### المتطلبات
-- **Node.js 20+** (الخادم يعمل كعملية واحدة: `next start`).
-- **Tesseract OCR** اختياري — بدون تثبيته تُعطَّل خاصية استخراج النص من الصور (أو حدد المسار عبر `TESSERACT_PATH`).
+---
 
-### خطوات النشر
+## 🧪 الاختبارات
+
 ```bash
-npm ci                       # تثبيت نظيف حسب lockfile
-npm run build                # بناء إنتاجي (أُنشئ مرات عديدة — عملية واحدة فقط)
-npm start                    # تشغيل الخادم (منفذ 3000 افتراضياً)
+npm test                  # كل الاختبارات (vitest)
+npm run test:critical     # المسارات الحرجة (backup/restore/scan/upload/documents/approvals)
+npm run db:seed:check     # فحص عدّادات الجداول الأساسية
+npm run lint              # فحص ESLint
+npm run typecheck         # فحص TypeScript
+npm run electron:pack     # تغليف تطبيق سطح المكتب
 ```
-> تشغيل **عملية واحدة فقط**: لا تشغّل `next dev` أو نسخاً متعددة من `next start` على نفس المجلد — قاعدة SQLite ملفية لا تتحمل كتابة متزامنة من عمليات متعددة.
 
-### المتغيرات المطلوبة
-- **`AUTH_SECRET` إلزامي** — يولَّد عبر:
-  ```bash
-  node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
-  ```
-  بدونه يعمل النظام بمفتاح تطويري مع تحذير في السجل (غير آمن للإنترنت).
-- **`DATABASE_URL`** → `file:./data/edms.db` (يُنشأ تلقائياً).
-- **`NEXT_PUBLIC_APP_URL`** → عنوان النطاق الفعلي (لا `localhost`).
+---
 
-### HTTPS والكوكي الآمن
-- ضع الخادم خلف وكيل عكسي (Nginx/Caddy) ينهي TLS ويوجّه إلى المنفذ 3000.
-- خيارات الكوكي في `src/lib/session.ts`: `secure` مضبوط على `false` ليعمل على HTTP و HTTPS معاً (مناسب للديمو) — عند النشر خلف HTTPS حصراً، ارفعه إلى `true`.
+## 🔐 الأمان
 
-### النسخ الاحتياطي (يدوي)
-1. **أوقف** الخادم (`Ctrl+C` أو إيقاف الخدمة).
-2. انسخ ZIP احتياطياً ثم **فك ضغطه فوق** `data/storage` (المستندات) مع `data/edms.db` (قاعدة البيانات).
-3. **أعد تشغيل** الخادم.
+- جلسات موقعة HMAC بلا أسرار افتراضية (فشل صريح عند غياب `AUTH_SECRET` في التطوير).
+- ملفات SVG/Office تُجبر على التنزيل ولا تُنفَّذ داخل origin التطبيق.
+- البث `inline` للصور و PDF مع `SAMEORIGIN` و `no-store` — لا أثر على القرص المحلي.
+- تدقيق كامل لكل عملية حساسة، وعزل الصلاحيات حسب القسم والسرية.
 
-> لا تنسخ الملفات فوق `data/storage` والـ DB أثناء تشغيل الخادم — قواعد SQLite قد تتلف عند الكتابة المتزامنة.
+## ⚙️ متغيرات البيئة
 
-### OCR على Linux
-- ثبّت Tesseract: `sudo apt install tesseract-ocr tesseract-ocr-ara` (أو حسب التوزيعة).
-- حدد المسار صراحةً إن لم يُكتشف تلقائياً:
-  ```
-  TESSERACT_PATH=/usr/bin/tesseract
-  ```
+| المتغير | الوصف |
+| --- | --- |
+| `AUTH_SECRET` | **إلزامي في الإنتاج** (≥32 حرفاً) — `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"` |
+| `DATABASE_URL` | افتراضياً `file:./data/edms.db` (يُنشأ تلقائياً) |
+| `NEXT_PUBLIC_APP_URL` | عنوان النطاق الفعلي (لا `localhost` في الإنتاج) |
+| `TESSERACT_PATH` | مسار Tesseract عند عدم اكتشافه (Linux: `sudo apt install tesseract-ocr tesseract-ocr-ara`) |
+| `EDMS_DATA_DIR` / `EDMS_STORAGE_DIR` / `EDMS_SCRIPTS_DIR` | تُضبط تلقائياً من غلاف Electron |
+
+## 📦 النشر (إنتاج)
+
+1. `npm ci` ثم `npm run build` ثم `npm start` (منفذ 3000).
+2. شغّل **عملية واحدة فقط** — SQLite ملفية لا تتحمل كتابة متزامنة من عمليات متعددة.
+3. ضع الخادم خلف وكيل عكسي (Nginx/Caddy) يُنهي TLS.
+4. النسخ الاحتياطي: أوقف الخادم، انسخ `data/edms.db` + `storage/`، ثم أعد التشغيل.
+
+---
+
+<div align="center">
+
+**تم التطوير بواسطة Ziad Al-hammadi** · نظام الأرشفة الإلكترونية EDMS
+
+</div>

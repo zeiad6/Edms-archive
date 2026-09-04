@@ -13,12 +13,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:critical": "vitest run src/app/api/critical-guards.test.ts src/lib/__tests__/session-signing.test.ts",
+    "db:seed:check": "node --experimental-strip-types scripts/seed-check.ts",
     "icons": "node scripts/gen-icons.cjs",
-    "electron:pack": "node scripts/build-electron.cjs"
+    "electron:pack": "node scripts/build-electron.cjs",
+    "electron:rebuild": "electron-rebuild -f -w @libsql/client,sharp"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
-    "@next/bundle-analyzer": "^16.2.11",
     "@radix-ui/react-dialog": "^1.1.20",
     "@radix-ui/react-slot": "^1.3.0",
     "@radix-ui/react-tabs": "^1.1.18",
@@ -48,7 +50,9 @@
   "overrides": {
     "semver": "^7.8.5"
   },
+  "_nativeRebuildNote": "ABI mismatch fix: run npm run electron:rebuild after npm ci on the packaging host to recompile @libsql/client+sharp against Electron 43 headers (alternative: electron-builder npmRebuild:true, kept false here for faster deterministic builds).",
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.2.11",
     "@tailwindcss/postcss": "4.1.17",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
@@ -59,6 +63,7 @@
     "@types/react-dom": "19.2.3",
     "drizzle-kit": "0.31.10",
     "electron": "^43.4.0",
+    "electron-rebuild": "^3.2.9",
     "electron-builder": "^26.15.3",
     "eslint": "9.39.4",
     "eslint-config-next": "^16.3.0",

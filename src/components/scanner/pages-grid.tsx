@@ -73,15 +73,22 @@ export function PagesGrid({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-center gap-2 border-b border-border pb-3 text-xs font-medium text-muted-foreground">
-        <GripVertical className="h-3.5 w-3.5" />
-        اسحب المقبض لإعادة الترتيب أو استخدم الأسهم — {pages.length}{" "}
-        {pages.length === 1 ? "صفحة" : "صفحات"}
+    <section aria-label={`الصفحات الممسوحة — ${pages.length}`} className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <GripVertical className="h-3.5 w-3.5" />
+          </span>
+          اسحب المقبض لإعادة الترتيب أو استخدم الأسهم —{" "}
+          <span className="tnum rounded-full bg-primary/10 px-2 py-0.5 font-bold text-primary">{pages.length}</span>{" "}
+          {pages.length === 1 ? "صفحة" : "صفحات"}
+        </div>
+        <p className="text-[11px] text-muted-foreground/80">الترتيب هنا هو ترتيب الصفحات في المستند النهائي</p>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {pages.map((page, idx) => {
           const isConfirming = confirmId === page.id;
+          const isDragging = dragIdx === idx;
           return (
             <div
               key={page.id}
@@ -94,21 +101,21 @@ export function PagesGrid({
               onDragEnd={onDragEnd}
               aria-label={`صفحة ${idx + 1} من ${pages.length}`}
               className={cn(
-                "group relative overflow-hidden rounded-xl border border-border bg-muted transition hover:border-primary/50",
-                dragIdx === idx && "opacity-50",
+                "group relative overflow-hidden rounded-xl border bg-muted shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-card focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-ring/30",
+                isDragging ? "border-primary/60 opacity-50 ring-2 ring-primary/30" : "border-border",
               )}
             >
               {/* Page number + order indicator */}
-              <div className="absolute left-1 top-1 z-10 flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+              <div className="absolute left-1.5 top-1.5 z-10 flex items-center gap-1 rounded-md bg-black/65 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
                 <GripVertical className="h-3 w-3 text-white/60" />
-                {idx + 1} / {pages.length}
+                <span className="tnum">{idx + 1} / {pages.length}</span>
               </div>
 
               {/* Barcode badge */}
               {page.barcode && (
-                <div className="absolute right-1 top-1 z-10 flex items-center gap-1 rounded-md bg-emerald-500/80 px-1.5 py-0.5 text-[10px] text-white">
-                  <Barcode className="h-3 w-3" />
-                  <span title={page.barcode.text}>
+                <div className="absolute right-1.5 top-1.5 z-10 flex max-w-[55%] items-center gap-1 rounded-md bg-emerald-500/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm backdrop-blur">
+                  <Barcode className="h-3 w-3 shrink-0" />
+                  <span className="truncate" title={page.barcode.text}>
                     {page.barcode.text.slice(0, 12)}
                     {page.barcode.text.length > 12 ? "…" : ""}
                   </span>
@@ -116,7 +123,7 @@ export function PagesGrid({
               )}
 
               {/* Move up / down (accessible + touch fallback) */}
-              <div className="absolute bottom-1 left-1 z-10 flex gap-1">
+              <div className="absolute bottom-1.5 left-1.5 z-10 flex gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                 <button
                   type="button"
                   draggable={false}
@@ -124,7 +131,7 @@ export function PagesGrid({
                   onClick={() => handleMovePage(idx, idx - 1)}
                   title="تحريك لأعلى"
                   aria-label={`تحريك صفحة ${idx + 1} لأعلى`}
-                  className="flex h-6 w-6 items-center justify-center rounded-md bg-black/60 text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-30"
+                  className="flex h-6 w-6 items-center justify-center rounded-md bg-black/65 text-white backdrop-blur transition hover:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   <ChevronUp className="h-3 w-3" />
                 </button>
@@ -135,7 +142,7 @@ export function PagesGrid({
                   onClick={() => handleMovePage(idx, idx + 1)}
                   title="تحريك لأسفل"
                   aria-label={`تحريك صفحة ${idx + 1} لأسفل`}
-                  className="flex h-6 w-6 items-center justify-center rounded-md bg-black/60 text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-30"
+                  className="flex h-6 w-6 items-center justify-center rounded-md bg-black/65 text-white backdrop-blur transition hover:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   <ChevronDown className="h-3 w-3" />
                 </button>
@@ -153,10 +160,10 @@ export function PagesGrid({
                     : `حذف صفحة ${idx + 1}`
                 }
                 className={cn(
-                  "absolute bottom-1 right-1 z-10 inline-flex h-6 min-w-6 items-center justify-center gap-1 rounded-md px-1.5 text-[10px] font-semibold text-white transition",
+                  "absolute bottom-1.5 right-1.5 z-10 inline-flex h-6 min-w-6 items-center justify-center gap-1 rounded-md px-1.5 text-[10px] font-semibold text-white shadow-sm backdrop-blur transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
                   isConfirming
                     ? "bg-rose-600 hover:bg-rose-700"
-                    : "bg-black/60 opacity-80 hover:bg-rose-600 hover:opacity-100",
+                    : "bg-black/65 opacity-100 hover:bg-rose-600 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100",
                 )}
               >
                 {isConfirming ? "تأكيد؟" : <Trash2 className="h-3 w-3" />}
@@ -166,12 +173,14 @@ export function PagesGrid({
               <img
                 src={page.dataUrl}
                 alt={`صفحة ${idx + 1}`}
-                className="h-36 w-full object-cover"
+                loading="lazy"
+                draggable={false}
+                className="aspect-[3/4] h-36 w-full bg-white object-cover"
               />
             </div>
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }

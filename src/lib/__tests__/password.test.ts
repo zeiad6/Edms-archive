@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hashPassword, verifyPassword, DEFAULT_PASSWORD } from "@/lib/password";
+import { hashPassword, sanitizePastedPassword, verifyPassword, DEFAULT_PASSWORD } from "@/lib/password";
 
 describe("hashPassword", () => {
   it("returns a self-describing scrypt hash with 6 parts", () => {
@@ -50,5 +50,28 @@ describe("verifyPassword", () => {
     const hash = hashPassword(DEFAULT_PASSWORD);
     expect(verifyPassword(DEFAULT_PASSWORD, hash)).toBe(true);
     expect(verifyPassword("not-the-default", hash)).toBe(false);
+  });
+});
+
+describe("sanitizePastedPassword", () => {
+  it("strips surrounding whitespace copied from the page", () => {
+    expect(sanitizePastedPassword("  Password@123\n")).toBe("Password@123");
+    expect(sanitizePastedPassword("\tPassword@123 ")).toBe("Password@123");
+  });
+
+  it("strips RTL copy artifacts (LRM/RLM, zero-width, bidi isolates)", () => {
+    expect(sanitizePastedPassword("\u200EPassword@123\u200F")).toBe("Password@123");
+    expect(sanitizePastedPassword("\u200BPassword@123\u2066")).toBe("Password@123");
+  });
+
+  it("keeps inner content untouched", () => {
+    expect(sanitizePastedPassword("Password@123")).toBe("Password@123");
+    expect(sanitizePastedPassword("a b")).toBe("a b");
+    expect(sanitizePastedPassword("")).toBe("");
+  });
+
+  it("makes a dirty paste verify against a clean hash (login contract)", () => {
+    const hash = hashPassword(DEFAULT_PASSWORD);
+    expect(verifyPassword(sanitizePastedPassword(" Password@123\u200E"), hash)).toBe(true);
   });
 });

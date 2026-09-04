@@ -178,16 +178,17 @@ describe("signSession key consistency", () => {
     expect(withKeyA).not.toBe(withKeyB);
   });
 
-  it("falls back to the dev secret when AUTH_SECRET is unset", () => {
+  it("fail-fasts when AUTH_SECRET is unset (no silent dev fallback)", () => {
     vi.stubEnv("AUTH_SECRET", "");
-    const fallback = signSession("1");
-    expect(verifySession(fallback)).toBe("1");
-    expect(console.warn).toHaveBeenCalled();
+    vi.stubEnv("NODE_ENV", "development");
+    expect(() => signSession("1")).toThrow(/AUTH_SECRET is missing/);
   });
 
-  it("uses the dev fallback consistently for the same uid", () => {
+  it("allows a short test-only secret when NODE_ENV=test", () => {
+    vi.stubEnv("NODE_ENV", "test");
     vi.stubEnv("AUTH_SECRET", "");
-    expect(signSession("1")).toBe(signSession("1"));
+    const token = signSession("1");
+    expect(verifySession(token)).toBe("1");
   });
 
   it("rejects a token signed with a different secret", () => {

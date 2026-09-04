@@ -1,13 +1,21 @@
 param(
-    [Parameter(Mandatory = $true)][string]$OutPath,
+    [string]$OutPath = "",
     [int]$Dpi = 300,
-    [int]$ColorMode = 2
+    [int]$ColorMode = 2,
+    [int]$DeviceIndex = 1,
+    [switch]$ListOnly
 )
 
-# Scans one page from the first WIA scanner physically connected to this
-# machine (USB / network / MFP). Uses the built-in Windows WIA COM API —
-# no third-party drivers or licenses required.
+# Multi-scan WIA driver for the EDMS scanner window. Uses the built-in Windows
+# WIA COM API — no third-party drivers or licenses required.
 # WIA DeviceType: 0=Unspecified, 1=Scanner, 2=Camera, 3=Video, 4=Default.
+#
+# Modes:
+#   -ListOnly            → prints one `DEVICE|<index>|<DeviceID>|<Name>` line per
+#                          connected scanner (Type 1) and exits 0 (2 = none).
+#   (default scan mode)  → scans one page from the DeviceIndex-th scanner
+#                          (1-based, default 1 = first scanner, backward
+#                          compatible) into -OutPath as JPEG.
 # Exit codes: 0 = OK, 1 = scan failed, 2 = no scanner found, 3 = WIA unavailable
 
 $ErrorActionPreference = "Stop"
@@ -26,11 +34,35 @@ try {
     }
 
     # Type 1 = Scanner (printers/MFP expose a scanner item as Type 1).
-    $scanner = $deviceManager.DeviceInfos | Where-Object { $_.Type -eq 1 } | Select-Object -First 1
-    if (-not $scanner) {
+    $scanners = @($deviceManager.DeviceInfos | Where-Object { $_.Type -eq 1 })
+    if ($scanners.Count -eq 0) {
         Write-Host "NO_SCANNER"
         exit 2
     }
+
+    if ($ListOnly) {
+        for ($i = 0; $i -lt $scanners.Count; $i++) {
+            $info = $scanners[$i]
+            $name = ""
+            try { $name = $info.Properties("Name").Value } catch { }
+            if ([string]::IsNullOrWhiteSpace($name)) { $name = "Scanner $($i + 1)" }
+            # Pipe-delimited: index is stable for -DeviceIndex selection.
+            $safe = $name -replace '\|', '/'
+            Write-Host ("DEVICE|{0}|{1}|{2}" -f ($i + 1), $info.DeviceID, $safe)
+        }
+        Write-Host "OK"
+        exit 0
+    }
+
+    if ([string]::IsNullOrWhiteSpace($OutPath)) {
+        Write-Host "SCAN_FAILED: -OutPath is required in scan mode"
+        exit 1
+    }
+    if ($DeviceIndex -lt 1 -or $DeviceIndex -gt $scanners.Count) {
+        Write-Host ("SCAN_FAILED: device index {0} out of range (1..{1})" -f $DeviceIndex, $scanners.Count)
+        exit 1
+    }
+    $scanner = $scanners[$DeviceIndex - 1]
 
     $device = $scanner.Connect()
     $item = $device.Items(1)

@@ -12,6 +12,7 @@
  */
 
 import crypto from "crypto";
+import "./env";
 
 export const SESSION_COOKIE = "edms_uid" as const;
 
@@ -28,19 +29,16 @@ export const SESSION_COOKIE_OPTIONS = {
 } as const;
 
 /**
- * Development-only fallback. Never use in production: `AUTH_SECRET` MUST be
- * set in the environment — `.env.example` documents how to generate one.
+ * Fail-fast secret resolution. AUTH_SECRET MUST be set in production.
+ * Only NODE_ENV=test may use a short non-production test secret.
  */
-const DEV_FALLBACK_SECRET = "dev-secret-change-me";
-
-/** Resolve the HMAC key, warning loudly when the env secret is missing. */
 function getSecret(): string {
   const secret = process.env.AUTH_SECRET?.trim();
   if (secret) return secret;
-  console.warn(
-    "[session] AUTH_SECRET غير مضبوط — جلسات الكوكي ستُوقَّع بالمفتاح الاحتياطي للتطوير فقط. اضبط AUTH_SECRET في .env قبل النشر."
+  if (process.env.NODE_ENV === "test") return "test-only-secret";
+  throw new Error(
+    "[session] AUTH_SECRET is missing — set a 32+ byte AUTH_SECRET env var before boot."
   );
-  return DEV_FALLBACK_SECRET;
 }
 
 /**

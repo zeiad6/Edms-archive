@@ -75,6 +75,7 @@ export default async function DocumentDetail({
           <DocDetailClient
             id={doc.id}
             mime={doc.mimeType}
+            ext={doc.fileExt}
             title={doc.title}
             isAdmin={can(user, "documents.update_all")}
           />

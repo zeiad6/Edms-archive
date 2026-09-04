@@ -3,12 +3,14 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
-import { saveScannedDocument } from "@/actions/documents";
+import { saveScannedDocument, saveScannedPdfDocument } from "@/actions/documents";
 import { useCamera } from "@/hooks/use-camera";
 import { usePageManager } from "@/hooks/use-page-manager";
 import { useDragReorder } from "@/hooks/use-drag-reorder";
+import { scannedDataUrlsToPdfDataUrl } from "@/lib/scan-pdf";
 import { buildSavePayload, type Option } from "@/lib/scanner";
 import { CameraPanel } from "@/components/scanner/camera-panel";
+import { HardwareScanDialog } from "@/components/scanner/hardware-scan-dialog";
 import { ScanStatusBanners } from "@/components/scanner/status-banners";
 import { PagesGrid } from "@/components/scanner/pages-grid";
 import { SaveForm } from "@/components/scanner/save-form";
@@ -27,6 +29,7 @@ export function ScannerClient({
   const [scanning, setScanning] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [multiOpen, setMultiOpen] = useState(false);
 
   const {
     videoRef,
@@ -83,35 +86,20 @@ export function ScannerClient({
     }
   }
 
-  /** Scan a real page from a WIA scanner connected to this machine. */
-  async function handleHardwareScan() {
-    setScanning(true);
-    setErr("");
-    try {
-      const res = await fetch("/api/scan/hardware");
-      // The API returns distinct Arabic errors per failure mode (no scanner
-      // found, WIA unavailable, generic). Parse the JSON body and surface the
-      // server's message; fall back to a generic message when the body is not
-      // JSON (e.g. a non-JSON 500 page).
-      const d = await res.json().catch(() => null);
-      if (!res.ok || !d?.image) {
-        throw new Error(
-          d?.error || "تعذر إجراء المسح الضوئي — تحقق من توصيل الطابعة/الماسح",
-        );
-      }
-      await addPageWithBarcode(d.image, d.docNumber);
-    } catch (e) {
-      setErr(
-        e instanceof Error
-          ? e.message
-          : "تعذر إجراء المسح الضوئي — تحقق من توصيل الطابعة/الماسح",
-      );
-    } finally {
-      setScanning(false);
+  /**
+   * Adopt pages scanned in the printer multi-scan window into the main queue,
+   * preserving their order (barcode detection runs per page as usual).
+   */
+  async function handleAdoptScans(dataUrls: string[]) {
+    for (const u of dataUrls) {
+      await addPageWithBarcode(u);
     }
   }
 
-  /** Save scanned document to the archive. */
+  /**
+   * Deposit the queued pages to the archive (the single save point).
+   * One page → image document; several pages → merged into one PDF document.
+   */
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (pages.length === 0) return;
@@ -119,11 +107,19 @@ export function ScannerClient({
     setErr("");
     const fd = new FormData(e.currentTarget);
     try {
-      const res = await saveScannedDocument(buildSavePayload(fd, pages[0].dataUrl));
-      // The action can resolve with `{ id: undefined }` if the insert failed
-      // silently — treat that as an error so `busy` is always released.
-      if (!res?.id) throw new Error("فشل الحفظ — لم يتم إنشاء المستند");
-      router.push(`/documents/${res.id}`);
+      if (pages.length > 1) {
+        const pdfUrl = await scannedDataUrlsToPdfDataUrl(pages.map((p) => p.dataUrl));
+        const payload = buildSavePayload(fd, pdfUrl);
+        const res = await saveScannedPdfDocument({ ...payload, pageCount: pages.length });
+        if (!res?.id) throw new Error("فشل الحفظ — لم يتم إنشاء المستند");
+        router.push(`/documents/${res.id}`);
+      } else {
+        const res = await saveScannedDocument(buildSavePayload(fd, pages[0].dataUrl));
+        // The action can resolve with `{ id: undefined }` if the insert failed
+        // silently — treat that as an error so `busy` is always released.
+        if (!res?.id) throw new Error("فشل الحفظ — لم يتم إنشاء المستند");
+        router.push(`/documents/${res.id}`);
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : "فشل الحفظ");
       setBusy(false);
@@ -138,7 +134,6 @@ export function ScannerClient({
         <CameraPanel
           cameraActive={cameraActive}
           scanning={scanning}
-          pageCount={pages.length}
           scanError={err}
           videoRef={videoRef}
           canvasRef={canvasRef}
@@ -147,7 +142,13 @@ export function ScannerClient({
           onCapture={handleCapture}
           onToggleFacing={toggleFacingMode}
           onSimulate={handleSimulateScan}
-          onHardwareScan={handleHardwareScan}
+          onOpenMultiScan={() => setMultiOpen(true)}
+        />
+
+        <HardwareScanDialog
+          open={multiOpen}
+          onOpenChange={setMultiOpen}
+          onAdopt={handleAdoptScans}
         />
 
         <ScanStatusBanners pages={pages} barcodeStatus={barcodeStatus} />

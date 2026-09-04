@@ -16,14 +16,17 @@ import { useLang } from "@/components/lang-provider";
 export function Card({
   className,
   children,
+  interactive,
 }: {
   className?: string;
   children: ReactNode;
+  interactive?: boolean;
 }) {
   return (
     <div
       className={cn(
         "rounded-2xl border border-border bg-card shadow-card",
+        interactive && "card-interactive",
         className
       )}
     >
@@ -42,7 +45,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ring-black/[0.06] dark:ring-white/10",
         className
       )}
     >
@@ -131,32 +134,40 @@ export function StatCard({
   label,
   value,
   hint,
+  delta,
   accent = "indigo",
 }: {
   icon: ReactNode;
   label: string;
   value: ReactNode;
   hint?: string;
+  delta?: { value: string; up?: boolean };
   accent?: "indigo" | "emerald" | "amber" | "sky" | "rose" | "violet";
 }) {
   const accents: Record<string, string> = {
-    indigo: "bg-primary/10 text-primary",
-    emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    sky: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-    rose: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-    violet: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+    indigo: "bg-primary/10 text-primary ring-1 ring-inset ring-primary/20",
+    emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-inset ring-emerald-500/20",
+    amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-inset ring-amber-500/20",
+    sky: "bg-sky-500/10 text-sky-600 dark:text-sky-400 ring-1 ring-inset ring-sky-500/20",
+    rose: "bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-1 ring-inset ring-rose-500/20",
+    violet: "bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-1 ring-inset ring-violet-500/20",
   };
   return (
-    <Card className="p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-muted-foreground">{label}</span>
-        <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", accents[accent])}>
+    <Card interactive className="group relative overflow-hidden p-5 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-ring/30">
+      <div aria-hidden className="pointer-events-none absolute -end-8 -top-8 h-24 w-24 rounded-full bg-primary/[0.06] blur-2xl transition-opacity group-hover:opacity-100" />
+      <div className="relative flex items-center justify-between gap-2">
+        <span className="min-w-0 truncate text-[13px] font-semibold text-muted-foreground">{label}</span>
+        <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-110", accents[accent])}>
           {icon}
         </span>
       </div>
-      <div className="mt-3 text-2xl font-bold text-foreground tnum">{value}</div>
-      {hint && <div className="mt-1.5 text-xs text-muted-foreground">{hint}</div>}
+      <div className="relative mt-3 flex items-end justify-between gap-2">
+        <div className="tnum text-2xl font-extrabold tracking-tight text-foreground">{value}</div>
+        {delta && (
+          <span className={cn("tnum rounded-full px-2 py-0.5 text-[11px] font-bold", delta.up ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground")}>{delta.value}</span>
+        )}
+      </div>
+      {hint && <div className="relative mt-1.5 text-xs leading-relaxed text-muted-foreground">{hint}</div>}
     </Card>
   );
 }

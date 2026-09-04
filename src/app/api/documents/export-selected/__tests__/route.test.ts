@@ -183,9 +183,9 @@ describe("POST /api/documents/export-selected", () => {
       expect(body.subarray(0, 2).toString("ascii")).toBe("PK");
       // manifest is listed first, then documents in selection order
       expect(zipEntryNames(body)).toEqual([
-        "كشف-المستندات.xlsx",
-        "عقد-توريد.pdf",
-        "قرار إداري - 2026.pdf",
+        "report/كشف-المستندات.xlsx",
+        "documents/عقد-توريد.pdf",
+        "documents/قرار إداري - 2026.pdf",
       ]);
 
       expect(state.logAudit).toHaveBeenCalledTimes(1);
@@ -208,6 +208,6 @@ describe("POST /api/documents/export-selected", () => {
     expect(res.status).toBe(200);
     const body = Buffer.from(await res.arrayBuffer());
     // manifest only — the missing file never made it into the archive
-    expect(zipEntryNames(body)).toEqual(["كشف-المستندات.xlsx"]);
+    expect(zipEntryNames(body)).toEqual(["report/كشف-المستندات.xlsx"]);
   });
 });

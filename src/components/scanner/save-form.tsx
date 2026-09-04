@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Loader2, Save } from "lucide-react";
+import { Camera, FileCheck2, Loader2, Save } from "lucide-react";
 import { INPUT_CLS, type Option } from "@/lib/scanner";
 
 interface SaveFormProps {
@@ -23,50 +23,85 @@ export function SaveForm({
   docNumberRef,
   onSave,
 }: SaveFormProps) {
+  const ready = pageCount > 0;
   return (
     <div className="lg:col-span-2">
-      <form onSubmit={onSave} className="rounded-2xl border border-border bg-card p-5">
-        <h3 className="mb-1 flex items-center gap-2 text-sm font-bold text-foreground">
-          <Save className="h-4 w-4 text-primary" /> حفظ في الأرشيف
+      <form
+        onSubmit={onSave}
+        aria-label="حفظ في الأرشيف"
+        className="rounded-2xl border border-border bg-card p-5 shadow-card lg:sticky lg:top-4"
+      >
+        <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">
+            <Save className="h-4 w-4" />
+          </span>
+          حفظ في الأرشيف
+          <span className={`ms-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${ready ? "bg-emerald-500/10 text-emerald-600 ring-emerald-500/25 dark:text-emerald-400" : "bg-muted text-muted-foreground ring-border"}`}>
+            <FileCheck2 className="h-3 w-3" />
+            <span className="tnum">{pageCount}</span> {pageCount === 1 ? "صفحة" : "صفحات"} جاهزة
+          </span>
         </h3>
-        <p className="mb-4 text-xs text-muted-foreground">
-          أكمل بيانات المستند ثم احفظه. {pageCount > 0 && `${pageCount} صفحة جاهزة للحفظ.`}
+        <p className="mb-4 mt-1.5 text-xs leading-5 text-muted-foreground">
+          أكمل بيانات المستند ثم احفظه. {ready ? "الصفحات مرتبة وجاهزة للإيداع." : "امسح صفحة واحدة على الأقل لتفعيل الإيداع."}
         </p>
-        <div className="space-y-3">
-          <input name="title" required defaultValue="مستند ممسوح ضوئياً" placeholder="العنوان" className={INPUT_CLS} />
-          <div className="grid grid-cols-2 gap-3">
-            <input name="docNumber" ref={docNumberRef} placeholder="الرقم المرجعي" className={INPUT_CLS} />
-            <select name="docType" className={INPUT_CLS} defaultValue="صورة ضوئية">
-              {docTypes.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+        <fieldset disabled={busy} className="space-y-3 disabled:opacity-70">
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-foreground">العنوان <span className="text-rose-500">*</span></span>
+            <input name="title" required defaultValue="مستند ممسوح ضوئياً" placeholder="العنوان" autoComplete="off" className={INPUT_CLS} />
+          </label>
+          <div className="grid grid-cols-1 gap-3 min-[960px]:grid-cols-2 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-foreground">الرقم المرجعي</span>
+              <input name="docNumber" ref={docNumberRef} placeholder="يُعبأ تلقائياً من الباركود" autoComplete="off" dir="ltr" className={`${INPUT_CLS} text-left`} />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-foreground">نوع المستند</span>
+              <select name="docType" className={INPUT_CLS} defaultValue="صورة ضوئية">
+                {docTypes.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </label>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <select name="departmentId" className={INPUT_CLS} defaultValue="">
-              <option value="">القسم</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
-            <select name="folderId" className={INPUT_CLS} defaultValue="">
-              <option value="">المجلد</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 gap-3 min-[960px]:grid-cols-2 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-foreground">القسم</span>
+              <select name="departmentId" className={INPUT_CLS} defaultValue="">
+                <option value="">القسم</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-foreground">المجلد</span>
+              <select name="folderId" className={INPUT_CLS} defaultValue="">
+                <option value="">المجلد</option>
+                {folders.map((f) => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            </label>
           </div>
-          <textarea name="description" rows={3} placeholder="وصف موجز..." className={INPUT_CLS} />
-        </div>
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-foreground">الوصف</span>
+            <textarea name="description" rows={3} placeholder="وصف موجز..." className={`${INPUT_CLS} resize-y leading-6`} />
+          </label>
+        </fieldset>
         <button
           type="submit"
-          disabled={busy || pageCount === 0}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-3 text-sm font-semibold text-background transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={busy || !ready}
+          aria-disabled={busy || !ready}
+          title={!ready ? "امسح صفحة واحدة على الأقل أولاً" : undefined}
+          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-3 text-sm font-semibold text-background shadow-sm transition hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {busy ? "جاري المعالجة..." : `إيداع المستندات (${pageCount})`}
+          {busy ? "جارٍ المعالجة..." : ready ? `إيداع المستند (${pageCount})` : "بانتظار صفحات للمسح"}
         </button>
-        <div className="mt-3 flex items-start gap-2 rounded-xl bg-muted px-3 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
+        {!ready && (
+          <p role="note" className="mt-2 text-center text-[11px] text-muted-foreground">زر الإيداع يُفعّل بعد إضافة أول صفحة</p>
+        )}
+        <div className="mt-3 flex items-start gap-2 rounded-xl bg-muted/60 px-3 py-2.5 text-[11px] leading-relaxed text-muted-foreground ring-1 ring-inset ring-border/60">
           <Camera className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           يعمل الماسح عبر الكاميرا المدمجة أو الخلوية. لا يتطلب تطبيق سطح مكتب.
         </div>
