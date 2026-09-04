@@ -1,21 +1,36 @@
 <div align="center">
 
-<img src="public/icon.svg" width="120" alt="شعار نظام الأرشفة الإلكترونية" />
+<img src="./public/icon.svg" width="120" alt="شعار نظام الأرشفة الإلكترونية — أرشيف" />
 
 # أرشيف — نظام الأرشفة الإلكترونية EDMS
 
 **منصة أرشفة مؤسسية آمنة بواجهة عربية كاملة (RTL)** — من الماسح الضوئي إلى الإيداع الموثّق،
 تعمل على الويب وتُغلَّف كتطبيق سطح مكتب للوصول إلى عتاد المسح المحلي.
 
-![لوحة معلومات النظام](public/screenshot-dashboard.png)
+## ⬇️ تحميل البرنامج — ويندوز 64-بت (Windows x64)
+
+<a href="https://github.com/g53208084-debug/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe">
+<img src="https://img.shields.io/badge/تحميل_المثبت-Windows_Setup-0078D4?style=for-the-badge&logo=windows" alt="تحميل مثبت ويندوز" />
+</a>
+
+**[⬇️ تحميل مباشر: EDMS-Archive-1.0.0-Setup-x64.exe](https://github.com/g53208084-debug/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe)**
+· [📦 كل الإصدارات](https://github.com/g53208084-debug/Edms-archive/releases/latest)
+· [💼 النسخة المحمولة (Portable)](https://github.com/g53208084-debug/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Portable-x64.exe)
+
+> ⚠️ الحزمة **لنظام ويندوز 64-بت فقط**. عند أول تشغيل قد تظهر شاشة SmartScreen
+> لأن البناء غير موقّع — اختر «المزيد من المعلومات» ثم «تشغيل على أي حال».
+
+<img src="./public/screenshot-dashboard.png" width="860" alt="لوحة معلومات نظام الأرشفة الإلكترونية" />
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron)
 ![SQLite](https://img.shields.io/badge/SQLite-libsql-003B57?logo=sqlite)
 ![RTL](https://img.shields.io/badge/UI-Arabic_RTL-4f46e5)
 ![Tests](https://img.shields.io/badge/tests-vitest-6E9F18?logo=vitest)
+![Windows](https://img.shields.io/badge/Windows-x64_Setup-0078D4?logo=windows)
 
-[التشغيل السريع](#-التشغيل) · [الميزات](#-الميزات) · [نافذة المسح](#-نافذة-المسح-من-الطابعة) ·
+[⬇️ التحميل](#️-تحميل-البرنامج--ويندوز-64-بت-windows-x64) · [التشغيل السريع](#-التشغيل) ·
+[الميزات](#-الميزات) · [نافذة المسح](#-نافذة-المسح-من-الطابعة) ·
 [سطح المكتب](#-تطبيق-سطح-المكتب) · [الأمان](#-الأمان) · [الاختبارات](#-الاختبارات)
 
 </div>

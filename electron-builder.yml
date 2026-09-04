@@ -84,10 +84,13 @@ win:
         - x64
   icon: resources/icon/icon.ico
   executableName: edms-archive
-  artifactName: ${productName}-${version}-${target}-${arch}.${ext}
+  # NOTE: artifact names MUST stay Latin-only. productName is Arabic (أرشيف)
+  # and using ${productName} here produced mangled "?????-1.0.0-Setup-x64.exe"
+  # filenames that broke GitHub release assets + direct download links.
+  artifactName: EDMS-Archive-${version}-${target}-${arch}.${ext}
 
 portable:
-  artifactName: ${productName}-${version}-Portable-${arch}.${ext}
+  artifactName: EDMS-Archive-${version}-Portable-${arch}.${ext}
 
 nsis:
   oneClick: false
@@ -99,7 +102,7 @@ nsis:
   deleteAppDataOnUninstall: false
   installerIcon: resources/icon/icon.ico
   uninstallerIcon: resources/icon/icon.ico
-  artifactName: ${productName}-${version}-Setup-${arch}.${ext}
+  artifactName: EDMS-Archive-${version}-Setup-${arch}.${ext}
   # Custom installer logic: detects a previous installation (same version ->
   # abort; older version -> update in place). See build/installer.nsi.
   include: build/installer.nsi

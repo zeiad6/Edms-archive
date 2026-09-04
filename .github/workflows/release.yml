@@ -1,0 +1,55 @@
+name: Release (Windows x64)
+
+# Publish a GitHub Release with correct UTF-8 Arabic notes + Latin-only asset names.
+# Usage: git tag v1.0.0; git push origin v1.0.0
+# The release body is read from RELEASE_NOTES.md (must stay UTF-8).
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild native modules for Electron
+        run: npm run electron:rebuild
+
+      - name: Pack Electron (NSIS + portable)
+        run: npm run electron:pack
+
+      - name: Verify artifacts (Latin names, sane size)
+        shell: pwsh
+        run: |
+          chcp 65001 | Out-Null
+          Get-ChildItem dist/release
+          $setup = Get-ChildItem dist/release/EDMS-Archive-*-Setup-x64.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $setup) { Write-Error 'Setup exe with Latin name not found (check artifactName in electron-builder.yml)'; exit 1 }
+          if ($setup.Length -lt 10MB) { Write-Error "Installer suspiciously small: $($setup.Length) bytes"; exit 1 }
+          Write-Host "OK: $($setup.FullName) ($([math]::Round($setup.Length/1MB,1)) MB)"
+
+      - name: Create GitHub Release (UTF-8 Arabic body)
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+          files: |
+            dist/release/EDMS-Archive-*-Setup-x64.exe
+            dist/release/EDMS-Archive-*-Portable-x64.exe
+            dist/release/latest.yml
+          fail_on_unmatched_files: false
+          generate_release_notes: false
