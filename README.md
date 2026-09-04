@@ -1,16 +1,21 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/zeiad6/Edms-archive/main/public/icon.svg" width="120" alt="شعار نظام الأرشفة الإلكترونية — أرشيف" />
+<img src="public/icon.svg" width="120" alt="شعار نظام الأرشفة الإلكترونية — أرشيف" />
 
 # أرشيف — نظام الأرشفة الإلكترونية EDMS
 
-**منصة أرشفة مؤسسية آمنة بواجهة عربية كاملة (RTL)** — من الماسح الضوئي إلى الإيداع الموثّق،
-تعمل على الويب وتُغلَّف كتطبيق سطح مكتب للوصول إلى عتاد المسح المحلي.
+**منصة أرشفة مؤسسية آمنة بواجهة عربية كاملة (RTL) مع دعم كامل للغة الإنجليزية (LTR)**
+— من الماسح الضوئي إلى الإيداع الموثّق، تعمل على الويب وتُغلَّف كتطبيق سطح مكتب
+للوصول إلى عتاد المسح المحلي.
+
+> **🌍 Bilingual UI — واجهة ثنائية اللغة:** زر `EN / ع` في الشريط العلوي (وشاشة الدخول)
+> يبدّل فورياً بين العربية (RTL) والإنجليزية (LTR) — Use the `EN` button in the header
+> to switch the whole interface to English.
 
 ## ⬇️ تحميل البرنامج — ويندوز 64-بت (Windows x64)
 
 <a href="https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe">
-<img src="https://img.shields.io/badge/تحميل_المثبت-Windows_Setup-0078D4?style=for-the-badge&logo=windows" alt="تحميل مثبت ويندوز" />
+<img src="https://img.shields.io/badge/%D8%AA%D8%AD%D9%85%D9%8A%D9%84_%D8%A7%D9%84%D9%85%D8%AB%D8%A8%D8%AA-Windows_Setup-0078D4?style=for-the-badge&logo=windows" alt="تحميل مثبت ويندوز" />
 </a>
 
 **[⬇️ تحميل مباشر: EDMS-Archive-1.0.0-Setup-x64.exe](https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe)**
@@ -20,12 +25,13 @@
 > ⚠️ الحزمة **لنظام ويندوز 64-بت فقط**. عند أول تشغيل قد تظهر شاشة SmartScreen
 > لأن البناء غير موقّع — اختر «المزيد من المعلومات» ثم «تشغيل على أي حال».
 
-<img src="https://raw.githubusercontent.com/zeiad6/Edms-archive/main/public/screenshot-dashboard.png" width="860" alt="لوحة معلومات نظام الأرشفة الإلكترونية" />
+<img src="public/screenshot-dashboard.png" width="860" alt="لوحة معلومات نظام الأرشفة الإلكترونية" />
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron)
 ![SQLite](https://img.shields.io/badge/SQLite-libsql-003B57?logo=sqlite)
 ![RTL](https://img.shields.io/badge/UI-Arabic_RTL-4f46e5)
+![EN](https://img.shields.io/badge/Language-Arabic_%2B_English-22c55e)
 ![Tests](https://img.shields.io/badge/tests-vitest-6E9F18?logo=vitest)
 ![Windows](https://img.shields.io/badge/Windows-x64_Setup-0078D4?logo=windows)
 
@@ -170,8 +176,30 @@ npm run electron:pack     # تغليف تطبيق سطح المكتب
 
 ---
 
+---
+
+## 🌍 English — Overview
+
+**EDMS Archive** is a secure institutional electronic-archive platform with a **fully
+bilingual interface (Arabic RTL / English LTR)** — switch anytime with the `EN / ع`
+button in the header or on the login screen.
+
+- Live dashboard, full-text search (title, OCR text, numbers), secure inline viewer
+  (images, PDF, TXT/CSV), camera + printer (WIA) scanning with barcode detection,
+  approvals with in-app notifications, RBAC permissions, full audit trail, and
+  split ZIP backup/restore.
+- Runs on the web (`npm run dev`) and ships as a Windows x64 desktop app
+  (installer + portable) via Electron with local SQLite, bundled Tesseract OCR
+  (Arabic + English), and automatic update notices from GitHub releases.
+
+Demo accounts (default password for all: `Password@123` — change enforced on first login):
+`k.alomari` (admin) · `s.almalki` / `a.alharbi` (managers) ·
+`n.alqahtani` / `f.aldosari` / `m.alzahrani` (staff).
+
+---
+
 <div align="center">
 
-**تم التطوير بواسطة Ziad Al-hammadi** · نظام الأرشفة الإلكترونية EDMS
+**تم التطوير بواسطة Ziad Al-hammadi** · نظام الأرشفة الإلكترونية EDMS · Developed by Ziad Al-hammadi
 
 </div>
