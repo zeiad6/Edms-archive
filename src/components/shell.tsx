@@ -286,7 +286,10 @@ export function Shell({
               </p>
             </div>
             <p className="mt-2 text-center text-[10px] leading-relaxed text-muted-foreground/60">
-              {t("نظام أرشفة إلكترونية مفتوح المصدر")}
+              {t("تم تطوير البرنامج بواسطة")}{" "}
+              <span className="font-semibold text-muted-foreground">Ziad Al-hammadi</span>
+              <span className="mx-1 text-muted-foreground/40">·</span>
+              <span dir="ltr" className="tnum">+967 784 908 515</span>
             </p>
           </div>
         </aside>

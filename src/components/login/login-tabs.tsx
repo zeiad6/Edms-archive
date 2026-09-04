@@ -259,7 +259,9 @@ export function LoginTabs({ users }: { users: LoginUserOption[] }) {
       <div className="mt-6 border-t border-white/10 pt-4 text-center text-[11px] leading-relaxed text-white/55">
         <p>{t("واجهة محاكاة صلاحيات · نظام تجريبي")}</p>
         <p className="mt-1">
-          {t("نظام أرشفة إلكترونية مفتوح المصدر")}
+          {t("تم تطوير البرنامج بواسطة")}{" "}
+          <span className="font-semibold text-white/80">Ziad Al-hammadi</span> ·{" "}
+          <span dir="ltr" className="tnum">+967 784 908 515</span>
         </p>
       </div>
     </>

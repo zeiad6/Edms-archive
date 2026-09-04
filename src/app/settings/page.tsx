@@ -149,9 +149,9 @@ export default async function SettingsPage() {
                 <Code2 className="h-5 w-5" />
               </span>
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-foreground">أرشيف — نظام الأرشفة الإلكتروني</div>
+                <div className="text-sm font-semibold text-foreground">تم تطوير البرنامج بواسطة Ziad Al-hammadi</div>
                 <div className="text-xs text-muted-foreground">
-                  مشروع مفتوح المصدر — الإصدار 1.0.0
+                  <span dir="ltr" className="tnum">+967 784 908 515</span>
                 </div>
               </div>
             </div>
