@@ -4,6 +4,10 @@
   "description": "نظام الأرشفة الإلكتروني للوزارة — إدارة المستندات والموافقات والمسح الضوئي",
   "author": "EDMS Team",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/g53208084-debug/Edms-archive.git"
+  },
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev",

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { switchUser, logoutUser } from "@/actions/auth";
 import { AppLogo } from "@/components/app-logo";
+import { GITHUB_ACCOUNT_URL, GithubMark } from "@/components/github-mark";
 import { Avatar } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -285,11 +286,21 @@ export function Shell({
                 {t("تخزين محلي آمن · صلاحيات · تدقيق · بث آمن")}
               </p>
             </div>
-            <p className="mt-2 text-center text-[10px] leading-relaxed text-muted-foreground/60">
+            <p className="mt-2 flex items-center justify-center gap-1 text-center text-[10px] leading-relaxed text-muted-foreground/60">
               {t("تم تطوير البرنامج بواسطة")}{" "}
               <span className="font-semibold text-muted-foreground">Ziad Al-hammadi</span>
-              <span className="mx-1 text-muted-foreground/40">·</span>
+              <span className="mx-0.5 text-muted-foreground/40">·</span>
               <span dir="ltr" className="tnum">+967 784 908 515</span>
+              <a
+                href={GITHUB_ACCOUNT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={t("حساب المطور على GitHub")}
+                title="GitHub"
+                className="rounded-md p-1 text-muted-foreground/70 transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <GithubMark className="h-3 w-3" />
+              </a>
             </p>
           </div>
         </aside>

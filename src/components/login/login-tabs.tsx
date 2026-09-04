@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { AlertCircle, Check, Copy, KeyRound, Loader2, Lock, UsersRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/format";
+import { GITHUB_ACCOUNT_URL, GithubMark } from "@/components/github-mark";
 import { LoginForm } from "./login-form";
 import { Avatar } from "@/components/ui";
 import { ROLE_META } from "@/lib/format";
@@ -258,10 +259,20 @@ export function LoginTabs({ users }: { users: LoginUserOption[] }) {
       {/* Footer credits (dev + phone) */}
       <div className="mt-6 border-t border-white/10 pt-4 text-center text-[11px] leading-relaxed text-white/55">
         <p>{t("واجهة محاكاة صلاحيات · نظام تجريبي")}</p>
-        <p className="mt-1">
+        <p className="mt-1 flex items-center justify-center gap-1.5">
           {t("تم تطوير البرنامج بواسطة")}{" "}
           <span className="font-semibold text-white/80">Ziad Al-hammadi</span> ·{" "}
           <span dir="ltr" className="tnum">+967 784 908 515</span>
+          <a
+            href={GITHUB_ACCOUNT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t("حساب المطور على GitHub")}
+            title="GitHub"
+            className="rounded-md p-1 text-white/60 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          >
+            <GithubMark className="h-3.5 w-3.5" />
+          </a>
         </p>
       </div>
     </>

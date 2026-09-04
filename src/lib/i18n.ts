@@ -50,6 +50,7 @@ export const DICT: Record<string, string> = {
   "فتح في نافذة جديدة": "Open in a new window",
   "تنزيل الملف": "Download file",
   "تم تطوير البرنامج بواسطة": "Developed by",
+  "حساب المطور على GitHub": "Developer's GitHub account",
   "نظام أرشفة إلكترونية مفتوح المصدر": "Open-source electronic archive system",
 
   // ---- Roles (ROLE_META labels) --------------------------------------------

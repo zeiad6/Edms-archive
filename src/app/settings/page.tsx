@@ -13,6 +13,7 @@ import { db } from "@/db";
 import { documents, users, departments, folders } from "@/db/schema";
 import { count, sql } from "drizzle-orm";
 import { PageHeader, Card, StatCard } from "@/components/ui";
+import { GithubMark } from "@/components/github-mark";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AppearanceSettings } from "@/components/appearance-settings";
 import { BackupRestoreCard } from "@/components/settings/backup-restore-card";
@@ -148,12 +149,22 @@ export default async function SettingsPage() {
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <Code2 className="h-5 w-5" />
               </span>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-foreground">تم تطوير البرنامج بواسطة Ziad Al-hammadi</div>
                 <div className="text-xs text-muted-foreground">
                   <span dir="ltr" className="tnum">+967 784 908 515</span>
                 </div>
               </div>
+              <a
+                href="https://github.com/g53208084-debug"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="حساب المطور على GitHub"
+                title="GitHub"
+                className="shrink-0 rounded-xl border border-border bg-card p-2.5 text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <GithubMark className="h-5 w-5" />
+              </a>
             </div>
           </Card>
         </TabsContent>

@@ -64,15 +64,15 @@ asar: true
 electronLanguages:
   - ar
   - en
-# Auto-update channel — DISABLED by default (no dummy feed).
-# To enable a REAL signed channel: (1) uncomment `publish` below and point it at a signed feed
-# (electron-updater + GitHub provider or generic S3 URL serving signed latest.yml + .sig/.blockmap),
-# then wire update check with signature verification; (2) code-sign on Windows via env
-# CSC_LINK=<path/to/cert.pfx> + CSC_KEY_PASSWORD=<password> (or Azure Trusted Signing) before packaging.
-# publish:
-#   provider: generic
-#   url: https://updates.example.com/edms
-#   useMultipleRangeRequest: false
+# Auto-update channel — GitHub releases of g53208084-debug/Edms-archive.
+# electron-updater reads the latest release (latest.yml + Setup exe attached
+# to the GitHub release) without any token for public repos. The app only
+# NOTIFIES and opens the releases page — no silent install (unsigned builds).
+publish:
+  provider: github
+  owner: g53208084-debug
+  repo: Edms-archive
+  private: false
 
 win:
   target:

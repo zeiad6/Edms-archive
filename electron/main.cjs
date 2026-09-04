@@ -367,53 +367,64 @@ if (!gotLock) {
   });
 
   // ---------------------------------------------------------------------------
-  // Auto-update: electron-updater (generic provider). The feed URL comes from
-  // resources/env (UPDATE_URL) — packaged builds only; if unset, skip quietly
-  // (offline / manual-update deployments). Latest.yml is published next to the
-  // Setup exe, so an operator can host dist/release on any static server.
+  // Auto-update: electron-updater (GitHub provider, public repo — no token).
+  // Policy is notify-only: when a new GitHub release exists the app shows an
+  // Arabic notice and lets the user jump to the download page. No silent
+  // download/install (builds are unsigned) — the user installs the Setup exe
+  // themselves. Checks once shortly after boot, then every 6 hours.
   // ---------------------------------------------------------------------------
+  const RELEASES_URL = "https://github.com/g53208084-debug/Edms-archive/releases/latest";
+  function notifyUpdateAvailable(info) {
+    if (!win || win.isDestroyed()) return;
+    const { dialog, shell } = require("electron");
+    const ver = (info && info.version) || "";
+    dialog
+      .showMessageBox(win, {
+        type: "info",
+        title: "تحديث متوفر",
+        message: `يتوفر إصدار جديد من البرنامج${ver ? ` (${ver})` : ""}.`,
+        detail: "اضغط «الانتقال إلى التحميل» لفتح صفحة التنزيل في المتصفح، ثم ثبّت النسخة الجديدة.",
+        buttons: ["الانتقال إلى التحميل", "لاحقاً"],
+        defaultId: 0,
+        cancelId: 1,
+      })
+      .then((r) => {
+        if (r.response === 0) shell.openExternal(RELEASES_URL).catch(() => {});
+      })
+      .catch(() => {});
+  }
   app.whenReady().then(() => {
     if (!app.isPackaged) return;
-    let feedUrl = null;
-    const envFile = path.join(process.resourcesPath, "env");
-    if (fs.existsSync(envFile)) {
-      const txt = fs.readFileSync(envFile, "utf8");
-      for (const line of txt.split(/\r?\n/)) {
-        const m = line.match(/^\s*UPDATE_URL\s*=\s*(.*)\s*$/);
-        if (m) feedUrl = m[1].replace(/^["']|["']$/g, "");
-      }
-    }
-    if (!feedUrl) {
-      console.log("[updater] UPDATE_URL not set — auto-update disabled");
-      return;
-    }
     try {
       const { autoUpdater } = require("electron-updater");
-      autoUpdater.setFeedURL({ provider: "generic", url: feedUrl });
-      autoUpdater.autoDownload = true;
-      autoUpdater.autoInstallOnAppQuit = true;
-      autoUpdater.on("update-downloaded", () => {
-        if (win && !win.isDestroyed()) {
-          const { dialog } = require("electron");
-          dialog
-            .showMessageBox(win, {
-              type: "info",
-              title: "تحديث متوفر",
-              message: "تم تنزيل إصدار جديد من البرنامج.",
-              detail: "أعد تشغيل البرنامج لتثبيت التحديث.",
-              buttons: ["إعادة التشغيل الآن", "لاحقاً"],
-              defaultId: 0,
-              cancelId: 1,
-            })
-            .then((r) => {
-              if (r.response === 0) autoUpdater.quitAndInstall();
-            });
-        }
+      // Provider comes from electron-builder.yml `publish` (github) — the
+      // packaged appId/productName/version identify the feed; no token needed
+      // for public repos.
+      autoUpdater.autoDownload = false;
+      autoUpdater.autoInstallOnAppQuit = false;
+      let notifiedFor = null;
+      autoUpdater.on("update-available", (info) => {
+        const ver = (info && info.version) || "latest";
+        if (notifiedFor === ver) return; // notify once per version
+        notifiedFor = ver;
+        console.log(`[updater] update available: ${ver}`);
+        notifyUpdateAvailable(info);
       });
-      autoUpdater.checkForUpdates().catch(() => {
-        /* network/offline — ignore */
+      autoUpdater.on("update-not-available", () => {
+        console.log("[updater] up to date");
       });
-      console.log(`[updater] checking ${feedUrl}`);
+      autoUpdater.on("error", (e) => {
+        // offline / rate-limited / no releases yet — never disturb the user
+        console.log(`[updater] check failed (quiet): ${e && e.message}`);
+      });
+      const check = () => {
+        autoUpdater.checkForUpdates().catch(() => {
+          /* handled by the error listener */
+        });
+      };
+      setTimeout(check, 20_000); // let the UI settle first
+      setInterval(check, 6 * 60 * 60 * 1000);
+      console.log("[updater] GitHub update checks enabled");
     } catch (e) {
       console.error("[updater] init failed:", e.message);
     }
