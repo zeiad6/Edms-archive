@@ -373,7 +373,7 @@ if (!gotLock) {
   // download/install (builds are unsigned) — the user installs the Setup exe
   // themselves. Checks once shortly after boot, then every 6 hours.
   // ---------------------------------------------------------------------------
-  const RELEASES_URL = "https://github.com/g53208084-debug/Edms-archive/releases/latest";
+  const RELEASES_URL = "https://github.com/zeiad6/Edms-archive/releases/latest";
   function notifyUpdateAvailable(info) {
     if (!win || win.isDestroyed()) return;
     const { dialog, shell } = require("electron");

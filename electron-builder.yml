@@ -64,13 +64,13 @@ asar: true
 electronLanguages:
   - ar
   - en
-# Auto-update channel — GitHub releases of g53208084-debug/Edms-archive.
+# Auto-update channel — GitHub releases of zeiad6/Edms-archive.
 # electron-updater reads the latest release (latest.yml + Setup exe attached
 # to the GitHub release) without any token for public repos. The app only
 # NOTIFIES and opens the releases page — no silent install (unsigned builds).
 publish:
   provider: github
-  owner: g53208084-debug
+  owner: zeiad6
   repo: Edms-archive
   private: false
 

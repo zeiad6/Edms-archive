@@ -9,13 +9,13 @@
 
 ## ⬇️ تحميل البرنامج — ويندوز 64-بت (Windows x64)
 
-<a href="https://github.com/g53208084-debug/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe">
+<a href="https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe">
 <img src="https://img.shields.io/badge/تحميل_المثبت-Windows_Setup-0078D4?style=for-the-badge&logo=windows" alt="تحميل مثبت ويندوز" />
 </a>
 
-**[⬇️ تحميل مباشر: EDMS-Archive-1.0.0-Setup-x64.exe](https://github.com/g53208084-debug/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe)**
-· [📦 كل الإصدارات](https://github.com/g53208084-debug/Edms-archive/releases/latest)
-· [💼 النسخة المحمولة (Portable)](https://github.com/g53208084-debug/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Portable-x64.exe)
+**[⬇️ تحميل مباشر: EDMS-Archive-1.0.0-Setup-x64.exe](https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe)**
+· [📦 كل الإصدارات](https://github.com/zeiad6/Edms-archive/releases/latest)
+· [💼 النسخة المحمولة (Portable)](https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Portable-x64.exe)
 
 > ⚠️ الحزمة **لنظام ويندوز 64-بت فقط**. عند أول تشغيل قد تظهر شاشة SmartScreen
 > لأن البناء غير موقّع — اختر «المزيد من المعلومات» ثم «تشغيل على أي حال».

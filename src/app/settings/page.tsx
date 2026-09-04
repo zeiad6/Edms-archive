@@ -156,7 +156,7 @@ export default async function SettingsPage() {
                 </div>
               </div>
               <a
-                href="https://github.com/g53208084-debug"
+                href="https://github.com/zeiad6"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="حساب المطور على GitHub"

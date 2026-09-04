@@ -1,10 +1,10 @@
 "use client";
 
 /** Developer's GitHub account (linked from the app footers / about card). */
-export const GITHUB_ACCOUNT_URL = "https://github.com/g53208084-debug";
+export const GITHUB_ACCOUNT_URL = "https://github.com/zeiad6";
 
 /** Repository of this open-source project. */
-export const GITHUB_REPO_URL = "https://github.com/g53208084-debug/Edms-archive";
+export const GITHUB_REPO_URL = "https://github.com/zeiad6/Edms-archive";
 
 /**
  * GitHub mark (lucide-react in this project ships no brand icons, so the

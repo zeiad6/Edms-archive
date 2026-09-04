@@ -18,8 +18,8 @@
 
 | النسخة | الملف | الرابط المباشر |
 | --- | --- | --- |
-| المثبّت (موصى به) | `EDMS-Archive-1.0.0-Setup-x64.exe` | [تحميل مباشر](https://github.com/g53208084-debug/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe) |
-| نسخة محمولة (بدون تثبيت) | `EDMS-Archive-1.0.0-Portable-x64.exe` | [تحميل مباشر](https://github.com/g53208084-debug/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Portable-x64.exe) |
+| المثبّت (موصى به) | `EDMS-Archive-1.0.0-Setup-x64.exe` | [تحميل مباشر](https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe) |
+| نسخة محمولة (بدون تثبيت) | `EDMS-Archive-1.0.0-Portable-x64.exe` | [تحميل مباشر](https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Portable-x64.exe) |
 
 > ⚠️ **الحزمة لنظام ويندوز 64-بت (Windows x64) فقط.**
 > عند أول تشغيل قد تظهر شاشة SmartScreen لأن البناء غير موقّع — اختر «المزيد من المعلومات» ثم «تشغيل على أي حال».

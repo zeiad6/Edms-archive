@@ -6,7 +6,7 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/g53208084-debug/Edms-archive.git"
+    "url": "https://github.com/zeiad6/Edms-archive.git"
   },
   "main": "electron/main.cjs",
   "scripts": {
