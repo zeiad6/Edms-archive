@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./public/icon.svg" width="120" alt="شعار نظام الأرشفة الإلكترونية — أرشيف" />
+<img src="https://raw.githubusercontent.com/zeiad6/Edms-archive/main/public/icon.svg" width="120" alt="شعار نظام الأرشفة الإلكترونية — أرشيف" />
 
 # أرشيف — نظام الأرشفة الإلكترونية EDMS
 
@@ -20,7 +20,7 @@
 > ⚠️ الحزمة **لنظام ويندوز 64-بت فقط**. عند أول تشغيل قد تظهر شاشة SmartScreen
 > لأن البناء غير موقّع — اختر «المزيد من المعلومات» ثم «تشغيل على أي حال».
 
-<img src="./public/screenshot-dashboard.png" width="860" alt="لوحة معلومات نظام الأرشفة الإلكترونية" />
+<img src="https://raw.githubusercontent.com/zeiad6/Edms-archive/main/public/screenshot-dashboard.png" width="860" alt="لوحة معلومات نظام الأرشفة الإلكترونية" />
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron)

@@ -30,7 +30,12 @@ jobs:
       - name: Rebuild native modules for Electron
         run: npm run electron:rebuild
 
+      - name: Install Tesseract OCR (packaging dependency)
+        run: choco install tesseract -y --no-progress
+
       - name: Pack Electron (NSIS + portable)
+        env:
+          TESSERACT_SRC: 'C:\Program Files\Tesseract-OCR'
         run: npm run electron:pack
 
       - name: Verify artifacts (Latin names, sane size)

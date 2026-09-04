@@ -89,7 +89,12 @@ jobs:
       - name: Build Next.js
         run: npm run build
 
+      - name: Install Tesseract OCR (packaging dependency)
+        run: choco install tesseract -y --no-progress
+
       - name: Pack Electron (NSIS + portable)
+        env:
+          TESSERACT_SRC: 'C:\Program Files\Tesseract-OCR'
         run: npm run electron:pack
 
       - name: Smoke-test installer (exists + NSIS integrity)
