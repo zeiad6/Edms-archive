@@ -38,7 +38,7 @@ npm install
 npm run dev
 ```
 ثم افتح: http://localhost:3000
-حساب مدير تجريبي: `k.alomari` والرمز `12345678`
+حساب مدير تجريبي: `k.alomari` والرمز `Password@1234`
 
 ### ⬇️ رابط تحميل النظام من جيت هوب (مجاني ومفتوح المصدر)
 https://github.com/zeiad6/Edms-archive

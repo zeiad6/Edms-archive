@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hashPassword, sanitizePastedPassword, verifyPassword, DEFAULT_PASSWORD } from "@/lib/password";
+import { hashPassword, sanitizePastedPassword, verifyPassword, DEFAULT_PASSWORD, ADMIN_DEFAULT_PASSWORD } from "@/lib/password";
 
 describe("hashPassword", () => {
   it("returns a self-describing scrypt hash with 6 parts", () => {
@@ -51,6 +51,13 @@ describe("verifyPassword", () => {
     expect(verifyPassword(DEFAULT_PASSWORD, hash)).toBe(true);
     expect(verifyPassword("not-the-default", hash)).toBe(false);
   });
+
+  it("round-trips the admin default password (must differ from the shared one)", () => {
+    expect(ADMIN_DEFAULT_PASSWORD).not.toBe(DEFAULT_PASSWORD);
+    const hash = hashPassword(ADMIN_DEFAULT_PASSWORD);
+    expect(verifyPassword(ADMIN_DEFAULT_PASSWORD, hash)).toBe(true);
+    expect(verifyPassword(DEFAULT_PASSWORD, hash)).toBe(false);
+  });
 });
 
 describe("sanitizePastedPassword", () => {
@@ -72,6 +79,6 @@ describe("sanitizePastedPassword", () => {
 
   it("makes a dirty paste verify against a clean hash (login contract)", () => {
     const hash = hashPassword(DEFAULT_PASSWORD);
-    expect(verifyPassword(sanitizePastedPassword(" Password@123\u200E"), hash)).toBe(true);
+    expect(verifyPassword(sanitizePastedPassword(" " + DEFAULT_PASSWORD + "\u200E"), hash)).toBe(true);
   });
 });

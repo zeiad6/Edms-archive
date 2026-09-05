@@ -1,4 +1,7 @@
 import crypto from "crypto";
+import { DEFAULT_PASSWORD, ADMIN_DEFAULT_PASSWORD } from "./password-defaults";
+
+export { DEFAULT_PASSWORD, ADMIN_DEFAULT_PASSWORD };
 
 /**
  * Password hashing (zero-dependency, Node crypto).
@@ -9,9 +12,10 @@ import crypto from "crypto";
  * scrypt parameters follow OWASP guidance for interactive logins
  * (N = 2^15, r = 8, p = 1) with an explicit `maxmem` so the derivation
  * never throws on Node's default 32 MiB cap.
+ *
+ * Default-password literals live in `./password-defaults` (client-safe)
+ * and are re-exported above.
  */
-
-export const DEFAULT_PASSWORD = "12345678";
 
 /**
  * Sanitize a pasted/typed password before comparison, verification, or storage.

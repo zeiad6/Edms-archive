@@ -108,21 +108,30 @@ function UserPasswordPanel({
 }
 
 /**
- * Click-to-copy for the displayed default password (same literal as
- * DEFAULT_PASSWORD in src/lib/password.ts — hardcoded here because that
- * module imports node:crypto and cannot be bundled client-side).
+ * Click-to-copy for a displayed factory password (same literals as
+ * DEFAULT_PASSWORD / ADMIN_DEFAULT_PASSWORD in src/lib/password-defaults.ts
+ * — hardcoded here because that module's server twin `src/lib/password.ts`
+ * imports node:crypto and cannot be bundled client-side).
  */
-function DefaultPasswordCopy() {
+function DefaultPasswordCopy({
+  value,
+  copiedMessage,
+  copyLabel,
+}: {
+  value: string;
+  copiedMessage: string;
+  copyLabel: string;
+}) {
   const [copied, setCopied] = useState(false);
   useLang();
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText("12345678");
+      await navigator.clipboard.writeText(value);
     } catch {
       // Clipboard API unavailable (permissions) — fallback via selection.
       const ta = document.createElement("textarea");
-        ta.value = "12345678";
+        ta.value = value;
       ta.style.position = "fixed";
       ta.style.opacity = "0";
       document.body.appendChild(ta);
@@ -131,7 +140,7 @@ function DefaultPasswordCopy() {
       ta.remove();
     }
     setCopied(true);
-    toast.success(t("تم نسخ كلمة المرور الافتراضية"));
+    toast.success(copiedMessage);
     window.setTimeout(() => setCopied(false), 2000);
   }
 
@@ -140,10 +149,10 @@ function DefaultPasswordCopy() {
       type="button"
       onClick={handleCopy}
       title={t("اضغط للنسخ")}
-      aria-label={t("نسخ كلمة المرور الافتراضية")}
+      aria-label={copyLabel}
       className="tnum inline-flex cursor-pointer items-center gap-1 rounded-md bg-white/10 px-1.5 py-0.5 font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/20 hover:ring-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
     >
-      <span dir="ltr">12345678</span>
+      <span dir="ltr">{value}</span>
       {copied ? <Check className="h-3 w-3 text-emerald-300" /> : <Copy className="h-3 w-3 opacity-70" />}
     </button>
   );
@@ -239,18 +248,30 @@ export function LoginTabs({ users }: { users: LoginUserOption[] }) {
       {tab === "password" && (
         <div className="mt-4 space-y-2.5">
           <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-[11px] leading-relaxed text-white/65">
-            {t("كلمة المرور الافتراضية لجميع الحسابات: ")}
-            <DefaultPasswordCopy />
+            {t("كلمة مرور المدير (k.alomari): ")}
+            <DefaultPasswordCopy
+              value="Password@1234"
+              copiedMessage={t("تم نسخ كلمة مرور المدير")}
+              copyLabel={t("نسخ كلمة مرور المدير")}
+            />
+          </p>
+          <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-[11px] leading-relaxed text-white/65">
+            {t("كلمة مرور باقي الحسابات: ")}
+            <DefaultPasswordCopy
+              value="12345678"
+              copiedMessage={t("تم نسخ كلمة المرور الافتراضية")}
+              copyLabel={t("نسخ كلمة المرور الافتراضية")}
+            />
           </p>
           <details className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-[11px] text-white/65 shadow-sm backdrop-blur transition-colors duration-150 open:bg-white/[0.06] hover:border-primary/40">
             <summary className="cursor-pointer select-none font-semibold text-white/80">
               {t("حسابات تجريبية")}
             </summary>
             <ul dir="ltr" className="tnum mt-2 space-y-1 text-left">
-              <li>k.alomari — {t("مدير النظام (admin)")}</li>
-              <li>s.almalki — {t("مشرفة الشؤون المالية")}</li>
-              <li>n.alqahtani — {t("أخصائية موارد بشرية")}</li>
-              <li>m.alzahrani — {t("سكرتيرة تنفيذية")}</li>
+              <li>k.alomari — {t("مدير النظام (admin)")} · Password@1234</li>
+              <li>s.almalki — {t("مشرفة الشؤون المالية")} · 12345678</li>
+              <li>n.alqahtani — {t("أخصائية موارد بشرية")} · 12345678</li>
+              <li>m.alzahrani — {t("سكرتيرة تنفيذية")} · 12345678</li>
             </ul>
           </details>
         </div>
