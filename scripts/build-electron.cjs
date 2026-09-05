@@ -7,7 +7,7 @@
  *   3. copy scan-wia.ps1 (NO secrets — per-install AUTH_SECRET generated at first boot)
  *   4. bundle the Tesseract OCR runtime          -> dist/resources/tesseract
  *   5. obfuscate electron/main.cjs               -> dist/electron/main.cjs
- *   6. electron-builder (nsis, asar)             -> dist/release/*.exe
+ *   6. electron-builder (nsis, portable, zip, asar) -> dist/release/*.{exe,zip}
  *
  * No webpack/eslint in the shipped payload — the standalone server carries
  * only the runtime node_modules Next traced (sharp, libsql, archiver, ...).
@@ -177,16 +177,16 @@ fs.mkdirSync(stageElectron, { recursive: true });
 const src = fs.readFileSync(path.join(root, "electron", "main.cjs"), "utf8");
 const obf = JavaScriptObfuscator.obfuscate(src, {
   compact: true,
-  controlFlowFlattening: true,
-  controlFlowFlatteningThreshold: 0.6,
+  // NOTE: controlFlowFlattening + stringArray were dropped (decode cost on
+  // every cold start for no real gain — asar + no source maps is enough).
+  // Keep it light so the portable's first paint isn't delayed.
+  controlFlowFlattening: false,
   identifierNamesGenerator: "hexadecimal",
   numbersToExpressions: true,
   renameGlobals: false,
   selfDefending: false, // keep startup fast; asar + no source maps is enough
   simplify: true,
-  stringArray: true,
-  stringArrayEncoding: ["base64"],
-  stringArrayThreshold: 0.75,
+  stringArray: false,
   target: "node",
   transformObjectKeys: true,
 }).getObfuscatedCode();
@@ -195,10 +195,13 @@ fs.copyFileSync(
   path.join(root, "electron", "preload.cjs"),
   path.join(stageElectron, "preload.cjs")
 );
-console.log("main.cjs obfuscated (stringArray + controlFlowFlattening + hex ids).");
+console.log("main.cjs obfuscated (compact + hex ids, no control-flow flattening).");
 
-console.log("=== [7/7] electron-builder (nsis + portable x64, asar) ===");
+console.log("=== [7/7] electron-builder (nsis + portable + zip x64, asar) ===");
 // --publish never: update-info generation requires a configured publish
 // provider (GitHub repo); local/manual releases ship the exes as-is.
-sh("npx electron-builder --win nsis portable --x64 --publish never");
-console.log("DONE - see dist/release/ (Setup .exe + Portable .exe)");
+// The zip target is an extract-once portable: the portable SFX re-extracts
+// ~520 MB to %TEMP% on EVERY launch (minutes of silence), while the zip is
+// unpacked once by the user and then starts instantly.
+sh("npx electron-builder --win nsis portable zip --x64 --publish never");
+console.log("DONE - see dist/release/ (Setup .exe + Portable .exe + win .zip)");

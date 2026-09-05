@@ -50,7 +50,7 @@ function buildColumns(): ColDef<UserRow>[] {
       headerName: t("الدور"),
       field: "role",
       minWidth: 90,
-      filter: "agSetColumnFilter",
+      filter: "agTextColumnFilter",
       cellRenderer: (p: any) => {
         const m = ROLE_META[p.value];
         return (
@@ -69,7 +69,7 @@ function buildColumns(): ColDef<UserRow>[] {
       headerName: t("القسم"),
       field: "deptName",
       minWidth: 100,
-      filter: "agSetColumnFilter",
+      filter: "agTextColumnFilter",
       cellRenderer: (p: any) => p.value ?? <span className="text-muted-foreground">—</span>,
     },
     {

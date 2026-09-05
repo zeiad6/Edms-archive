@@ -224,6 +224,9 @@ async function bootNext(port) {
   env.EDMS_DATA_DIR = dirs.data;
   env.EDMS_STORAGE_DIR = dirs.storage;
   env.EDMS_SCRIPTS_DIR = dirs.scripts;
+  // Portable runtime flag for the UI (login light theme, etc.). The same
+  // binary serves Setup installs with "0" — their rendering never changes.
+  env.EDMS_PORTABLE = isPortable() ? "1" : "0";
   env.DATABASE_URL = `file:${dirs.data.replace(/\\/g, "/")}/edms.db`;
 
   // AUTH_SECRET: per-install secret in userData/auth_secret (generated at
@@ -253,7 +256,19 @@ async function bootNext(port) {
     );
   }
 
-  serverProcess = spawn(process.execPath, [serverJs], {
+  const isPort = isPortable();
+  if (isPort) {
+    // Parent-death watchdog (portable only): the Setup installer kills by
+    // image name (taskkill /F without /T), which orphans this
+    // ELECTRON_RUN_AS_NODE child (same edms-archive.exe image name) and
+    // wedges later installs/updates on the appCannotBeClosed retry loop.
+    // The child exits itself within ~2s of the parent dying.
+    env.EDMS_PARENT_PID = String(process.pid);
+  }
+  const childArgs = isPort
+    ? ["-e", `setInterval(()=>{try{process.kill(Number(process.env.EDMS_PARENT_PID),0)}catch(e){process.exit(0)}},2000).unref();require(${JSON.stringify(serverJs)});`]
+    : [serverJs];
+  serverProcess = spawn(process.execPath, childArgs, {
     cwd: sdir,
     env,
     stdio: ["ignore", "pipe", "pipe"],
@@ -325,24 +340,41 @@ async function createWindow(url) {
     e.preventDefault();
     loggingOut = true;
     (async () => {
+      const wipeSession = (async () => {
+        try {
+          const ses = win.webContents.session;
+          const all = await ses.cookies.get({});
+          await Promise.all(
+            all
+              .filter((c) => c.name === SESSION_COOKIE)
+              .map((c) => {
+                const scheme = c.secure ? "https" : "http";
+                const domain = (c.domain || "").replace(/^\./, "");
+                return ses.cookies
+                  .remove(`${scheme}://${domain}${c.path || "/"}`, c.name)
+                  .catch(() => {});
+              }),
+          );
+        } catch {
+          /* logout is best-effort — never trap the window */
+        }
+      })();
       try {
-        const ses = win.webContents.session;
-        const all = await ses.cookies.get({});
-        await Promise.all(
-          all
-            .filter((c) => c.name === SESSION_COOKIE)
-            .map((c) => {
-              const scheme = c.secure ? "https" : "http";
-              const domain = (c.domain || "").replace(/^\./, "");
-              return ses.cookies
-                .remove(`${scheme}://${domain}${c.path || "/"}`, c.name)
-                .catch(() => {});
-            }),
-        );
+        if (isPortable()) {
+          // Portable: the Setup installer closes the app by image name and
+          // escalates to force-kill within ~1.5s — cap the wipe so a graceful
+          // close always wins and no force-kill (or orphaned server) happens.
+          await Promise.race([wipeSession, new Promise((r) => setTimeout(r, 800))]);
+        } else {
+          await wipeSession;
+        }
       } catch {
         /* logout is best-effort — never trap the window */
       } finally {
-        if (win && !win.isDestroyed()) win.close();
+        if (win && !win.isDestroyed()) {
+          if (isPortable()) win.destroy(); // skip re-entering "close" — exit now
+          else win.close();
+        }
       }
     })();
   });
@@ -462,7 +494,9 @@ if (!gotLock) {
           /* handled by the error listener */
         });
       };
-      setTimeout(check, 20_000); // let the UI settle first
+      // Portable: the first minute is extraction + cold boot on a slow disk —
+      // defer the update check so it never contends with startup.
+      setTimeout(check, isPortable() ? 90_000 : 20_000); // let the UI settle first
       setInterval(check, 6 * 60 * 60 * 1000);
       console.log("[updater] GitHub update checks enabled");
     } catch (e) {
@@ -476,7 +510,21 @@ if (!gotLock) {
 
   app.on("before-quit", () => {
     if (serverProcess && !serverProcess.killed) {
-      serverProcess.kill();
+      try {
+        serverProcess.kill();
+      } catch { /* already gone */ }
+      if (isPortable() && serverProcess.pid) {
+        // Portable: emulate taskkill /T — also take down any grandchildren
+        // so no same-image-name straggler survives to trip the installer's
+        // running-app check on a later Setup run.
+        try {
+          require("child_process").execFileSync(
+            `${process.env.SystemRoot || "C:\\Windows"}\\System32\\taskkill.exe`,
+            ["/PID", String(serverProcess.pid), "/T", "/F"],
+            { windowsHide: true, stdio: "ignore" },
+          );
+        } catch { /* already gone */ }
+      }
     }
   });
 }

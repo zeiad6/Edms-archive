@@ -117,10 +117,12 @@ function DefaultPasswordCopy({
   value,
   copiedMessage,
   copyLabel,
+  light = false,
 }: {
   value: string;
   copiedMessage: string;
   copyLabel: string;
+  light?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   useLang();
@@ -150,16 +152,16 @@ function DefaultPasswordCopy({
       onClick={handleCopy}
       title={t("اضغط للنسخ")}
       aria-label={copyLabel}
-      className="tnum inline-flex cursor-pointer items-center gap-1 rounded-md bg-white/10 px-1.5 py-0.5 font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/20 hover:ring-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+      className={`tnum inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 font-semibold ring-1 ring-inset transition focus-visible:outline-none focus-visible:ring-2 ${light ? "bg-muted text-foreground ring-border hover:bg-accent hover:ring-primary/30 focus-visible:ring-ring" : "bg-white/10 text-white ring-white/15 hover:bg-white/20 hover:ring-white/30 focus-visible:ring-white/60"}`}
     >
       <span dir="ltr">{value}</span>
-      {copied ? <Check className="h-3 w-3 text-emerald-300" /> : <Copy className="h-3 w-3 opacity-70" />}
+      {copied ? <Check className={`h-3 w-3 ${light ? "text-emerald-600" : "text-emerald-300"}`} /> : <Copy className="h-3 w-3 opacity-70" />}
     </button>
   );
 }
 
 /** Login page tabs: password login (default) + quick user picker (demo). */
-export function LoginTabs({ users }: { users: LoginUserOption[] }) {
+export function LoginTabs({ users, light = false }: { users: LoginUserOption[]; light?: boolean }) {
   const [tab, setTab] = useState<Tab>("password");
   const [selected, setSelected] = useState<LoginUserOption | null>(null);
   useLang(); // re-render when the language toggles
@@ -244,27 +246,30 @@ export function LoginTabs({ users }: { users: LoginUserOption[] }) {
 
       {/* Default-password hint + demo accounts (password tab only). These sit
           below the card on the dark backdrop, so they use white-based alpha
-          tones instead of theme tokens — readable in both appearances. */}
+          tones instead of theme tokens — readable in both appearances.
+          Portable light runtime switches them to theme tokens. */}
       {tab === "password" && (
         <div className="mt-4 space-y-2.5">
-          <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-[11px] leading-relaxed text-white/65">
+          <p className={`flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-[11px] leading-relaxed ${light ? "text-muted-foreground" : "text-white/65"}`}>
             {t("كلمة مرور المدير (k.alomari): ")}
             <DefaultPasswordCopy
               value="Password@1234"
               copiedMessage={t("تم نسخ كلمة مرور المدير")}
               copyLabel={t("نسخ كلمة مرور المدير")}
+              light={light}
             />
           </p>
-          <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-[11px] leading-relaxed text-white/65">
+          <p className={`flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-[11px] leading-relaxed ${light ? "text-muted-foreground" : "text-white/65"}`}>
             {t("كلمة مرور باقي الحسابات: ")}
             <DefaultPasswordCopy
               value="12345678"
               copiedMessage={t("تم نسخ كلمة المرور الافتراضية")}
               copyLabel={t("نسخ كلمة المرور الافتراضية")}
+              light={light}
             />
           </p>
-          <details className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-[11px] text-white/65 shadow-sm backdrop-blur transition-colors duration-150 open:bg-white/[0.06] hover:border-primary/40">
-            <summary className="cursor-pointer select-none font-semibold text-white/80">
+          <details className={`rounded-xl border px-4 py-2.5 text-[11px] shadow-sm backdrop-blur transition-colors duration-150 hover:border-primary/40 ${light ? "border-border bg-card/70 text-muted-foreground open:bg-card" : "border-white/10 bg-white/[0.04] text-white/65 open:bg-white/[0.06]"}`}>
+            <summary className={`cursor-pointer select-none font-semibold ${light ? "text-foreground" : "text-white/80"}`}>
               {t("حسابات تجريبية")}
             </summary>
             <ul dir="ltr" className="tnum mt-2 space-y-1 text-left">
@@ -278,10 +283,10 @@ export function LoginTabs({ users }: { users: LoginUserOption[] }) {
       )}
 
       {/* Footer credits (dev + phone) */}
-      <div className="mt-6 border-t border-white/10 pt-4 text-center text-[11px] leading-relaxed text-white/55">
+      <div className={`mt-6 border-t pt-4 text-center text-[11px] leading-relaxed ${light ? "border-border text-muted-foreground" : "border-white/10 text-white/55"}`}>
         <p className="flex items-center justify-center gap-1.5">
           {t("تم تطوير البرنامج بواسطة")}{" "}
-          <span className="font-semibold text-white/80">Ziad Al-hammadi</span> ·{" "}
+          <span className={`font-semibold ${light ? "text-foreground" : "text-white/80"}`}>Ziad Al-hammadi</span> ·{" "}
           <span dir="ltr" className="tnum">+967 784 908 515</span>
           <a
             href={GITHUB_ACCOUNT_URL}
@@ -289,7 +294,7 @@ export function LoginTabs({ users }: { users: LoginUserOption[] }) {
             rel="noopener noreferrer"
             aria-label={t("حساب المطور على GitHub")}
             title="GitHub"
-            className="rounded-md p-1 text-white/60 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            className={`rounded-md p-1 transition focus-visible:outline-none focus-visible:ring-2 ${light ? "text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring" : "text-white/60 hover:bg-white/10 hover:text-white focus-visible:ring-white/60"}`}
           >
             <GithubMark className="h-3.5 w-3.5" />
           </a>
@@ -299,7 +304,7 @@ export function LoginTabs({ users }: { users: LoginUserOption[] }) {
             rel="noopener noreferrer"
             aria-label={t("مراسلة المطور على Signal")}
             title="Signal"
-            className="rounded-md p-1 text-white/60 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            className={`rounded-md p-1 transition focus-visible:outline-none focus-visible:ring-2 ${light ? "text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring" : "text-white/60 hover:bg-white/10 hover:text-white focus-visible:ring-white/60"}`}
           >
             <SignalMark className="h-3.5 w-3.5" />
           </a>

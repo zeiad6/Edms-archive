@@ -68,7 +68,7 @@ function buildColumns(): ColDef<DocRow>[] {
       headerName: t("النوع"),
       field: "docType",
       minWidth: 100,
-      filter: "agSetColumnFilter",
+      filter: "agTextColumnFilter",
       cellRenderer: (p: any) => {
         const d = p.data as DocRow;
         return d.docType ? (
@@ -87,7 +87,7 @@ function buildColumns(): ColDef<DocRow>[] {
       headerName: t("الحالة"),
       field: "status",
       minWidth: 110,
-      filter: "agSetColumnFilter",
+      filter: "agTextColumnFilter",
       cellRenderer: (p: any) => {
         const m = STATUS_META[p.value] ?? STATUS_META.active;
         return (
@@ -107,7 +107,7 @@ function buildColumns(): ColDef<DocRow>[] {
       headerName: t("القسم"),
       field: "departmentName",
       minWidth: 120,
-      filter: "agSetColumnFilter",
+      filter: "agTextColumnFilter",
       cellRenderer: (p: any) => {
         const d = p.data as DocRow;
         return d.departmentName ? (

@@ -82,15 +82,33 @@ win:
     - target: portable
       arch:
         - x64
+    # Extract-once ZIP: the portable SFX re-extracts ~520 MB to %TEMP% on EVERY
+    # launch (minutes of silence on slow disks) — the ZIP is unpacked once and
+    # then starts instantly. Recommended over the Portable exe for daily use.
+    - target: zip
+      arch:
+        - x64
   icon: resources/icon/icon.ico
   executableName: edms-archive
   # NOTE: artifact names MUST stay Latin-only. productName is Arabic (أرشيف)
   # and using ${productName} here produced mangled "?????-1.0.0-Setup-x64.exe"
   # filenames that broke GitHub release assets + direct download links.
-  artifactName: EDMS-Archive-${version}-${target}-${arch}.${ext}
+  # NOTE: ${target} is only defined for nsis/portable — the zip target does
+  # not provide it, so the win-level default must NOT use ${target} (nsis and
+  # portable override it below with their own names).
+  artifactName: EDMS-Archive-${version}-win-${arch}.${ext}
 
 portable:
   artifactName: EDMS-Archive-${version}-Portable-${arch}.${ext}
+  # Stable temp subdir (instead of a random ksuid per build) + a splash bitmap
+  # shown WHILE the ~520 MB payload extracts — without it the exe shows
+  # nothing for minutes and looks broken. BMP must be 24-bit; see
+  # scripts/gen-splash.ps1 to regenerate resources/splash.bmp.
+  unpackDirName: edms-archive-portable
+  splashImage: resources/splash.bmp
+
+# NOTE: artifact names MUST stay Latin-only (see comment on win.artifactName).
+# The zip target reuses win.artifactName -> EDMS-Archive-<version>-zip-<arch>.zip.
 
 nsis:
   oneClick: false
