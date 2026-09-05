@@ -1,6 +1,6 @@
 <div align="center">
 
-![شعار نظام الأرشفة الإلكترونية — أرشيف / EDMS Archive Logo](resources/icon/icon-256.png)
+<img src="./public/icon.svg" width="128" alt="شعار نظام الأرشفة الإلكترونية — أرشيف / EDMS Archive Logo">
 
 # أرشيف — نظام الأرشفة الإلكترونية EDMS
 # Archive — Electronic Document Management System (EDMS)
@@ -51,7 +51,7 @@ for local scan hardware access.
 > ⚠️ **Windows 64-bit only**. On first run SmartScreen may appear
 > because the build is unsigned — choose “More info” then “Run anyway”.
 
-![لوحة معلومات نظام الأرشفة الإلكترونية / EDMS Dashboard Screenshot](public/screenshot-dashboard.png)
+<img src="./public/screenshot-dashboard.png" width="800" alt="لوحة معلومات نظام الأرشفة الإلكترونية / EDMS Dashboard Screenshot">
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron)
