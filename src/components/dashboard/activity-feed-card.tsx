@@ -4,6 +4,8 @@ import { Card } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
 import { cn, timeAgo } from "@/lib/format";
 import type { AuditLog } from "@/db/schema";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 const AUDIT_META: Record<string, { label: string; icon: typeof Eye; tone: string }> = {
   "document.upload": { label: "إيداع مستند", icon: FileUp, tone: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10" },
@@ -26,21 +28,22 @@ interface ActivityFeedCardProps {
 /**
  * Latest audit activity timeline.
  */
-export function ActivityFeedCard({ activity }: ActivityFeedCardProps) {
+export async function ActivityFeedCard({ activity }: ActivityFeedCardProps) {
+  const lang = await getServerLang();
   return (
     <Card className="flex flex-col lg:col-span-1">
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
-        <h3 className="text-sm font-bold text-foreground">آخر النشاطات</h3>
-        <Link href="/audit" className="text-xs font-semibold text-primary transition-colors duration-150 hover:text-primary/80">السجل</Link>
+        <h3 className="text-sm font-bold text-foreground">{ts(lang, "آخر النشاطات")}</h3>
+        <Link href="/audit" className="text-xs font-semibold text-primary transition-colors duration-150 hover:text-primary/80">{ts(lang, "السجل")}</Link>
       </div>
       <div className="flex-1 p-5">
         {activity.length === 0 ? (
           <EmptyState
             compact
             icon={History}
-            title="لا نشاطات بعد"
-            description="سجّل النظام هنا عمليات الإيداع والبحث والتحميل تلقائياً."
-            action={{ label: "عرض السجل الكامل", href: "/audit" }}
+            title={ts(lang, "لا نشاطات بعد")}
+            description={ts(lang, "سجّل النظام هنا عمليات الإيداع والبحث والتحميل تلقائياً.")}
+            action={{ label: ts(lang, "عرض السجل الكامل"), href: "/audit" }}
           />
         ) : (
           <div>
@@ -57,8 +60,8 @@ export function ActivityFeedCard({ activity }: ActivityFeedCardProps) {
                   </div>
                   <div className={cn("min-w-0 flex-1", i < activity.length - 1 && "pb-4")}>
                     <div className="text-sm text-foreground">
-                      <span className="font-semibold">{a.userName ?? "النظام"}</span>
-                      <span className="text-muted-foreground"> · {meta.label}</span>
+                      <span className="font-semibold">{a.userName ?? ts(lang, "النظام")}</span>
+                      <span className="text-muted-foreground"> · {ts(lang, meta.label)}</span>
                     </div>
                     {a.details && <div className="truncate text-xs text-muted-foreground">{a.details}</div>}
                     <div className="mt-0.5 text-[11px] text-muted-foreground/70">{timeAgo(a.createdAt)}</div>

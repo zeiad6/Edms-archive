@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -24,6 +26,7 @@ export function DocViewer({
   title: string;
   onClose: () => void;
 }) {
+  useLang(); // re-render on language toggle
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const url = `/api/documents/${id}/file`;
@@ -86,7 +89,7 @@ export function DocViewer({
       })
       .catch(() => {
         if (cancelled) return;
-        setPdfError("تعذّر تحميل ملف PDF");
+        setPdfError(t("تعذّر تحميل ملف PDF"));
         setPdfLoading(false);
       });
 
@@ -146,7 +149,7 @@ export function DocViewer({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/95 backdrop-blur-sm">
+    <div className="animate-fadein fixed inset-0 z-50 flex flex-col bg-slate-950/95 backdrop-blur-md">
       <DocViewerToolbar
         title={title}
         mime={mime}
@@ -194,14 +197,12 @@ export function DocDetailClient({
   return (
     <>
       {open && <DocViewer id={id} mime={mime} ext={ext} title={title} onClose={() => setOpen(false)} />}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2.5">
         <Button onClick={() => setOpen(true)}>
-          <Eye className="h-4 w-4" /> عرض المستند
-        </Button>
+          <Eye className="h-4 w-4" />{t("عرض المستند")}</Button>
         <Button asChild variant="outline">
           <a href={`/api/documents/${id}/file?download=1`}>
-            <Download className="h-4 w-4" /> تنزيل
-          </a>
+            <Download className="h-4 w-4" />{t("تنزيل")}</a>
         </Button>
         {isAdmin && <DocumentDeleteDialog id={id} title={title} />}
       </div>

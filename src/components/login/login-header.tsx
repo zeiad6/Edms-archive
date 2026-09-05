@@ -3,6 +3,7 @@
 import { AppLogo } from "@/components/app-logo";
 import { LanguageToggle } from "@/components/lang-provider";
 import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 /**
  * Login page header (client component): language toggle in the top corner,
@@ -18,6 +19,7 @@ import { t } from "@/lib/i18n";
  * day and dark appearance.
  */
 export function LoginHeader() {
+  useLang(); // re-render on language toggle
   return (
     <>
       <div className="absolute end-0 top-0">

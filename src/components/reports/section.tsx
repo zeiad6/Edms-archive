@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { Search, X } from "lucide-react";
 
@@ -35,23 +37,24 @@ export function Section({
   placeholder,
   hasSearch = true,
 }: SectionProps) {
+  useLang(); // re-render on language toggle
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">{icon} {title}</h3>
+    <div className="section-card card-sheen animate-rise">
+      <div className="toolbar mb-4 justify-between">
+        <h3 className="section-title flex items-center gap-2.5"><span className="icon-tile h-8 w-8 [&_svg]:h-4 [&_svg]:w-4">{icon}</span> {title}</h3>
         {hasSearch && onSearch && (
           <div className="relative min-w-[180px]">
             <Search className="pointer-events-none absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
               value={search}
               onChange={(e) => onSearch(e.target.value)}
-              placeholder={placeholder ?? "بحث..."}
-              className="w-full rounded-lg border border-border bg-muted py-1.5 ps-8 pe-7 text-xs text-foreground outline-none transition focus:border-ring focus:bg-card"
+              placeholder={placeholder ?? t("بحث...")}
+              className="w-full rounded-xl border border-border bg-muted py-2 ps-9 pe-8 text-xs text-foreground shadow-soft outline-none transition hover:border-primary/30 focus:border-ring focus:bg-card"
             />
             {search && (
               <button
                 onClick={() => onSearch("")}
-                className="absolute end-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute end-2 top-1/2 -translate-y-1/2 rounded-lg p-0.5 text-muted-foreground transition hover:text-foreground"
               >
                 <X className="h-3 w-3" />
               </button>

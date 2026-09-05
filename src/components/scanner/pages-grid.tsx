@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useEffect, useRef, useState } from "react";
 import { Barcode, ChevronDown, ChevronUp, GripVertical, Trash2 } from "lucide-react";
@@ -36,6 +38,7 @@ export function PagesGrid({
   onMovePage,
   onRemovePage,
 }: PagesGridProps) {
+  useLang(); // re-render on language toggle
   /** ID of the page whose delete button is currently armed for confirmation. */
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const confirmTimer = useRef<number | null>(null);
@@ -73,19 +76,19 @@ export function PagesGrid({
   }
 
   return (
-    <section aria-label={`الصفحات الممسوحة — ${pages.length}`} className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
+    <section aria-label={t("الصفحات الممسوحة — {n}", { n: pages.length })} className="card-sheen rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <span className="flex h-6 w-6 items-center justify-center rounded-md bg-muted text-muted-foreground">
             <GripVertical className="h-3.5 w-3.5" />
           </span>
-          اسحب المقبض لإعادة الترتيب أو استخدم الأسهم —{" "}
+          {t("اسحب المقبض لإعادة الترتيب أو استخدم الأسهم —")}{" "}
           <span className="tnum rounded-full bg-primary/10 px-2 py-0.5 font-bold text-primary">{pages.length}</span>{" "}
-          {pages.length === 1 ? "صفحة" : "صفحات"}
+          {t(pages.length === 1 ? "صفحة" : "صفحات")}
         </div>
-        <p className="text-[11px] text-muted-foreground/80">الترتيب هنا هو ترتيب الصفحات في المستند النهائي</p>
+        <p className="text-[11px] text-muted-foreground/80">{t("الترتيب هنا هو ترتيب الصفحات في المستند النهائي")}</p>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-3.5 sm:grid-cols-3 sm:gap-4 md:grid-cols-4">
         {pages.map((page, idx) => {
           const isConfirming = confirmId === page.id;
           const isDragging = dragIdx === idx;
@@ -99,9 +102,9 @@ export function PagesGrid({
               }}
               onDragOver={(e) => onDragOver(e, idx)}
               onDragEnd={onDragEnd}
-              aria-label={`صفحة ${idx + 1} من ${pages.length}`}
+              aria-label={t("صفحة {i} من {n}", { i: idx + 1, n: pages.length })}
               className={cn(
-                "group relative overflow-hidden rounded-xl border bg-muted shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-card focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-ring/30",
+                "group relative overflow-hidden rounded-2xl border bg-muted shadow-card transition duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-pop focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-ring/30",
                 isDragging ? "border-primary/60 opacity-50 ring-2 ring-primary/30" : "border-border",
               )}
             >
@@ -129,8 +132,8 @@ export function PagesGrid({
                   draggable={false}
                   disabled={idx === 0}
                   onClick={() => handleMovePage(idx, idx - 1)}
-                  title="تحريك لأعلى"
-                  aria-label={`تحريك صفحة ${idx + 1} لأعلى`}
+                  title={t("تحريك لأعلى")}
+                  aria-label={t("تحريك صفحة {i} لأعلى", { i: idx + 1 })}
                   className="flex h-6 w-6 items-center justify-center rounded-md bg-black/65 text-white backdrop-blur transition hover:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   <ChevronUp className="h-3 w-3" />
@@ -140,8 +143,8 @@ export function PagesGrid({
                   draggable={false}
                   disabled={idx === pages.length - 1}
                   onClick={() => handleMovePage(idx, idx + 1)}
-                  title="تحريك لأسفل"
-                  aria-label={`تحريك صفحة ${idx + 1} لأسفل`}
+                  title={t("تحريك لأسفل")}
+                  aria-label={t("تحريك صفحة {i} لأسفل", { i: idx + 1 })}
                   className="flex h-6 w-6 items-center justify-center rounded-md bg-black/65 text-white backdrop-blur transition hover:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   <ChevronDown className="h-3 w-3" />
@@ -153,11 +156,11 @@ export function PagesGrid({
                 type="button"
                 draggable={false}
                 onClick={() => handleDeleteClick(page.id)}
-                title={isConfirming ? "اضغط مرة أخرى للتأكيد" : "حذف الصفحة"}
+                title={isConfirming ? t("اضغط مرة أخرى للتأكيد") : t("حذف الصفحة")}
                 aria-label={
                   isConfirming
-                    ? `تأكيد حذف صفحة ${idx + 1}`
-                    : `حذف صفحة ${idx + 1}`
+                    ? t("تأكيد حذف صفحة {i}", { i: idx + 1 })
+                    : t("حذف صفحة {i}", { i: idx + 1 })
                 }
                 className={cn(
                   "absolute bottom-1.5 right-1.5 z-10 inline-flex h-6 min-w-6 items-center justify-center gap-1 rounded-md px-1.5 text-[10px] font-semibold text-white shadow-sm backdrop-blur transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
@@ -166,13 +169,13 @@ export function PagesGrid({
                     : "bg-black/65 opacity-100 hover:bg-rose-600 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100",
                 )}
               >
-                {isConfirming ? "تأكيد؟" : <Trash2 className="h-3 w-3" />}
+                {isConfirming ? t("تأكيد؟") : <Trash2 className="h-3 w-3" />}
               </button>
 
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={page.dataUrl}
-                alt={`صفحة ${idx + 1}`}
+                alt={t("صفحة {i}", { i: idx + 1 })}
                 loading="lazy"
                 draggable={false}
                 className="aspect-[3/4] h-36 w-full bg-white object-cover"

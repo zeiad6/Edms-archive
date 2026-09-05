@@ -25,7 +25,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border bg-card shadow-card",
+        "rounded-2xl border border-border bg-card shadow-card ring-1 ring-inset ring-black/[0.03] dark:ring-white/[0.04]",
         interactive && "card-interactive",
         className
       )}
@@ -59,7 +59,7 @@ export function StatusBadge({ status }: { status: string }) {
   return (
     <Badge className={m.badge}>
       <span className={cn("h-1.5 w-1.5 rounded-full", m.dot)} />
-      {m.label}
+      {t(m.label)}
     </Badge>
   );
 }
@@ -71,7 +71,7 @@ export function TypeBadge({ type, color }: { type: string | null; color?: string
       className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold"
       style={docTypeStyle(color ?? undefined)}
     >
-      {type}
+      {t(type)}
     </span>
   );
 }
@@ -89,7 +89,7 @@ export function Avatar({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white ring-2 ring-card",
+        "inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white shadow-sm ring-2 ring-card",
         s
       )}
       style={{ backgroundColor: color }}
@@ -112,19 +112,19 @@ export function PageHeader({
 }) {
   useLang(); // re-render when the language toggles
   return (
-    <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
-      <div className="flex items-start gap-3">
+    <div className="flex flex-wrap items-start justify-between gap-x-5 gap-y-4">
+      <div className="flex min-w-0 items-start gap-3.5">
         {icon && (
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <div className="icon-tile h-12 w-12">
             {icon}
           </div>
         )}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t(title)}</h1>
-          {subtitle && <p className="mt-1 text-sm text-muted-foreground">{t(subtitle)}</p>}
+        <div className="min-w-0">
+          <h1 className="text-balance text-[1.65rem] font-extrabold leading-snug tracking-tight text-foreground">{t(title)}</h1>
+          {subtitle && <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">{t(subtitle)}</p>}
         </div>
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-2.5">{actions}</div>}
     </div>
   );
 }
@@ -153,21 +153,22 @@ export function StatCard({
     violet: "bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-1 ring-inset ring-violet-500/20",
   };
   return (
-    <Card interactive className="group relative overflow-hidden p-5 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-ring/30">
-      <div aria-hidden className="pointer-events-none absolute -end-8 -top-8 h-24 w-24 rounded-full bg-primary/[0.06] blur-2xl transition-opacity group-hover:opacity-100" />
-      <div className="relative flex items-center justify-between gap-2">
-        <span className="min-w-0 truncate text-[13px] font-semibold text-muted-foreground">{label}</span>
-        <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-110", accents[accent])}>
+    <Card interactive className="group relative min-h-[9.5rem] overflow-hidden p-5 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-ring/30">
+      <div aria-hidden className="pointer-events-none absolute -end-10 -top-10 h-28 w-28 rounded-full bg-primary/[0.07] blur-2xl transition-all duration-300 group-hover:scale-125 group-hover:opacity-100" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-12 -start-12 h-24 w-24 rounded-full bg-primary/[0.04] blur-2xl" />
+      <div className="relative flex items-center justify-between gap-3">
+        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-muted-foreground">{t(label)}</span>
+        <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-sm transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-3", accents[accent])}>
           {icon}
         </span>
       </div>
-      <div className="relative mt-3 flex items-end justify-between gap-2">
-        <div className="tnum text-2xl font-extrabold tracking-tight text-foreground">{value}</div>
+      <div className="relative mt-3.5 flex items-end justify-between gap-2">
+        <div className="tnum text-[1.65rem] font-extrabold leading-none tracking-tight text-foreground">{value}</div>
         {delta && (
-          <span className={cn("tnum rounded-full px-2 py-0.5 text-[11px] font-bold", delta.up ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground")}>{delta.value}</span>
+          <span className={cn("tnum shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ring-inset", delta.up ? "bg-emerald-500/10 text-emerald-600 ring-emerald-500/20 dark:text-emerald-400" : "bg-muted text-muted-foreground ring-border")}>{delta.value}</span>
         )}
       </div>
-      {hint && <div className="relative mt-1.5 text-xs leading-relaxed text-muted-foreground">{hint}</div>}
+      {hint && <div className="relative mt-2 truncate text-xs leading-relaxed text-muted-foreground">{t(hint)}</div>}
     </Card>
   );
 }
@@ -175,16 +176,14 @@ export function StatCard({
 export function ConfidentialTag() {
   return (
     <span className="inline-flex items-center gap-1 rounded-md bg-rose-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
-      <Lock className="h-3 w-3" /> سري
-    </span>
+      <Lock className="h-3 w-3" />{t("سري")}</span>
   );
 }
 
 export function VerifiedTag() {
   return (
     <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-      <ShieldCheck className="h-3 w-3" /> موثّق
-    </span>
+      <ShieldCheck className="h-3 w-3" />{t("موثّق")}</span>
   );
 }
 
@@ -222,7 +221,7 @@ export function Thumb({
   return (
     <div className={cn("flex h-full w-full flex-col items-center justify-center gap-1 bg-muted", className)}>
       <ExtIcon ext={ext || ""} />
-      <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{ext || "ملف"}</span>
+      <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{ext || t("ملف")}</span>
     </div>
   );
 }

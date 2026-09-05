@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { memo, useMemo, useState } from "react";
 import Link from "next/link";
@@ -18,15 +20,16 @@ export interface FolderNode {
 const byName = (a: FolderNode, b: FolderNode) => a.name.localeCompare(b.name, "ar");
 
 export function FolderTree({ folders }: { folders: FolderNode[] }) {
+  useLang(); // re-render on language toggle
   const roots = folders.filter((f) => f.parentId === null).sort(byName);
   return (
     <div className="space-y-1">
       <Link
         href="/documents"
-        className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2.5 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+        className="flex items-center gap-2.5 rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2.5 text-sm font-medium text-muted-foreground shadow-soft transition hover:border-primary/30 hover:bg-muted hover:text-foreground hover:shadow-card"
       >
         <Files className="h-4 w-4" />
-        <span className="flex-1">كل المستندات</span>
+        <span className="flex-1">{t("كل المستندات")}</span>
       </Link>
       {roots.map((node) => (
         <TreeNode key={node.id} node={node} all={folders} depth={0} />
@@ -47,13 +50,14 @@ const TreeNode = memo(function TreeNode({ node, all, depth }: { node: FolderNode
   return (
     <div>
       <div
-        className="group flex items-center gap-1.5 rounded-xl px-2 py-2 transition hover:bg-muted"
+        className="group flex items-center gap-1.5 rounded-xl px-2 py-1.5 transition hover:bg-muted hover:shadow-soft"
         style={{ paddingInlineStart: depth * 18 + 8 }}
       >
         {hasChildren ? (
           <button
             onClick={() => setOpen((o) => !o)}
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+            aria-label={open ? t("طي المجلد") : t("توسيع المجلد")}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
           >
             <ChevronLeft className={cn("h-4 w-4 transition-transform", open && "-rotate-90")} />
           </button>
@@ -61,14 +65,14 @@ const TreeNode = memo(function TreeNode({ node, all, depth }: { node: FolderNode
           <span className="h-6 w-6 shrink-0" />
         )}
         <span
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-soft ring-1 ring-inset ring-black/5"
           style={{ backgroundColor: `${node.deptColor ?? "#64748b"}1f`, color: node.deptColor ?? "#64748b" }}
         >
           {open && hasChildren ? <FolderOpen className="h-4 w-4" /> : <Folder className="h-4 w-4" />}
         </span>
         <Link
           href={`/documents?folder=${node.id}`}
-          className="min-w-0 flex-1 truncate text-sm font-medium text-foreground hover:text-primary"
+          className="min-w-0 flex-1 truncate text-sm font-medium text-foreground transition hover:text-primary"
           title={node.name}
         >
           {node.name}

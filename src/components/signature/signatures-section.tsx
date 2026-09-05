@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useEffect, useState } from "react";
 import { SignaturePad, SignatureDisplay } from "./signature-pad";
@@ -11,6 +13,7 @@ interface SigItem {
 }
 
 export function SignaturesSection({ documentId }: { documentId: number }) {
+  useLang(); // re-render on language toggle
   const [sigs, setSigs] = useState<SigItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -28,14 +31,14 @@ export function SignaturesSection({ documentId }: { documentId: number }) {
     <div className="space-y-4 px-1 pb-1 pt-4">
       <SignaturePad documentId={documentId} onSigned={() => setRefreshKey((k) => k + 1)} />
 
-      <div className="space-y-2">
-        <h4 className="text-xs font-semibold text-muted-foreground">التوقيعات السابقة</h4>
+      <div className="space-y-2.5">
+        <h4 className="flex items-center gap-2 text-xs font-bold text-muted-foreground">{t("التوقيعات السابقة")}</h4>
         {loading ? (
-          <p className="text-xs text-muted-foreground">جارٍ التحميل...</p>
+          <p className="animate-pulse text-xs text-muted-foreground">{t("جارٍ التحميل...")}</p>
         ) : sigs.length === 0 ? (
-          <p className="text-xs text-muted-foreground">لا توجد توقيعات بعد.</p>
+          <p className="rounded-xl bg-muted/50 px-3 py-2.5 text-center text-xs text-muted-foreground ring-1 ring-inset ring-border/40">{t("لا توجد توقيعات بعد.")}</p>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2.5 sm:grid-cols-2">
             {sigs.map((s) => (
               <SignatureDisplay key={s.id} dataUrl={s.dataUrl} label={s.label} />
             ))}

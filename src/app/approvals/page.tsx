@@ -9,10 +9,13 @@ import { can } from "@/lib/permissions";
 import { ensureSeeded } from "@/lib/seed";
 import { PageHeader } from "@/components/ui";
 import ApprovalsClient from "@/components/approvals-client";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 export const dynamic = "force-dynamic";
 
 export default async function ApprovalsPage() {
+  const lang = await getServerLang();
   await ensureSeeded();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -63,10 +66,10 @@ export default async function ApprovalsPage() {
   const isAdmin = user.role === "admin";
 
   return (
-    <div className="animate-fadein">
+    <div className="animate-fadein page-stack">
       <PageHeader
-        title="الموافقات"
-        subtitle="إدارة طلبات الموافقة على المستندات"
+        title={ts(lang, "الموافقات")}
+        subtitle={ts(lang, "إدارة طلبات الموافقة على المستندات")}
         icon={<ShieldCheck className="h-5 w-5" />}
       />
       <ApprovalsClient

@@ -1,4 +1,6 @@
 import { Search, XCircle } from "lucide-react";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 interface TemplateSearchBarProps {
   search: string;
@@ -7,19 +9,20 @@ interface TemplateSearchBarProps {
 }
 
 export function TemplateSearchBar({ search, onChange, onClear }: TemplateSearchBarProps) {
+  useLang(); // re-render on language toggle
   return (
-    <div className="relative mb-4">
+    <div className="relative">
       <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <input
         value={search}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="بحث في القوالب..."
-        className="w-full rounded-xl border border-border bg-muted/50 py-2 ps-9 pe-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+        placeholder={t("بحث في القوالب...")}
+        className="min-h-[2.625rem] w-full rounded-xl border border-border bg-card py-2 pe-9 ps-9 text-sm text-foreground shadow-soft outline-none transition placeholder:text-muted-foreground/60 hover:border-primary/30 focus:border-primary/50 focus:bg-card focus:ring-2 focus:ring-primary/20"
       />
       {search && (
         <button
           onClick={onClear}
-          className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          className="animate-fadein absolute end-3 top-1/2 -translate-y-1/2 rounded-lg p-0.5 text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <XCircle className="h-4 w-4" />
         </button>

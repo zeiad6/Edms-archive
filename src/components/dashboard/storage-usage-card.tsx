@@ -1,6 +1,8 @@
 import { HardDrive } from "lucide-react";
 import { Card } from "@/components/ui";
 import { formatBytes } from "@/lib/format";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 const QUOTA = 5 * 1024 * 1024 * 1024; // 5 GB demo quota
 
@@ -11,7 +13,8 @@ interface StorageUsageCardProps {
 /**
  * Storage usage ring with used percentage and quota summary.
  */
-export function StorageUsageCard({ storage }: StorageUsageCardProps) {
+export async function StorageUsageCard({ storage }: StorageUsageCardProps) {
+  const lang = await getServerLang();
   const usedPct = Math.min(100, Math.round((storage / QUOTA) * 100));
   return (
     <Card className="flex items-center gap-5 p-5">
@@ -24,13 +27,12 @@ export function StorageUsageCard({ storage }: StorageUsageCardProps) {
         </div>
       </div>
       <div>
-        <div className="text-sm font-bold text-foreground">استخدام التخزين</div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          {formatBytes(storage)} مستخدم من {formatBytes(QUOTA)}
+        <div className="text-sm font-bold text-foreground">{ts(lang, "استخدام التخزين")}</div>
+        <div className="tnum mt-1 text-xs text-muted-foreground">
+          {ts(lang, "{u} مستخدم من {q}", { u: formatBytes(storage), q: formatBytes(QUOTA) })}
         </div>
         <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
-          <HardDrive className="h-3 w-3" /> تخزين محلي آمن
-        </div>
+          <HardDrive className="h-3 w-3" />{ts(lang, "تخزين محلي آمن")}</div>
       </div>
     </Card>
   );

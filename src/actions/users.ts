@@ -7,7 +7,7 @@ import { users, documents } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser, logAudit } from "@/lib/server";
 import { requirePermission } from "@/lib/permissions";
-import { hashPassword, verifyPassword } from "@/lib/password";
+import { hashPassword, sanitizePastedPassword, verifyPassword } from "@/lib/password";
 
 /** Minimum accepted password length (mirrors `changePassword`). */
 const MIN_PASSWORD_LENGTH = 8;
@@ -43,7 +43,7 @@ export async function updateUser(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const username = String(formData.get("username") || "").trim().toLowerCase();
-  const newPassword = String(formData.get("newPassword") || "");
+  const newPassword = sanitizePastedPassword(String(formData.get("newPassword") || ""));
   if (!name) throw new Error("الاسم الكامل مطلوب");
   if (!email) throw new Error("البريد الإلكتروني مطلوب");
   if (!username) throw new Error("اسم الدخول مطلوب");
@@ -114,7 +114,7 @@ export async function createUser(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const username = String(formData.get("username") || "").trim().toLowerCase();
-  const password = String(formData.get("password") || "");
+  const password = sanitizePastedPassword(String(formData.get("password") || ""));
   if (!name) throw new Error("الاسم الكامل مطلوب");
   if (!email) throw new Error("البريد الإلكتروني مطلوب");
   if (!username) throw new Error("اسم الدخول مطلوب");
@@ -171,8 +171,8 @@ export async function createUser(formData: FormData) {
 export async function changePassword(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return; // must be logged in — only the user themselves
-  const current = String(formData.get("currentPassword") || "");
-  const next = String(formData.get("newPassword") || "");
+  const current = sanitizePastedPassword(String(formData.get("currentPassword") || ""));
+  const next = sanitizePastedPassword(String(formData.get("newPassword") || ""));
   // Constant-time check; users without a stored hash cannot change via this path.
   if (!user.passwordHash || !verifyPassword(current, user.passwordHash)) return;
   if (next.length < 8) return; // minimum password length

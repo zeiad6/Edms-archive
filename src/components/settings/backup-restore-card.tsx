@@ -104,7 +104,7 @@ export function BackupRestoreCard() {
     } catch (e) {
       setStatus({
         kind: "err",
-        text: e instanceof Error ? e.message : t("فشل تحليل ملف النسخة الاحتياطية"),
+        text: e instanceof Error ? t(e.message) : t("فشل تحليل ملف النسخة الاحتياطية"),
       });
       setSelectedFile(null);
       if (fileRef.current) fileRef.current.value = "";
@@ -141,7 +141,7 @@ export function BackupRestoreCard() {
     } catch (e) {
       setStatus({
         kind: "err",
-        text: e instanceof Error ? e.message : t("فشلت الاستعادة"),
+        text: e instanceof Error ? t(e.message) : t("فشلت الاستعادة"),
       });
     } finally {
       setBusy(null);
@@ -167,11 +167,11 @@ export function BackupRestoreCard() {
           : null;
 
   return (
-    <Card className="p-5">
-      <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-foreground">
-        <Download className="h-4 w-4 text-primary" /> {t("النسخ الاحتياطي والاستعادة")}
+    <Card className="card-sheen p-5 sm:p-6">
+      <h3 className="mb-2 flex items-center gap-2.5 text-sm font-bold text-foreground">
+        <span className="icon-tile h-8 w-8 bg-primary/10 text-primary [&_svg]:h-4 [&_svg]:w-4"><Download className="h-4 w-4" /></span> {t("النسخ الاحتياطي والاستعادة")}
       </h3>
-      <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+      <p className="mb-4 text-xs leading-6 text-muted-foreground">
         {t(
           "ينزّل ملف ZIP واحداً يحتوي قاعدة البيانات بالكامل وكل ملفات التخزين (المستندات والصور الممسوحة) مع ملف وصف (manifest) — احفظه على جهازك أو وسيط خارجي للاستعادة عند الحاجة."
         )}
@@ -182,7 +182,7 @@ export function BackupRestoreCard() {
         type="button"
         onClick={doBackup}
         disabled={busy !== null}
-        className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm shadow-primary/25 transition-all duration-150 hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-all duration-150 hover:-translate-y-px hover:bg-primary/90 hover:shadow-lg active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {busy === "backup" ? (
           <RefreshCw className="h-4 w-4 animate-spin" />
@@ -195,10 +195,10 @@ export function BackupRestoreCard() {
       {/* ---- Restore --------------------------------------------------------- */}
       <div className="mt-5 border-t border-border pt-4">
         <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-          <Upload className="h-4 w-4 text-primary" /> {t("استعادة نسخة احتياطية")}
+          <span className="icon-tile h-7 w-7 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 [&_svg]:h-3.5 [&_svg]:w-3.5"><Upload className="h-3.5 w-3.5" /></span> {t("استعادة نسخة احتياطية")}
         </h4>
 
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-soft transition hover:border-primary/30 hover:bg-muted hover:shadow-card active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">
           <FileArchive className="h-4 w-4" />
           {t("اختيار ملف ZIP")}
           <input
@@ -230,7 +230,7 @@ export function BackupRestoreCard() {
               {parts.map((p) => (
                 <label
                   key={p.id}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-lg bg-muted/40 px-3 py-2 text-sm text-foreground transition hover:bg-muted"
+                  className="flex cursor-pointer items-center gap-2.5 rounded-xl bg-muted/40 px-3 py-2.5 text-sm text-foreground shadow-soft ring-1 ring-inset ring-border/40 transition hover:bg-muted hover:shadow-card"
                 >
                   <input
                     type="checkbox"
@@ -252,7 +252,7 @@ export function BackupRestoreCard() {
               type="button"
               onClick={doRestore}
               disabled={busy !== null || checked.size === 0}
-              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-600/25 transition-all duration-150 hover:bg-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/25 transition-all duration-150 hover:-translate-y-px hover:bg-emerald-500 hover:shadow-lg active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy === "restore" ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
@@ -273,10 +273,10 @@ export function BackupRestoreCard() {
         {status && (
           <div
             className={cn(
-              "mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-xs font-medium",
+              "mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs font-medium shadow-soft ring-1 ring-inset",
               status.kind === "ok"
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                : "bg-rose-500/10 text-rose-700 dark:text-rose-400"
+                ? "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-400"
+                : "bg-rose-500/10 text-rose-700 ring-rose-500/20 dark:text-rose-400"
             )}
             role="status"
           >

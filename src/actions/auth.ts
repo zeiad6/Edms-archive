@@ -38,23 +38,25 @@ export async function logoutUser() {
  *   point — there is no identity to restrict yet), and
  * - admins (who may simulate any role from the shell).
  *
- * The target user's password is required and verified before the session is
- * issued — picking a user no longer grants direct access. Signed-in
- * non-admins are rejected server-side, even if they forge the request body —
- * the shell also hides the picker from them.
+ * Admins switch WITHOUT the target user's password (impersonation): the
+ * current session is verified server-side (`current.role === 'admin'`) and
+ * the switch is audit-logged. Anonymous callers on /login must still supply
+ * and verify the target user's password. Signed-in non-admins are rejected
+ * server-side, even if they forge the request body — the shell also hides
+ * the picker from them.
  */
 export async function switchUser(
   prevState: { error?: string } | undefined,
   formData: FormData
 ): Promise<{ error?: string }> {
   const id = Number(formData.get("userId"));
-  const password = sanitizePastedPassword(String(formData.get("password") || ""));
 
   const current = await getCurrentUser();
   if (current && current.role !== "admin") {
     revalidatePath("/", "layout");
     return {};
   }
+  const isAdminSwitch = !!current && current.role === "admin";
 
   // One generic error for unknown user / missing hash / wrong password —
   // never leak which part failed.
@@ -69,6 +71,34 @@ export async function switchUser(
 
   const rows = await db.select().from(users).where(eq(users.id, id)).limit(1);
   const u = rows[0];
+
+  // Admin impersonation: no target password required. Throttle and
+  // active-check are preserved; the switch is audit-logged.
+  if (isAdminSwitch) {
+    if (!u) {
+      recordLoginFailure(throttleKey);
+      return { error: "كلمة المرور غير صحيحة" };
+    }
+    clearLoginFailures(throttleKey);
+    if (!u.active) {
+      return { error: "هذا الحساب معطّل. تواصل مع مدير النظام." };
+    }
+
+    const store = await cookies();
+    store.set(SESSION_COOKIE, signSession(String(u.id)), SESSION_COOKIE_OPTIONS);
+    await logAudit({
+      userId: current!.id,
+      userName: current!.name,
+      action: "auth.switch_user",
+      entityType: "user",
+      entityId: u.id,
+      details: `تبديل الهوية إلى: ${u.name}`,
+    });
+    revalidatePath("/", "layout");
+    return {};
+  }
+
+  const password = sanitizePastedPassword(String(formData.get("password") || ""));
   if (!u?.passwordHash || !(await verifyPassword(password, u.passwordHash))) {
     recordLoginFailure(throttleKey);
     return { error: "كلمة المرور غير صحيحة" };
@@ -124,14 +154,21 @@ export async function loginUser(
   // `newPassword` (+ `confirmPassword`) alongside the hidden username and
   // current password, which are re-verified by the credential check above.
   if (u.mustChangePassword === 1) {
-    const next = String(formData.get("newPassword") || "");
+    // Sanitize both fields with the SAME helper used at login verification:
+    // an RTL paste can wrap the new password in spaces/LRM/RLM/zero-width
+    // marks; storing it raw then verifying the sanitized form on the next
+    // login would reject a correct password. sanitizePastedPassword only
+    // strips surrounding noise (inner content untouched) so comparison and
+    // storage stay consistent.
+    const next = sanitizePastedPassword(String(formData.get("newPassword") || ""));
+    const confirm = sanitizePastedPassword(String(formData.get("confirmPassword") || ""));
     if (!next) {
       return { error: "يجب تغيير كلمة المرور الافتراضية أولاً", mustChange: true };
     }
     if (next.length < 8) {
       return { error: "كلمة المرور الجديدة يجب ألا تقل عن 8 أحرف", mustChange: true };
     }
-    if (next !== String(formData.get("confirmPassword") || "")) {
+    if (next !== confirm) {
       return { error: "تأكيد كلمة المرور غير مطابق", mustChange: true };
     }
     await db

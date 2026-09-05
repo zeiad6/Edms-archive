@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { Calendar } from "lucide-react";
 import { cn } from "@/lib/format";
@@ -25,6 +27,7 @@ export function DateRangeFilter({
   onFrom,
   onTo,
 }: DateRangeFilterProps) {
+  useLang(); // re-render on language toggle
   if (monthly.length <= 1) return null;
 
   return (
@@ -32,18 +35,18 @@ export function DateRangeFilter({
       <button
         onClick={onToggle}
         className={cn(
-          "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition",
+          "inline-flex min-h-[2.25rem] items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium shadow-soft transition hover:shadow-card",
           show
             ? "border-primary bg-primary/10 text-primary"
-            : "border-border text-muted-foreground hover:bg-muted",
+            : "border-border bg-card text-muted-foreground hover:border-primary/25 hover:text-foreground",
         )}
       >
         <Calendar className="h-3.5 w-3.5" />
-        {show ? "إخفاء فلتر التاريخ" : "فلترة الشهر"}
+        {show ? t("إخفاء فلتر التاريخ") : t("فلترة الشهر")}
       </button>
 
       {show && (
-        <span className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
           <select
             value={fromIdx}
             onChange={(e) => {
@@ -51,13 +54,13 @@ export function DateRangeFilter({
               onFrom(v);
               if (v > toIdx) onTo(v);
             }}
-            className="rounded-lg border border-border bg-muted px-2 py-1 text-xs outline-none"
+            className="rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs shadow-soft outline-none transition hover:border-primary/30 focus:border-ring"
           >
             {monthly.map((m, i) => {
               const [, mm] = m.month.split("-");
               return (
                 <option key={m.month} value={i}>
-                  {MONTH_LABELS[mm] ?? mm} {m.month.slice(0, 4)}
+                  {t(MONTH_LABELS[mm] ?? mm)} {m.month.slice(0, 4)}
                 </option>
               );
             })}
@@ -66,13 +69,13 @@ export function DateRangeFilter({
           <select
             value={toIdx}
             onChange={(e) => onTo(Number(e.target.value))}
-            className="rounded-lg border border-border bg-muted px-2 py-1 text-xs outline-none"
+            className="rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs shadow-soft outline-none transition hover:border-primary/30 focus:border-ring"
           >
             {monthly.slice(fromIdx).map((m, i) => {
               const [, mm] = m.month.split("-");
               return (
                 <option key={m.month} value={fromIdx + i}>
-                  {MONTH_LABELS[mm] ?? mm} {m.month.slice(0, 4)}
+                  {t(MONTH_LABELS[mm] ?? mm)} {m.month.slice(0, 4)}
                 </option>
               );
             })}

@@ -5,11 +5,13 @@ import { users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/server";
 import { LoginHeader } from "@/components/login/login-header";
 import { LoginTabs } from "@/components/login/login-tabs";
-import { t } from "@/lib/i18n";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
+  const lang = await getServerLang();
   const user = await getCurrentUser();
   if (user) redirect("/");
 
@@ -31,7 +33,7 @@ export default async function LoginPage() {
         <div className="pointer-events-none absolute -bottom-44 -left-24 h-96 w-96 rounded-full bg-violet-600/15 blur-3xl" />
         <div className="animate-fadein relative rounded-2xl border border-white/10 bg-card/80 px-8 py-10 text-center shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
           <Inbox className="mx-auto mb-3 h-10 w-10 text-primary" />
-          <p className="text-sm text-muted-foreground">{t("لم يتم العثور على أي مستخدمين.")}</p>
+          <p className="text-sm text-muted-foreground">{ts(lang, "لم يتم العثور على أي مستخدمين.")}</p>
         </div>
       </div>
     );

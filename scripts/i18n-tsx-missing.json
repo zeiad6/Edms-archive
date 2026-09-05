@@ -1,0 +1,1102 @@
+[
+  {
+    "f": "components\\analytics\\folder-structure-card.tsx",
+    "line": 20,
+    "key": "مجلد غير مسمى"
+  },
+  {
+    "f": "app\\departments\\page.tsx",
+    "line": 63,
+    "key": " /> {totalDocs} مستند</span>\r\n            <span className="
+  },
+  {
+    "f": "app\\departments\\page.tsx",
+    "line": 64,
+    "key": " /> {totalMembers} عضو</span>\r\n          </div>\r\n        </Card>\r\n      </div>\r\n\r\n    </div>\r\n  );\r\n}\r\n\r\nconst inputCls =\r\n  "
+  },
+  {
+    "f": "app\\import\\csv\\page.tsx",
+    "line": 36,
+    "key": "فشل الاتصال"
+  },
+  {
+    "f": "app\\import\\csv\\page.tsx",
+    "line": 37,
+    "key": "خطأ في الاستيراد"
+  },
+  {
+    "f": "app\\import\\csv\\page.tsx",
+    "line": 42,
+    "key": ");\r\n      toast.success(`تم استيراد ${data.imported} مستند${data.imported !== 1 ? "
+  },
+  {
+    "f": "app\\import\\csv\\page.tsx",
+    "line": 89,
+    "key": "رفع الملف"
+  },
+  {
+    "f": "app\\import\\csv\\page.tsx",
+    "line": 89,
+    "key": "معاينة"
+  },
+  {
+    "f": "app\\import\\csv\\page.tsx",
+    "line": 89,
+    "key": "اكتمال"
+  },
+  {
+    "f": "app\\layout.tsx",
+    "line": 44,
+    "key": "أرشيف · نظام الأرشفة الإلكترونية EDMS"
+  },
+  {
+    "f": "app\\layout.tsx",
+    "line": 48,
+    "key": "منصة أرشفة إلكترونية مؤسسية آمنة: تخزين محلي آمن، بحث متكامل، صلاحيات، تدقيق، وبث آمن للمستندات."
+  },
+  {
+    "f": "app\\notifications\\page.tsx",
+    "line": 61,
+    "key": "لديك {n} إشعارات غير مقروءة"
+  },
+  {
+    "f": "app\\notifications\\page.tsx",
+    "line": 62,
+    "key": "جميع الإشعارات مقروءة"
+  },
+  {
+    "f": "app\\search\\page.tsx",
+    "line": 38,
+    "key": "عقد"
+  },
+  {
+    "f": "app\\search\\page.tsx",
+    "line": 38,
+    "key": "فاتورة"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 34,
+    "key": "تقرير"
+  },
+  {
+    "f": "app\\search\\page.tsx",
+    "line": 38,
+    "key": "خطاب"
+  },
+  {
+    "f": "app\\search\\page.tsx",
+    "line": 38,
+    "key": "كشف حساب"
+  },
+  {
+    "f": "app\\search\\page.tsx",
+    "line": 38,
+    "key": "شهادة"
+  },
+  {
+    "f": "app\\search\\page.tsx",
+    "line": 38,
+    "key": "مذكرة"
+  },
+  {
+    "f": "app\\search\\page.tsx",
+    "line": 38,
+    "key": "محضر"
+  },
+  {
+    "f": "app\\settings\\page.tsx",
+    "line": 117,
+    "key": ">\r\n                {formatBytes(storage)} مستخدم من {formatBytes(QUOTA)}\r\n              </div>\r\n              <div className="
+  },
+  {
+    "f": "app\\settings\\page.tsx",
+    "line": 131,
+    "key": "libSQL (SQLite) — ملف محلي"
+  },
+  {
+    "f": "app\\settings\\page.tsx",
+    "line": 132,
+    "key": "Fuse.js · SQL LIKE (بحث نصي)"
+  },
+  {
+    "f": "app\\tags\\tags-list.tsx",
+    "line": 31,
+    "key": " />\r\n            {filtered.length} / {tags.length} وسام\r\n          </span>\r\n\r\n          {tags.length > 5 && (\r\n            <div className="
+  },
+  {
+    "f": "app\\tags\\tags-list.tsx",
+    "line": 100,
+    "key": ">\r\n          {tag.docCount} مستند\r\n        </div>\r\n      </div>\r\n\r\n      <form action={updateTag} className="
+  },
+  {
+    "f": "app\\tags\\tags-list.tsx",
+    "line": 138,
+    "key": " نهائياً؟`)) e.preventDefault();\r\n          }}\r\n        >\r\n          <Trash2 className="
+  },
+  {
+    "f": "app\\templates\\page.tsx",
+    "line": 95,
+    "key": "تم تحديث القالب بنجاح"
+  },
+  {
+    "f": "app\\templates\\page.tsx",
+    "line": 95,
+    "key": "تم إنشاء القالب بنجاح"
+  },
+  {
+    "f": "app\\templates\\page.tsx",
+    "line": 108,
+    "key": "هل تريد حذف هذا القالب؟"
+  },
+  {
+    "f": "components\\analytics\\folder-structure-card.tsx",
+    "line": 34,
+    "key": "عند إنشاء المجلدات وإيداع المستندات فيها تظهر الشجرة هنا."
+  },
+  {
+    "f": "components\\app-logo.tsx",
+    "line": 7,
+    "key": "أ"
+  },
+  {
+    "f": "components\\approvals\\approval-card.tsx",
+    "line": 84,
+    "key": ">رقم المستند: {req.docNumber}</span>\n          )}\n\n          {/* Requester */}\n          <div className="
+  },
+  {
+    "f": "components\\approvals\\approval-card.tsx",
+    "line": 128,
+    "key": "رد الموافقة"
+  },
+  {
+    "f": "components\\approvals\\approval-card.tsx",
+    "line": 128,
+    "key": "سبب الرفض"
+  },
+  {
+    "f": "components\\approvals\\approval-card.tsx",
+    "line": 137,
+    "key": " />{req.createdAt ? `أُرسل: ${timeAgo(req.createdAt)}` : "
+  },
+  {
+    "f": "components\\approvals\\approval-card.tsx",
+    "line": 138,
+    "key": ">استُجيب: {formatDate(req.respondedAt)}</span>}\n          </div>\n        </div>\n\n        {/* Actions */}\n        {canApprove && (\n          <div className="
+  },
+  {
+    "f": "components\\approvals-client.tsx",
+    "line": 72,
+    "key": ">\n            قيد الانتظار\n            {pendingReqs.length > 0 && (\n              <span className="
+  },
+  {
+    "f": "components\\approvals-client.tsx",
+    "line": 80,
+    "key": ">\n            مكتملة\n            {completedReqs.length > 0 && (\n              <span className="
+  },
+  {
+    "f": "components\\approvals-client.tsx",
+    "line": 88,
+    "key": ">\n            الكل\n            {search && <span className="
+  },
+  {
+    "f": "components\\approvals-client.tsx",
+    "line": 120,
+    "key": "لا توجد طلبات مطابقة للبحث"
+  },
+  {
+    "f": "components\\approvals-client.tsx",
+    "line": 96,
+    "key": "لا توجد طلبات موافقة معلقة"
+  },
+  {
+    "f": "components\\approvals-client.tsx",
+    "line": 96,
+    "key": "طلبات الاعتماد الجديدة الموجهة إليك تظهر هنا."
+  },
+  {
+    "f": "components\\approvals-client.tsx",
+    "line": 108,
+    "key": "لا توجد طلبات مكتملة"
+  },
+  {
+    "f": "components\\approvals-client.tsx",
+    "line": 108,
+    "key": "الطلبات التي تم البت فيها (موافقة/رفض) تظهر هنا."
+  },
+  {
+    "f": "components\\approvals-client.tsx",
+    "line": 120,
+    "key": "لا توجد طلبات موافقة"
+  },
+  {
+    "f": "components\\approvals-client.tsx",
+    "line": 120,
+    "key": "جميع طلبات الاعتماد في النظام تظهر هنا."
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 35,
+    "key": "إيداع مستند"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 37,
+    "key": "عرض مستند"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 38,
+    "key": "تنزيل مستند"
+  },
+  {
+    "f": "components\\dashboard\\activity-feed-card.tsx",
+    "line": 15,
+    "key": "بحث في الأرشيف"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 40,
+    "key": "تحديث بيانات"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 42,
+    "key": "حذف مستند"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 47,
+    "key": "إنشاء قسم"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 48,
+    "key": "إنشاء مجلد"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 49,
+    "key": "إضافة مستخدم"
+  },
+  {
+    "f": "components\\dashboard\\activity-feed-card.tsx",
+    "line": 45,
+    "key": "سجّل النظام هنا عمليات الإيداع والبحث والتحميل تلقائياً."
+  },
+  {
+    "f": "components\\dashboard\\activity-feed-card.tsx",
+    "line": 46,
+    "key": "عرض السجل الكامل"
+  },
+  {
+    "f": "components\\dashboard\\dashboard-hero.tsx",
+    "line": 35,
+    "key": ">{t(greeting)}، {name}</h1>\n          <p className="
+  },
+  {
+    "f": "components\\dashboard\\departments-distribution-card.tsx",
+    "line": 22,
+    "key": "عند إنشاء الأقسام وإيداع مستنداتها تظهر النسب هنا."
+  },
+  {
+    "f": "components\\dashboard\\doc-types-card.tsx",
+    "line": 22,
+    "key": "تظهر هنا توزيعات أنواع المستندات عند الإيداع."
+  },
+  {
+    "f": "components\\dashboard\\monthly-trend-card.tsx",
+    "line": 27,
+    "key": "يظهر الاتجاه عند إيداع المستندات."
+  },
+  {
+    "f": "components\\dashboard\\popular-tags-card.tsx",
+    "line": 21,
+    "key": "أضف وسوماً عند إيداع المستندات لتصنيفها بسهولة."
+  },
+  {
+    "f": "components\\dashboard\\recent-documents-card.tsx",
+    "line": 59,
+    "key": "عند إيداع أول مستند سيظهر هنا مباشرة."
+  },
+  {
+    "f": "components\\dashboard\\status-distribution-card.tsx",
+    "line": 30,
+    "key": "تظهر حالات المستندات (نشط، مؤرشف…) عند الإيداع."
+  },
+  {
+    "f": "components\\dashboard\\storage-usage-card.tsx",
+    "line": 31,
+    "key": ">\r\n          {formatBytes(storage)} مستخدم من {formatBytes(QUOTA)}\r\n        </div>\r\n        <div className="
+  },
+  {
+    "f": "components\\dashboard\\top-uploaders-card.tsx",
+    "line": 23,
+    "key": "عند إيداع المستندات تظهر قائمة أكثر المساهمين."
+  },
+  {
+    "f": "components\\dashboard\\top-uploaders-card.tsx",
+    "line": 38,
+    "key": ">\r\n                {u.c} مستند{u.c === 1 ? "
+  },
+  {
+    "f": "components\\dashboard\\top-uploaders-card.tsx",
+    "line": 39,
+    "key": "ات"
+  },
+  {
+    "f": "components\\data-grid.tsx",
+    "line": 110,
+    "key": " />\r\n            {rows.length} سجل\r\n          </span>\r\n          <button\r\n            onClick={onExport}\r\n            className="
+  },
+  {
+    "f": "components\\documents\\doc-viewer-content.tsx",
+    "line": 69,
+    "key": "\n      aria-label={`معاينة نصية: ${title}`}\n      className="
+  },
+  {
+    "f": "components\\documents\\document-preview.tsx",
+    "line": 278,
+    "key": "لا يدعم المتصفح عرض ملفات Word و Excel مباشرة — نزّل الملف لفتحه في التطبيق المناسب"
+  },
+  {
+    "f": "components\\documents\\doc-viewer-content.tsx",
+    "line": 123,
+    "key": "لا يمكن عرض هذا النوع من الملفات داخل المتصفح"
+  },
+  {
+    "f": "components\\documents\\doc-viewer-toolbar.tsx",
+    "line": 117,
+    "key": "جارٍ تحميل PDF..."
+  },
+  {
+    "f": "components\\documents\\doc-viewer-toolbar.tsx",
+    "line": 119,
+    "key": "عرض آمن عبر البث المباشر — لا يُحفظ على القرص المحلي"
+  },
+  {
+    "f": "components\\documents\\document-preview.tsx",
+    "line": 73,
+    "key": "\r\n      aria-label={`معاينة نصية: ${title}`}\r\n      className="
+  },
+  {
+    "f": "components\\documents\\document-preview.tsx",
+    "line": 159,
+    "key": "\r\n            aria-label={`معاينة: ${title}`}\r\n          >\r\n            {/* Toolbar */}\r\n            <div\r\n              className="
+  },
+  {
+    "f": "components\\documents\\document-preview.tsx",
+    "line": 279,
+    "key": "لا يمكن معاينة هذا النوع داخل المتصفح — نزّل الملف لعرضه"
+  },
+  {
+    "f": "components\\documents-page-client.tsx",
+    "line": 48,
+    "key": "تعذّر تحميل الوسوم:"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 39,
+    "key": "بحث"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 41,
+    "key": "تغيير حالة"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 43,
+    "key": "إصدار جديد"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 44,
+    "key": "تنزيل إصدار"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 45,
+    "key": "تسجيل دخول"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 46,
+    "key": "تسجيل خروج"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 50,
+    "key": "تحديث مستخدم"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 51,
+    "key": "حذف مستخدم"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 52,
+    "key": "إنشاء وسم"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 54,
+    "key": "رد على موافقة"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 55,
+    "key": "توقيع إلكتروني"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 56,
+    "key": "تحديث إعدادات"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 71,
+    "key": "التاريخ والوقت"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 100,
+    "key": "العملية"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 117,
+    "key": "التفاصيل"
+  },
+  {
+    "f": "components\\grids\\audit-grid.tsx",
+    "line": 194,
+    "key": ">\r\n          آخر تحديث: {formatDateTime(new Date().toISOString())}\r\n        </div>\r\n      </div>\r\n\r\n      {/* Filters */}\r\n      <div className="
+  },
+  {
+    "f": "components\\grids\\departments-grid.tsx",
+    "line": 78,
+    "key": "الأعضاء"
+  },
+  {
+    "f": "components\\grids\\users-grid.tsx",
+    "line": 43,
+    "key": "المسمى"
+  },
+  {
+    "f": "components\\grids\\users-grid.tsx",
+    "line": 49,
+    "key": "الدور"
+  },
+  {
+    "f": "components\\grids\\users-grid.tsx",
+    "line": 86,
+    "key": "تاريخ الانضمام"
+  },
+  {
+    "f": "components\\import\\csv-preview-step.tsx",
+    "line": 150,
+    "key": "، "
+  },
+  {
+    "f": "components\\lang-provider.tsx",
+    "line": 92,
+    "key": "ع"
+  },
+  {
+    "f": "components\\lang-provider.tsx",
+    "line": 81,
+    "key": "العربية"
+  },
+  {
+    "f": "components\\mermaid-renderer.tsx",
+    "line": 47,
+    "key": "flowchart TD\r\n *       A[بداية] --> B{نوع المستند؟}\r\n *       B -->|عقد| C[عقود]\r\n *       B -->|فاتورة| D[فواتور]\r\n *       C --> E[نهاية]\r\n *       D --> E"
+  },
+  {
+    "f": "components\\mermaid-renderer.tsx",
+    "line": 124,
+    "key": "فشل عرض المخطط"
+  },
+  {
+    "f": "components\\notifications\\notification-list.tsx",
+    "line": 23,
+    "key": "لا توجد إشعارات من هذا النوع"
+  },
+  {
+    "f": "components\\notifications\\notification-list.tsx",
+    "line": 23,
+    "key": "لا توجد إشعارات"
+  },
+  {
+    "f": "components\\notifications\\notification-list.tsx",
+    "line": 24,
+    "key": "عندما يصلك إشعار، سيظهر هنا"
+  },
+  {
+    "f": "components\\page-error.tsx",
+    "line": 21,
+    "key": "تعذّر تحميل الصفحة"
+  },
+  {
+    "f": "components\\page-error.tsx",
+    "line": 22,
+    "key": "حدث خطأ أثناء تحميل هذه الصفحة. يرجى المحاولة مرة أخرى."
+  },
+  {
+    "f": "components\\reports\\dept-section.tsx",
+    "line": 38,
+    "key": ">{d.count} مستند · {formatBytes(d.size)}</span>\r\n              </div>\r\n              <div className="
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 40,
+    "key": "أنواع المستندات"
+  },
+  {
+    "f": "components\\reports\\reports-export.tsx",
+    "line": 20,
+    "key": "حالة المستندات"
+  },
+  {
+    "f": "components\\reports\\reports-export.tsx",
+    "line": 22,
+    "key": "جميع المستندات"
+  },
+  {
+    "f": "components\\reports\\reports-export.tsx",
+    "line": 52,
+    "key": ");\r\n        }\r\n        throw new Error(message || `فشل تنزيل التقرير (رمز ${res.status})`);\r\n      }\r\n      const blob = await res.blob();\r\n      const filename = filenameFromDisposition(\r\n        res.headers.get("
+  },
+  {
+    "f": "components\\reports\\reports-export.tsx",
+    "line": 62,
+    "key": ");\r\n      anchor.href = objectUrl;\r\n      anchor.download = filename;\r\n      document.body.appendChild(anchor);\r\n      anchor.click();\r\n      // Deferred cleanup — revoking synchronously can cancel the download.\r\n      setTimeout(() => {\r\n        document.body.removeChild(anchor);\r\n        URL.revokeObjectURL(objectUrl);\r\n      }, 1000);\r\n      toast.success(`تم تنزيل التقرير: ${report.label}`);\r\n    } catch (e) {\r\n      toast.error(`فشل تنزيل التقرير: ${e instanceof Error ? t(e.message) : "
+  },
+  {
+    "f": "components\\reports\\reports-summary.tsx",
+    "line": 28,
+    "key": "الأقسام النشطة"
+  },
+  {
+    "f": "components\\reports\\reports-summary.tsx",
+    "line": 35,
+    "key": "المساهمون"
+  },
+  {
+    "f": "components\\scanner\\camera-panel.tsx",
+    "line": 102,
+    "key": " />}\r\n              التقاط صورة\r\n            </button>\r\n            <button type="
+  },
+  {
+    "f": "components\\scanner\\camera-panel.tsx",
+    "line": 115,
+    "key": " />}\r\n              محاكاة مسح\r\n            </button>\r\n          </div>\r\n        </>\r\n      ) : (\r\n        <div className="
+  },
+  {
+    "f": "components\\scanner\\camera-panel.tsx",
+    "line": 139,
+    "key": " />}\r\n              محاكاة مسح\r\n            </button>\r\n          </div>\r\n          {scanning && (\r\n            <p role="
+  },
+  {
+    "f": "components\\scanner\\hardware-scan-dialog.tsx",
+    "line": 105,
+    "key": "تعذر سرد أجهزة المسح"
+  },
+  {
+    "f": "components\\scanner\\hardware-scan-dialog.tsx",
+    "line": 188,
+    "key": "تعذر إجراء المسح الضوئي"
+  },
+  {
+    "f": "components\\scanner\\hardware-scan-dialog.tsx",
+    "line": 204,
+    "key": "تعذر إضافة الصفحات"
+  },
+  {
+    "f": "components\\scanner\\hardware-scan-dialog.tsx",
+    "line": 217,
+    "key": " />\n            </span>\n            المسح من الطابعة\n            {pages.length > 0 && (\n              <span className="
+  },
+  {
+    "f": "components\\scanner\\hardware-scan-dialog.tsx",
+    "line": 296,
+    "key": ">\n          {selectedDevice && `الجهاز: ${selectedDevice.name} · `}الدقة {dpi} DPI\n        </p>\n\n        {/* ── Scan action (the single hardware-scan button) ──── */}\n        <button\n          type="
+  },
+  {
+    "f": "components\\scanner\\hardware-scan-dialog.tsx",
+    "line": 312,
+    "key": "جارٍ المسح..."
+  },
+  {
+    "f": "components\\scanner\\hardware-scan-dialog.tsx",
+    "line": 326,
+    "key": " />\n                الصور الممسوحة بالترتيب — {pages.length} {pages.length === 1 ? "
+  },
+  {
+    "f": "components\\scanner\\hardware-scan-dialog.tsx",
+    "line": 408,
+    "key": "حذف الصورة"
+  },
+  {
+    "f": "components\\scanner\\hardware-scan-dialog.tsx",
+    "line": 417,
+    "key": " />}\n                    </button>\n                    {/* eslint-disable-next-line @next/next/no-img-element */}\n                    <img\n                      src={page.dataUrl}\n                      alt={`صفحة ممسوحة ${idx + 1}`}\n                      draggable={false}\n                      loading="
+  },
+  {
+    "f": "components\\scanner\\hardware-scan-dialog.tsx",
+    "line": 455,
+    "key": "جارٍ الإضافة..."
+  },
+  {
+    "f": "components\\scanner\\hardware-scan-dialog.tsx",
+    "line": 464,
+    "key": "\n            aria-label={`تكبير صفحة ${lightboxIdx + 1}`}\n          >\n            <div\n              className="
+  },
+  {
+    "f": "components\\scanner\\hardware-scan-dialog.tsx",
+    "line": 497,
+    "key": ">\n              صفحة {lightboxIdx + 1} من {pages.length} · {Math.round(lightboxZoom * 100)}%\n            </div>\n            {/* eslint-disable-next-line @next/next/no-img-element */}\n            <img\n              src={pages[lightboxIdx].dataUrl}\n              alt={`صفحة ممسوحة مكبرة ${lightboxIdx + 1}`}\n              onClick={(e) => e.stopPropagation()}\n              style={{ transform: `scale(${lightboxZoom})` }}\n              className="
+  },
+  {
+    "f": "components\\scanner\\pages-grid.tsx",
+    "line": 8,
+    "key": ";\n\ninterface PagesGridProps {\n  pages: ScannedPage[];\n  dragIdx: number | null;\n  onDragStart: (idx: number) => void;\n  onDragOver: (e: React.DragEvent, idx: number) => void;\n  onDragEnd: () => void;\n  /** Move a page from `fromIdx` to `toIdx` (used by the up/down buttons). */\n  onMovePage: (fromIdx: number, toIdx: number) => void;\n  onRemovePage: (id: string) => void;\n}\n\nconst CONFIRM_RESET_MS = 3000;\n\n/**\n * Draggable thumbnail grid of scanned pages.\n *\n * - Page number + barcode badge (top), order actions (bottom).\n * - Delete uses a two-step inline confirm (first tap arms, second deletes)\n *   so accidental taps never lose a page.\n * - Up/down buttons provide an accessible + touch fallback when HTML5\n *   drag & drop is unavailable (iOS, keyboard users).\n */\nexport function PagesGrid({\n  pages,\n  dragIdx,\n  onDragStart,\n  onDragOver,\n  onDragEnd,\n  onMovePage,\n  onRemovePage,\n}: PagesGridProps) {\n  useLang(); // re-render on language toggle\n  /** ID of the page whose delete button is currently armed for confirmation. */\n  const [confirmId, setConfirmId] = useState<string | null>(null);\n  const confirmTimer = useRef<number | null>(null);\n\n  useEffect(\n    () => () => {\n      if (confirmTimer.current) window.clearTimeout(confirmTimer.current);\n    },\n    [],\n  );\n\n  const resetConfirm = () => {\n    if (confirmTimer.current) window.clearTimeout(confirmTimer.current);\n    confirmTimer.current = null;\n    setConfirmId(null);\n  };\n\n  /** Arm the confirm state, or delete when the same page is confirmed again. */\n  function handleDeleteClick(id: string) {\n    if (confirmId === id) {\n      onRemovePage(id);\n      resetConfirm();\n    } else {\n      setConfirmId(id);\n      if (confirmTimer.current) window.clearTimeout(confirmTimer.current);\n      confirmTimer.current = window.setTimeout(resetConfirm, CONFIRM_RESET_MS);\n    }\n  }\n\n  /** Move one step via the up/down buttons (clamped to list bounds). */\n  function handleMovePage(fromIdx: number, toIdx: number) {\n    if (toIdx < 0 || toIdx >= pages.length) return;\n    onMovePage(fromIdx, toIdx);\n    resetConfirm();\n  }\n\n  return (\n    <section aria-label={`الصفحات الممسوحة — ${pages.length}`} className="
+  },
+  {
+    "f": "components\\scanner\\pages-grid.tsx",
+    "line": 83,
+    "key": " />\n          </span>\n          اسحب المقبض لإعادة الترتيب أو استخدم الأسهم —{"
+  },
+  {
+    "f": "components\\scanner\\pages-grid.tsx",
+    "line": 91,
+    "key": ">\n        {pages.map((page, idx) => {\n          const isConfirming = confirmId === page.id;\n          const isDragging = dragIdx === idx;\n          return (\n            <div\n              key={page.id}\n              draggable\n              onDragStart={() => {\n                resetConfirm();\n                onDragStart(idx);\n              }}\n              onDragOver={(e) => onDragOver(e, idx)}\n              onDragEnd={onDragEnd}\n              aria-label={`صفحة ${idx + 1} من ${pages.length}`}\n              className={cn(\n                "
+  },
+  {
+    "f": "components\\scanner\\pages-grid.tsx",
+    "line": 172,
+    "key": " />}\n              </button>\n\n              {/* eslint-disable-next-line @next/next/no-img-element */}\n              <img\n                src={page.dataUrl}\n                alt={`صفحة ${idx + 1}`}\n                loading="
+  },
+  {
+    "f": "components\\scanner\\save-form.tsx",
+    "line": 45,
+    "key": ">\r\n          أكمل بيانات المستند ثم احفظه. {ready ? "
+  },
+  {
+    "f": "components\\scanner-client.tsx",
+    "line": 86,
+    "key": "تعذرت محاكاة المسح"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 72,
+    "key": "المستخدمين"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 30,
+    "key": "أرشيف الوثائق"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 30,
+    "key": "وثائق"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 31,
+    "key": "إيداع ملف جديد"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 31,
+    "key": "رفع"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 32,
+    "key": "ماسح المستندات OCR"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 32,
+    "key": "ماسح"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 33,
+    "key": "سير عمل الاعتماد"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 33,
+    "key": "موافقات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 34,
+    "key": "تقارير وإحصاءات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 34,
+    "key": "تقارير"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 34,
+    "key": "إحصائيات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 35,
+    "key": "التحليلات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 35,
+    "key": "تحليل"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 35,
+    "key": "تحليلات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 35,
+    "key": "لوحة"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 36,
+    "key": "إدارة الحسابات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 72,
+    "key": "مستخدم"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 36,
+    "key": "مستخدمون"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 36,
+    "key": "موظفين"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 36,
+    "key": "حساب"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 37,
+    "key": "الإدارات والوحدات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 37,
+    "key": "قسم"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 37,
+    "key": "أقسام"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 37,
+    "key": "إدارة"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 37,
+    "key": "إدارات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 38,
+    "key": "تنظيم المستندات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 38,
+    "key": "مجلدات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 39,
+    "key": "وسوم التصنيف"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 39,
+    "key": "وسوم"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 40,
+    "key": "تصنيف"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 40,
+    "key": "تصنيفات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 40,
+    "key": "أنواع"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 41,
+    "key": "قالب"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 41,
+    "key": "قوالب"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 41,
+    "key": "نموذج"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 41,
+    "key": "نماذج"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 42,
+    "key": "المستندات المحذوفة"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 42,
+    "key": "محذوف"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 42,
+    "key": "محذوفات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 42,
+    "key": "سلة"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 43,
+    "key": "سجل التدقيق"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 43,
+    "key": "تدقيق"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 43,
+    "key": "نشاط"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 44,
+    "key": "التنبيهات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 44,
+    "key": "إشعار"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 44,
+    "key": "إشعارات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 44,
+    "key": "تنبيه"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 44,
+    "key": "تنبيهات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 45,
+    "key": "إدارة RBAC"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 45,
+    "key": "صلاحية"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 45,
+    "key": "صلاحيات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 45,
+    "key": "أدوار"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 46,
+    "key": "إعداد"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 46,
+    "key": "إعدادات"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 46,
+    "key": "ضبط"
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 53,
+    "key": ") // diacritics + tatweel\n    .replace(/[أإآٱ]/g, "
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 54,
+    "key": ")\n    .replace(/ة/g, "
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 55,
+    "key": ")\n    .replace(/ى/g, "
+  },
+  {
+    "f": "components\\search\\search-destinations.tsx",
+    "line": 303,
+    "key": ">فتح صفحة {highlightMatch(dest.title, query)}</span>\n          <span dir="
+  },
+  {
+    "f": "components\\search\\search-hero.tsx",
+    "line": 103,
+    "key": " />}\r\n            بحث\r\n          </button>\r\n          <button\r\n            type="
+  },
+  {
+    "f": "components\\search\\search-hero.tsx",
+    "line": 116,
+    "key": " />\r\n            فلترة\r\n            {hasFilters && <span className="
+  },
+  {
+    "f": "components\\search\\search-result-card.tsx",
+    "line": 64,
+    "key": " /> v{doc.version}\n            </span>\n            {doc.uploaderName && <span>بواسطة {doc.uploaderName}</span>}\n            <span>{timeAgo(doc.createdAt)}</span>\n          </div>\n          {doc.tags && (\n            <div className="
+  },
+  {
+    "f": "components\\search\\search-results.tsx",
+    "line": 24,
+    "key": "لم يتم العثور على نتائج"
+  },
+  {
+    "f": "components\\search\\search-results.tsx",
+    "line": 28,
+    "key": ">الصفحة {page} من {totalPages}</span>\r\n        )}\r\n      </div>\r\n\r\n      {results.length > 0 && (\r\n        <div className="
+  },
+  {
+    "f": "components\\search-box.tsx",
+    "line": 54,
+    "key": "الى"
+  },
+  {
+    "f": "components\\search-box.tsx",
+    "line": 54,
+    "key": "مؤسسة"
+  },
+  {
+    "f": "components\\search-box.tsx",
+    "line": 54,
+    "key": "موسسه"
+  },
+  {
+    "f": "components\\templates\\template-form.tsx",
+    "line": 32,
+    "key": "تعديل القالب"
+  },
+  {
+    "f": "components\\templates\\template-form.tsx",
+    "line": 53,
+    "key": ">استخدم {'{{title}}'} و {'{{date}}'} كمتغيرات</p>\r\n          </div>\r\n        </div>\r\n        <div className="
+  },
+  {
+    "f": "components\\templates\\template-form.tsx",
+    "line": 124,
+    "key": "إنشاء"
+  },
+  {
+    "f": "components\\templates\\template-list.tsx",
+    "line": 26,
+    "key": "لا توجد نتائج للبحث"
+  },
+  {
+    "f": "components\\templates\\template-list.tsx",
+    "line": 26,
+    "key": "لا توجد قوالب بعد. أنشئ قالباً لتبدأ."
+  },
+  {
+    "f": "components\\templates\\template-list.tsx",
+    "line": 50,
+    "key": ">العنوان: {t.titlePattern}</span>\r\n                  )}\r\n                  {t.defaultTags && (\r\n                    <span className="
+  },
+  {
+    "f": "components\\templates\\template-list.tsx",
+    "line": 53,
+    "key": ">الوسوم: {t.defaultTags}</span>\r\n                  )}\r\n                </div>\r\n              </div>\r\n              <div className="
+  },
+  {
+    "f": "components\\theme-provider.tsx",
+    "line": 39,
+    "key": "تبديل الوضع النهاري"
+  },
+  {
+    "f": "components\\theme-provider.tsx",
+    "line": 39,
+    "key": "تبديل الوضع الليلي"
+  },
+  {
+    "f": "components\\theme-provider.tsx",
+    "line": 41,
+    "key": "الوضع النهاري"
+  },
+  {
+    "f": "components\\theme-provider.tsx",
+    "line": 41,
+    "key": "الوضع الليلي"
+  },
+  {
+    "f": "components\\upload-zone\\file-list.tsx",
+    "line": 27,
+    "key": " />\n          {files.length} ملف{doneCount > 0 && ` (تم رفع ${doneCount})`}\n        </span>\n        {!busy && (\n          <div className="
+  },
+  {
+    "f": "components\\users\\user-actions.tsx",
+    "line": 146,
+    "key": "؟ ستنقل مستنداته إلى حسابك الحالي.`}\r\n            </DialogDescription>\r\n          </DialogHeader>\r\n          {!isSelf && (\r\n            <DialogFooter>\r\n              <DialogClose asChild>\r\n                <Button type="
+  },
+  {
+    "f": "components\\users\\users-cards.tsx",
+    "line": 84,
+    "key": " /> {u.docs} مستند\n              </span>\n              <span className="
+  }
+]

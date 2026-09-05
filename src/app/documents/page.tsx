@@ -10,6 +10,8 @@ import { Card, PageHeader } from "@/components/ui";
 import { DocumentsPageClient, CsvExportButton } from "@/components/documents-page-client";
 import type { DocRow } from "@/components/grids/documents-grid";
 import { STATUS_META, sanitizeLikeQuery } from "@/lib/format";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,7 @@ export default async function DocumentsPage({
 }: {
   searchParams: Promise<{ q?: string; status?: string; dept?: string; type?: string; folder?: string }>;
 }) {
+  const lang = await getServerLang();
   await ensureSeeded();
   const user = await getCurrentUser();
   const sp = await searchParams;
@@ -104,35 +107,33 @@ export default async function DocumentsPage({
   const hasFilters = !!(q || status || dept || type || folder);
 
   return (
-    <div className="flex min-h-0 flex-1 animate-fadein flex-col">
+    <div className="flex min-h-0 flex-1 animate-fadein flex-col gap-5 lg:gap-6">
       <PageHeader
-        title="المستندات"
-        subtitle="سجل تفاعلي للمستندات — فرز وبحث وتصدير وترقيم صفحات"
+        title={ts(lang, "المستندات")}
+        subtitle={ts(lang, "سجل تفاعلي للمستندات — فرز وبحث وتصدير وترقيم صفحات")}
         icon={<Files className="h-5 w-5" />}
       />
 
-      <Card className="mb-3 shrink-0 p-3.5">
-        <form method="get" action="/documents" className="flex flex-wrap items-end gap-3">
+      <Card className="shrink-0 p-4 shadow-card sm:p-5">
+        <form method="get" action="/documents" className="filter-bar">
           <div className="relative min-w-[220px] flex-1">
-            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               name="q"
               defaultValue={q}
-              placeholder="بحث في العنوان أو المحتوى أو الرقم..."
-              className="w-full rounded-xl border border-border bg-muted py-2.5 ps-10 pe-3 text-sm text-foreground outline-none focus:border-ring focus:bg-card focus:ring-2 focus:ring-ring/30"
+              placeholder={ts(lang, "بحث في العنوان أو المحتوى أو الرقم...")}
+              className="h-10 w-full rounded-xl border border-border bg-card ps-10 pe-3 text-sm text-foreground shadow-sm outline-none transition-all duration-150 hover:border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <Select name="status" value={status} options={[["", "كل الحالات"], ...Object.entries(STATUS_META).map(([k, v]) => [k, v.label] as [string, string])]} />
           <Select name="dept" value={dept ? String(dept) : ""} options={[["", "كل الأقسام"], ...allDepts.map((d) => [String(d.id), d.name] as [string, string])]} />
           <Select name="type" value={type} options={[["", "كل الأنواع"], ...allDocTypes.map((t) => [t.name, t.name] as [string, string])]} />
           <Select name="folder" value={folder ? String(folder) : ""} options={[["", "كل المجلدات"], ...allFolders.map((f) => [String(f.id), f.name] as [string, string])]} />
-          <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90">
-            <SlidersHorizontal className="h-4 w-4" /> تصفية
-          </button>
+          <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground shadow-md shadow-primary/25 transition-all duration-150 hover:-translate-y-px hover:bg-primary/90 hover:shadow-lg active:scale-[0.98]">
+            <SlidersHorizontal className="h-4 w-4" />{ts(lang, "تصفية")}</button>
           {hasFilters && (
-            <Link href="/documents" className="inline-flex items-center gap-1 rounded-xl border border-border bg-card px-3 py-2.5 text-sm font-medium text-muted-foreground transition hover:bg-muted">
-              <X className="h-4 w-4" /> مسح
-            </Link>
+            <Link href="/documents" className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-muted-foreground shadow-sm transition hover:bg-muted hover:text-foreground hover:shadow">
+              <X className="h-4 w-4" />{ts(lang, "مسح")}</Link>
           )}
           <CsvExportButton />
         </form>
@@ -156,7 +157,7 @@ function Select({
     <select
       name={name}
       defaultValue={value}
-      className="rounded-xl border border-border bg-muted px-3 py-2.5 text-sm text-foreground outline-none focus:border-ring focus:bg-card focus:ring-2 focus:ring-ring/30"
+      className="h-10 rounded-xl border border-border bg-card px-3.5 text-sm text-foreground shadow-sm outline-none transition-all duration-150 hover:border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
     >
       {options.map(([v, label]) => (
         <option key={v} value={v}>

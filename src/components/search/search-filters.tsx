@@ -1,6 +1,8 @@
 import { Filter } from "lucide-react";
 import { cn, STATUS_META } from "@/lib/format";
 import type { DeptOption, TagOption } from "./search-types";
+import { t as tr } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 export interface SearchFiltersProps {
   docTypes: string[];
@@ -41,29 +43,27 @@ export function SearchFilters({
   onDateToChange,
   onClearAll,
 }: SearchFiltersProps) {
+  useLang(); // re-render on language toggle
   return (
-    <div className="rounded-xl border border-border/70 bg-card p-5 shadow-sm shadow-slate-950/[0.03] ring-1 ring-inset ring-primary/5">
+    <div className="card-sheen rounded-2xl border border-border/70 bg-card p-5 shadow-card ring-1 ring-inset ring-primary/5 sm:p-6">
       <div className="mb-3 flex items-center justify-between">
         <span className="flex items-center gap-2 text-xs font-bold text-foreground">
-          <Filter className="h-3.5 w-3.5 text-primary" /> خيارات البحث المتقدم
-        </span>
-        <button type="button" onClick={onClearAll} className="text-xs text-rose-500 hover:text-rose-400">
-          إزالة الكل
-        </button>
+          <Filter className="h-3.5 w-3.5 text-primary" />{tr("خيارات البحث المتقدم")}</span>
+        <button type="button" onClick={onClearAll} className="text-xs text-rose-500 hover:text-rose-400">{tr("إزالة الكل")}</button>
       </div>
 
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
         {/* Doc types */}
         <div>
           <label className="mb-1.5 flex items-center justify-between gap-2 text-[11px] font-semibold text-muted-foreground">
-            <span>نوع المستند</span>
+            <span>{tr("نوع المستند")}</span>
             {selectedTypes.length > 0 && (
               <span className="rounded-full bg-primary/10 px-1.5 py-px text-[9px] font-bold text-primary ring-1 ring-inset ring-primary/20">
                 {selectedTypes.length}
               </span>
             )}
           </label>
-          <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto rounded-lg bg-muted/60 p-2">
+          <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto rounded-xl bg-muted/60 p-2.5 ring-1 ring-inset ring-border/40">
             {docTypes.map((t) => {
               const active = selectedTypes.includes(t);
               return (
@@ -88,14 +88,14 @@ export function SearchFilters({
         {/* Departments */}
         <div>
           <label className="mb-1.5 flex items-center justify-between gap-2 text-[11px] font-semibold text-muted-foreground">
-            <span>القسم</span>
+            <span>{tr("القسم")}</span>
             {selectedDepts.length > 0 && (
               <span className="rounded-full bg-primary/10 px-1.5 py-px text-[9px] font-bold text-primary ring-1 ring-inset ring-primary/20">
                 {selectedDepts.length}
               </span>
             )}
           </label>
-          <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg bg-muted/60 p-2">
+          <div className="max-h-40 space-y-1 overflow-y-auto rounded-xl bg-muted/60 p-2 ring-1 ring-inset ring-border/40">
             {departments.map((d) => {
               const active = selectedDepts.includes(d.id);
               return (
@@ -115,14 +115,14 @@ export function SearchFilters({
                 </button>
               );
             })}
-            {departments.length === 0 && <span className="text-[10px] text-muted-foreground">جارٍ التحميل...</span>}
+            {departments.length === 0 && <span className="text-[10px] text-muted-foreground">{tr("جارٍ التحميل...")}</span>}
           </div>
         </div>
 
         {/* Tags */}
         <div>
           <label className="mb-1.5 flex items-center justify-between gap-2 text-[11px] font-semibold text-muted-foreground">
-            <span>الوسم</span>
+            <span>{tr("الوسم")}</span>
             {selectedTags.length > 0 && (
               <span className="rounded-full bg-primary/10 px-1.5 py-px text-[9px] font-bold text-primary ring-1 ring-inset ring-primary/20">
                 {selectedTags.length}
@@ -152,7 +152,7 @@ export function SearchFilters({
                 </button>
               );
             })}
-            {tags.length === 0 && <span className="text-[10px] text-muted-foreground">جارٍ التحميل...</span>}
+            {tags.length === 0 && <span className="text-[10px] text-muted-foreground">{tr("جارٍ التحميل...")}</span>}
           </div>
         </div>
 
@@ -160,14 +160,14 @@ export function SearchFilters({
         <div className="space-y-3">
           <div>
             <label className="mb-1.5 flex items-center justify-between gap-2 text-[11px] font-semibold text-muted-foreground">
-              <span>الحالة</span>
+              <span>{tr("الحالة")}</span>
               {selectedStatuses.length > 0 && (
                 <span className="rounded-full bg-primary/10 px-1.5 py-px text-[9px] font-bold text-primary ring-1 ring-inset ring-primary/20">
                   {selectedStatuses.length}
                 </span>
               )}
             </label>
-            <div className="flex flex-wrap gap-1.5 rounded-lg bg-muted/60 p-2">
+            <div className="flex flex-wrap gap-2 rounded-xl bg-muted/60 p-2.5 ring-1 ring-inset ring-border/40">
               {statuses.map((s) => {
                 const active = selectedStatuses.includes(s);
                 return (
@@ -189,20 +189,20 @@ export function SearchFilters({
             </div>
           </div>
           <div>
-            <label className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">نطاق التاريخ</label>
+            <label className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">{tr("نطاق التاريخ")}</label>
             <div className="flex gap-2">
               <input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => onDateFromChange(e.target.value)}
-                className="w-full rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs text-foreground outline-none transition-all duration-150 hover:border-primary/25 focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl border border-border bg-card px-2.5 py-2 text-xs text-foreground shadow-sm outline-none transition-all duration-150 hover:border-primary/25 focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
               />
-              <span className="self-center text-[10px] text-muted-foreground">إلى</span>
+              <span className="self-center text-[10px] text-muted-foreground">{tr("إلى")}</span>
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => onDateToChange(e.target.value)}
-                className="w-full rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs text-foreground outline-none transition-all duration-150 hover:border-primary/25 focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl border border-border bg-card px-2.5 py-2 text-xs text-foreground shadow-sm outline-none transition-all duration-150 hover:border-primary/25 focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
               />
             </div>
           </div>

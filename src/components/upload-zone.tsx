@@ -1,7 +1,10 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { AlertCircle } from "lucide-react";
 import { DropZone } from "@/components/upload-zone/drop-zone";
 import { FileList } from "@/components/upload-zone/file-list";
@@ -31,6 +34,7 @@ export function UploadForm({
   tags: TagOption[];
   docTypes: string[];
 }) {
+  useLang(); // re-render on language toggle
   const router = useRouter();
   const [files, setFiles] = useState<FileItem[]>([]);
   const [drag, setDrag] = useState(false);
@@ -106,7 +110,7 @@ export function UploadForm({
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "فشل الرفع");
+      if (!res.ok) throw new Error(t(data.error || "فشل الرفع"));
 
       setFiles((prev) => {
         const copy = [...prev];
@@ -119,7 +123,7 @@ export function UploadForm({
       if (e.name === "AbortError") return null;
       setFiles((prev) => {
         const copy = [...prev];
-        copy[idx] = { ...copy[idx], error: e.message || "فشل الرفع" };
+        copy[idx] = { ...copy[idx], error: t(e.message || "فشل الرفع") };
         return copy;
       });
       return null;
@@ -132,7 +136,7 @@ export function UploadForm({
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (files.length === 0) {
-      setErr("الرجاء اختيار ملف واحد على الأقل");
+      setErr(t("الرجاء اختيار ملف واحد على الأقل"));
       return;
     }
     const form = formRef.current!;
@@ -155,13 +159,17 @@ export function UploadForm({
 
     setBusy(false);
     if (uploaded === files.length) {
-      // All succeeded
-      router.push(lastId ? `/documents/${lastId}` : "/documents");
+      // All succeeded — stay in place, refresh the list, no forced navigation.
+      toast.success(t("تم رفع الملفات بنجاح"));
       router.refresh();
     } else if (uploaded > 0) {
-      setErr(`تم رفع ${uploaded} من ${files.length} ملف. بعض الملفات فشلت.`);
+      const msg = t("تم رفع {u} من {f} ملف. بعض الملفات فشلت.", { u: uploaded, f: files.length });
+      setErr(msg);
+      toast.error(msg);
     } else {
-      setErr("فشل رفع جميع الملفات. تحقق من الاتصال وحاول مجدداً.");
+      const msg = t("فشل رفع جميع الملفات. تحقق من الاتصال وحاول مجدداً.");
+      setErr(msg);
+      toast.error(msg);
     }
   }
 

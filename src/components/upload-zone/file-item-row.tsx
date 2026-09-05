@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { FileText, X, CheckCircle2 } from "lucide-react";
 import { formatBytes } from "@/lib/format";
 import type { FileItem } from "./types";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 export function FileItemRow({
   item,
@@ -14,6 +16,7 @@ export function FileItemRow({
   busy: boolean;
   onRemove: (i: number) => void;
 }) {
+  useLang(); // re-render on language toggle
   const preview = useMemo(() => {
     if (!item.preview) return null;
     // eslint-disable-next-line @next/next/no-img-element
@@ -21,9 +24,9 @@ export function FileItemRow({
   }, [item.preview]);
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 transition hover:bg-muted/30">
+    <div className="flex items-center gap-3 px-4 py-3 transition hover:bg-primary/[0.04]">
       {/* Thumb */}
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted/70 shadow-sm ring-1 ring-inset ring-border/50">
         {preview ?? <FileText className="h-5 w-5 text-rose-400" />}
       </div>
       {/* Info */}
@@ -36,7 +39,7 @@ export function FileItemRow({
         {item.done ? (
           <CheckCircle2 className="h-5 w-5 text-emerald-500" />
         ) : item.error ? (
-          <span className="text-[11px] text-rose-500" title={item.error}>فشل</span>
+          <span className="text-[11px] text-rose-500" title={item.error}>{t("فشل")}</span>
         ) : busy && !item.progress ? null : busy ? (
           <div className="flex items-center gap-2">
             <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
@@ -52,7 +55,7 @@ export function FileItemRow({
           <button
             type="button"
             onClick={() => onRemove(index)}
-            className="rounded-lg p-1 text-muted-foreground hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
+            className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500 active:scale-90"
           >
             <X className="h-4 w-4" />
           </button>

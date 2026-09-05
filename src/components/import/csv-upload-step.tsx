@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useCallback, useRef, useState } from "react";
 import { Upload, FileSpreadsheet } from "lucide-react";
@@ -10,13 +12,14 @@ export function UploadStep({
 }: {
   onParsed: (headers: string[], rows: CsvRow[]) => void;
 }) {
+  useLang(); // re-render on language toggle
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
   const handleFile = useCallback(
     (file: File) => {
       if (!file.name.endsWith(".csv")) {
-        toast.error("الرجاء اختيار ملف CSV");
+        toast.error(t("الرجاء اختيار ملف CSV"));
         return;
       }
       const reader = new FileReader();
@@ -24,11 +27,11 @@ export function UploadStep({
         const text = e.target?.result as string;
         const { headers, rows } = parseCsv(text);
         if (headers.length === 0) {
-          toast.error("الملف لا يحتوي على بيانات صالحة");
+          toast.error(t("الملف لا يحتوي على بيانات صالحة"));
           return;
         }
         if (rows.length === 0) {
-          toast.error("الملف لا يحتوي على سجلات");
+          toast.error(t("الملف لا يحتوي على سجلات"));
           return;
         }
         onParsed(headers, rows);
@@ -39,15 +42,11 @@ export function UploadStep({
   );
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
+    <div className="mx-auto max-w-xl animate-rise space-y-6">
       <div className="text-center">
-        <FileSpreadsheet className="mx-auto h-16 w-16 text-indigo-500" />
-        <h2 className="mt-4 text-xl font-bold text-gray-900 dark:text-white">
-          استيراد مستندات من CSV
-        </h2>
-        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-          ارفع ملف CSV لإنشاء مستندات بالجملة. العمود الأول يُستخدم كعنوان تلقائياً.
-        </p>
+        <span className="icon-tile mx-auto h-16 w-16 !rounded-2xl"><FileSpreadsheet className="h-8 w-8" /></span>
+        <h2 className="mt-4 text-xl font-extrabold text-foreground">{t("استيراد مستندات من CSV")}</h2>
+        <p className="section-sub mx-auto mt-2 max-w-md">{t("ارفع ملف CSV لإنشاء مستندات بالجملة. العمود الأول يُستخدم كعنوان تلقائياً.")}</p>
       </div>
 
       <div
@@ -60,17 +59,17 @@ export function UploadStep({
           if (file) handleFile(file);
         }}
         onClick={() => inputRef.current?.click()}
-        className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-12 transition-colors ${
+        className={`card-interactive flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed p-12 shadow-soft ${
           dragging
-            ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
-            : "border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500"
+            ? "border-primary bg-primary/5 shadow-card"
+            : "border-border bg-card hover:border-primary/40 hover:bg-primary/[0.03]"
         }`}
       >
-        <Upload className={`h-10 w-10 ${dragging ? "text-indigo-500" : "text-gray-400"}`} />
-        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-          {dragging ? "أفلت الملف هنا" : "اسحب وأفلت ملف CSV هنا، أو اضغط للاختيار"}
+        <Upload className={`h-10 w-10 ${dragging ? "text-primary" : "text-muted-foreground"}`} />
+        <span className="text-sm font-semibold text-foreground">
+          {dragging ? t("أفلت الملف هنا") : t("اسحب وأفلت ملف CSV هنا، أو اضغط للاختيار")}
         </span>
-        <span className="text-xs text-gray-400">يدعم UTF-8 فقط</span>
+        <span className="rounded-lg bg-muted/70 px-2 py-0.5 text-xs text-muted-foreground ring-1 ring-inset ring-border/50">{t("يدعم UTF-8 فقط")}</span>
       </div>
 
       <input
@@ -84,11 +83,9 @@ export function UploadStep({
         }}
       />
 
-      <details className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-        <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">
-          مثال: تنسيق CSV
-        </summary>
-        <pre className="mt-2 overflow-x-auto rounded bg-gray-50 p-3 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+      <details className="section-card card-sheen !rounded-2xl">
+        <summary className="cursor-pointer text-sm font-semibold text-foreground">{t("مثال: تنسيق CSV")}</summary>
+        <pre className="tnum mt-3 overflow-x-auto rounded-xl border border-border bg-muted p-3 text-xs leading-6 text-muted-foreground" dir="ltr">
 {`title,description,department,docType,tags,docDate
 عقد صيانة,عقد صيانة سنوي,تقنية,عقد,صيانة,2026-01-15
 فاتورة كهرباء,فاتورة شهر يوليو,مالية,فاتورة,كهرباء,2026-07-01`}

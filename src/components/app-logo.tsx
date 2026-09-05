@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 /**
  * App logo mark — a document/archive glyph on the brand gradient.
@@ -13,6 +15,7 @@ export function AppLogo({
   size?: number;
   className?: string;
 }) {
+  useLang(); // re-render on language toggle
   return (
     <svg
       width={size}
@@ -20,7 +23,7 @@ export function AppLogo({
       viewBox="0 0 512 512"
       className={className}
       role="img"
-      aria-label="شعار نظام الأرشفة الإلكترونية"
+      aria-label={t("شعار نظام الأرشفة الإلكترونية")}
     >
       <defs>
         <linearGradient id="app-logo-bg" x1="0" y1="0" x2="1" y2="1">

@@ -1,6 +1,8 @@
 import { TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 interface MonthlyTrendCardProps {
   months: Array<{ label: string; start: string }>;
@@ -11,18 +13,18 @@ interface MonthlyTrendCardProps {
 /**
  * Documents per month bar chart over the last 6 months.
  */
-export function MonthlyTrendCard({ months, raw, max }: MonthlyTrendCardProps) {
+export async function MonthlyTrendCard({ months, raw, max }: MonthlyTrendCardProps) {
+  const lang = await getServerLang();
   const totalRaw = raw.reduce((s, v) => s + (v ?? 0), 0);
   return (
     <Card className="p-5 md:col-span-2 lg:col-span-1">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
-          <TrendingUp className="h-4 w-4 text-primary" /> الاتجاه الشهري
-        </h3>
-        <span className="text-[11px] text-muted-foreground">آخر 6 شهور</span>
+          <TrendingUp className="h-4 w-4 text-primary" />{ts(lang, "الاتجاه الشهري")}</h3>
+        <span className="text-[11px] text-muted-foreground">{ts(lang, "آخر 6 شهور")}</span>
       </div>
       {totalRaw === 0 ? (
-        <EmptyState compact icon={TrendingUp} title="لا بيانات شهرية بعد" description="يظهر الاتجاه عند إيداع المستندات." />
+        <EmptyState compact icon={TrendingUp} title={ts(lang, "لا بيانات شهرية بعد")} description={ts(lang, "يظهر الاتجاه عند إيداع المستندات.")} />
       ) : (
         <div className="flex items-end gap-2" style={{ height: 120 }}>
           {months.map((m, i) => {

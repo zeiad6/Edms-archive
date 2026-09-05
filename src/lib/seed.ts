@@ -13,8 +13,8 @@ import {
 } from "@/db/schema";
 import { ensureStorage, writeKey, genKey } from "@/lib/server";
 import { makeScanSvg } from "@/lib/doc-svg";
-import { hashPassword, DEFAULT_PASSWORD } from "@/lib/password";
-import { sql } from "drizzle-orm";
+import { hashPassword, verifyPassword, DEFAULT_PASSWORD } from "@/lib/password";
+import { eq, sql } from "drizzle-orm";
 
 let running: Promise<void> | null = null;
 
@@ -191,6 +191,31 @@ async function backfillPasswords(): Promise<void> {
     await db.run(sql`UPDATE users SET password_hash = ${pwHash}, must_change_password = 1 WHERE password_hash IS NULL`);
   } catch (e) {
     console.error("[seed] password backfill failed:", e);
+  }
+  // Migrate EVERY account still carrying the previous shared default
+  // ("Password@123") to the current easy DEFAULT_PASSWORD — admins included.
+  // Only rows whose stored hash verifies against the old default are touched;
+  // user-chosen passwords are never reset. The flag is (re-)set so the holder
+  // picks their own password on next login.
+  try {
+    const OLD_DEFAULT = "Password@123";
+    const rows = await db
+      .select({ id: users.id, passwordHash: users.passwordHash })
+      .from(users);
+    const newHash = await hashPassword(DEFAULT_PASSWORD);
+    let migrated = 0;
+    for (const r of rows) {
+      if (r.passwordHash && verifyPassword(OLD_DEFAULT, r.passwordHash)) {
+        await db
+          .update(users)
+          .set({ passwordHash: newHash, mustChangePassword: 1 })
+          .where(eq(users.id, r.id));
+        migrated++;
+      }
+    }
+    if (migrated > 0) console.log(`[seed] migrated ${migrated} account(s) to the current default password`);
+  } catch (e) {
+    console.error("[seed] legacy default-password migration failed:", e);
   }
 }
 

@@ -7,6 +7,8 @@ import { PageHeader, Card } from "@/components/ui";
 import { AuditGrid, type AuditRow } from "@/components/grids/audit-grid";
 import { getCurrentUser } from "@/lib/server";
 import { can } from "@/lib/permissions";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,7 @@ function parseAuditTime(raw: string): Date {
 }
 
 export default async function AuditPage() {
+  const lang = await getServerLang();
   // audit.view is admin-only per RBAC — staff must not see the full audit trail.
   const user = await getCurrentUser();
   if (!user || !can(user, "audit.view")) notFound();
@@ -41,21 +44,18 @@ export default async function AuditPage() {
   }));
 
   return (
-    <div className="animate-fadein">
+    <div className="animate-fadein page-stack">
       <PageHeader
-        title="سجل النشاط"
-        subtitle="تتبّع كامل لجميع العمليات على المستندات والنظام (Audit Trail)"
+        title={ts(lang, "سجل النشاط")}
+        subtitle={ts(lang, "تتبّع كامل لجميع العمليات على المستندات والنظام (Audit Trail)")}
         icon={<History className="h-5 w-5" />}
       />
 
-      <Card className="mb-5 flex items-center gap-3 bg-emerald-500/5 p-4">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-          <ShieldCheck className="h-4 w-4" />
+      <Card className="flex items-center gap-3.5 bg-emerald-500/[0.06] p-4 shadow-card sm:p-5">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/25 dark:text-emerald-400">
+          <ShieldCheck className="h-5 w-5" />
         </span>
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          يُسجَّل كل حدث بشكل غير قابل للحذف مع المستخدم والطابع الزمني والتفاصيل. استخدم
-          التصفية والفرز والبحث في الجدول أدناه، أو صدّر السجلات إلى CSV للتدقيق الخارجي.
-        </p>
+        <p className="text-xs leading-6 text-muted-foreground sm:text-[13px]">{ts(lang, "يُسجَّل كل حدث بشكل غير قابل للحذف مع المستخدم والطابع الزمني والتفاصيل. استخدم التصفية والفرز والبحث في الجدول أدناه، أو صدّر السجلات إلى CSV للتدقيق الخارجي.")}</p>
       </Card>
 
       <AuditGrid rows={rows} />

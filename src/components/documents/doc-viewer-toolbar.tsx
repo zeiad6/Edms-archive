@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import {
   ChevronLeft,
@@ -104,6 +106,7 @@ export function DocViewerToolbar({
   onRotate,
   onClose,
 }: DocViewerToolbarProps) {
+  useLang(); // re-render on language toggle
   return (
     <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-white">
       <div className="min-w-0 flex-1">
@@ -111,9 +114,11 @@ export function DocViewerToolbar({
         <div className="text-[11px] text-slate-400">
           {isPdf(mime)
             ? pdfLoading
-              ? "جارٍ تحميل PDF..."
-              : `عرض المستند — ${numPages > 0 ? `${pageNum} من ${numPages} صفحات` : ""}`
-            : "عرض آمن عبر البث المباشر — لا يُحفظ على القرص المحلي"}
+              ? t("جارٍ تحميل PDF...")
+              : numPages > 0
+                ? t("عرض المستند — {a} من {b} صفحات", { a: pageNum, b: numPages })
+                : t("عرض المستند")
+            : t("عرض آمن عبر البث المباشر — لا يُحفظ على القرص المحلي")}
         </div>
       </div>
       <div className="flex items-center gap-1.5">
@@ -136,14 +141,12 @@ export function DocViewerToolbar({
           onClick={() => window.print()}
           className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-2 text-xs font-medium text-white transition hover:bg-white/20"
         >
-          <Printer className="h-4 w-4" /> طباعة
-        </button>
+          <Printer className="h-4 w-4" />{t("طباعة")}</button>
         <a
           href={download}
           className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-2 text-xs font-medium text-white transition hover:bg-white/20"
         >
-          <Download className="h-4 w-4" /> تنزيل
-        </a>
+          <Download className="h-4 w-4" />{t("تنزيل")}</a>
         <button
           onClick={onClose}
           className="rounded-lg bg-white/10 p-2 text-white transition hover:bg-rose-500"

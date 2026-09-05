@@ -7,10 +7,13 @@ import { UsersPageClient } from "@/components/users/users-page-client";
 import { UserCreateForm } from "@/components/users/user-create-form";
 import type { UserRow } from "@/components/users/user-row";
 import { getCurrentUser } from "@/lib/server";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
+  const lang = await getServerLang();
   const currentUser = await getCurrentUser();
   const [list, depts] = await Promise.all([
     db
@@ -48,27 +51,24 @@ export default async function UsersPage() {
   }));
 
   return (
-    <div className="animate-fadein">
+    <div className="animate-fadein page-stack">
       <PageHeader
-        title="المستخدمون"
-        subtitle="إدارة المشغّلين وأدوارهم وصلاحياتهم"
+        title={ts(lang, "المستخدمون")}
+        subtitle={ts(lang, "إدارة المشغّلين وأدوارهم وصلاحياتهم")}
         icon={<UsersIcon className="h-5 w-5" />}
       />
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <div className="md:col-span-2">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3 lg:gap-6 xl:grid-cols-4">
+        <div className="md:col-span-2 xl:col-span-3">
           <UsersPageClient rows={rows} departments={depts} currentUserId={currentUser?.id} />
         </div>
 
-        <Card className="h-fit p-5">
+        <Card className="h-fit p-5 shadow-card sm:p-6">
           <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-foreground">
-            <Plus className="h-4 w-4 text-primary" /> مستخدم جديد
-          </h3>
+            <span className="icon-tile h-8 w-8 rounded-xl"><Plus className="h-4 w-4" /></span>{ts(lang, "مستخدم جديد")}</h3>
           <UserCreateForm departments={depts} />
-          <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
-            <FileText className="mt-0.5 h-3 w-3 shrink-0" />
-            الأدوار: مدير النظام (وصول كامل)، مشرف قسم (يدير قسمه)، موظف (وصول مقيد ويستثنى السري).
-          </p>
+          <p className="mt-4 flex items-start gap-2 rounded-xl bg-muted/50 px-3 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
+            <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />{ts(lang, "الأدوار: مدير النظام (وصول كامل)، مشرف قسم (يدير قسمه)، موظف (وصول مقيد ويستثنى السري).")}</p>
         </Card>
       </div>
     </div>

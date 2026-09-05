@@ -127,7 +127,34 @@ cpR(
   path.join(root, ".next", "static"),
   path.join(stageStandalone, ".next", "static")
 );
-// make sure next.config rewrite targets exist (server.js serves from cwd)
+// Turbopack's standalone trace copies the whole project root (docs, videos,
+// logs, .env with SECRETS) next to server.js. Prune to a strict allowlist so
+// installers stay lean and NEVER ship secrets or media.
+{
+  const keep = new Set(["server.js", "package.json", "node_modules", ".next", "public"]);
+  let prunedBytes = 0;
+  for (const name of fs.readdirSync(stageStandalone)) {
+    if (keep.has(name)) continue;
+    const p = path.join(stageStandalone, name);
+    const st = fs.statSync(p);
+    if (st.isDirectory()) {
+      prunedBytes += (function du(dir) {
+        let n = 0;
+        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+          const q = path.join(dir, e.name);
+          if (e.isDirectory()) n += du(q);
+          else n += fs.statSync(q).size;
+        }
+        return n;
+      })(p);
+      fs.rmSync(p, { recursive: true, force: true });
+    } else {
+      prunedBytes += st.size;
+    }
+    if (!st.isDirectory()) fs.rmSync(p, { force: true });
+    console.log(`prune standalone: removed ${name} (${(prunedBytes / 1024 / 1024).toFixed(1)} MB total)`);
+  }
+}
 console.log("standalone staged.");
 
 console.log("=== [4/7] stage resources (scan script + env) ===");

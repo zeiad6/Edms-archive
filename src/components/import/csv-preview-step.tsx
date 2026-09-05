@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useState } from "react";
 import { ArrowRight, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
@@ -18,6 +20,7 @@ export function PreviewStep({
   onImport: (mapping: Record<string, string>) => Promise<void>;
   importing: boolean;
 }) {
+  useLang(); // re-render on language toggle
   const [mapping, setMapping] = useState<Record<string, string>>(() =>
     guessMapping(headers)
   );
@@ -32,46 +35,42 @@ export function PreviewStep({
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="page-stack animate-rise">
+      <div className="toolbar justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            معاينة البيانات
-          </h2>
-          <p className="text-sm text-gray-500">
-            {rows.length.toLocaleString("ar")} سجل · {headers.length} عمود
+          <h2 className="text-lg font-extrabold text-foreground">{t("معاينة البيانات")}</h2>
+          <p className="section-sub tnum">
+            {t("{n} سجل · {c} عمود", { n: rows.length, c: headers.length })}
           </p>
         </div>
-        <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-          {rows.length} مستند
+        <span className="tnum rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary shadow-soft ring-1 ring-inset ring-primary/20">
+          {t("{n} مستند", { n: rows.length })}
         </span>
       </div>
 
       {/* Column mapping */}
-      <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-        <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-          ربط الأعمدة
-        </h3>
-        <div className="space-y-2">
+      <div className="section-card card-sheen">
+        <h3 className="section-title mb-3">{t("ربط الأعمدة")}</h3>
+        <div className="space-y-2.5">
           {FIELDS.map((field) => {
             const val = mapping[field.key] || "";
             return (
               <div
                 key={field.key}
-                className="flex items-center gap-3 rounded-lg bg-gray-50 p-2 dark:bg-gray-800/50"
+                className="flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-2 shadow-soft ring-1 ring-inset ring-border/40"
               >
-                <span className="w-28 text-xs font-medium text-gray-700 dark:text-gray-300">
-                  {field.label}
+                <span className="w-28 shrink-0 text-xs font-semibold text-foreground">
+                  {t(field.label)}
                   {field.required && (
-                    <span className="ms-1 text-red-500">*</span>
+                    <span className="ms-1 text-danger">*</span>
                   )}
                 </span>
                 <select
                   value={val}
                   onChange={(e) => setField(field.key, e.target.value)}
-                  className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+                  className="min-h-[2.5rem] flex-1 cursor-pointer rounded-xl border border-border bg-card px-2 py-1.5 text-xs text-foreground shadow-soft outline-none transition hover:border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                 >
-                  <option value="">— تجاهل هذا العمود —</option>
+                  <option value="">{t("— تجاهل هذا العمود —")}</option>
                   {headers.map((h) => (
                     <option key={h} value={h}>
                       {h}
@@ -79,7 +78,7 @@ export function PreviewStep({
                   ))}
                 </select>
                 {val && (
-                  <span className="text-[10px] text-gray-400">{field.hint}</span>
+                  <span className="hidden text-[10px] text-muted-foreground sm:inline">{t(field.hint)}</span>
                 )}
               </div>
             );
@@ -88,29 +87,29 @@ export function PreviewStep({
       </div>
 
       {/* Preview table */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-        <table className="min-w-full divide-y divide-gray-200 text-xs dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-800">
+      <div className="table-shell overflow-x-auto">
+        <table className="min-w-full text-xs">
+          <thead>
             <tr>
-              <th className="px-3 py-2 text-start font-medium text-gray-500">#</th>
+              <th>#</th>
               {headers.map((h) => (
                 <th
                   key={h}
-                  className="whitespace-nowrap px-3 py-2 text-start font-medium text-gray-500"
+                  className="whitespace-nowrap"
                 >
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+          <tbody>
             {previewRows.map((row, i) => (
-              <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                <td className="px-3 py-2 text-gray-400">{i + 1}</td>
+              <tr key={i}>
+                <td className="tnum text-muted-foreground">{i + 1}</td>
                 {headers.map((h) => (
                   <td
                     key={h}
-                    className="max-w-[200px] truncate px-3 py-2 text-gray-700 dark:text-gray-300"
+                    className="max-w-[200px] truncate text-foreground"
                   >
                     {row[h]}
                   </td>
@@ -120,39 +119,35 @@ export function PreviewStep({
           </tbody>
         </table>
         {rows.length > 5 && (
-          <div className="border-t border-gray-100 px-3 py-2 text-center text-[11px] text-gray-400 dark:border-gray-800">
-            ... وعرض {rows.length - 5} سجل آخر
+          <div className="tnum border-t border-border px-3 py-2 text-center text-[11px] text-muted-foreground">
+            {t("... وعرض {n} سجل آخر", { n: rows.length - 5 })}
           </div>
         )}
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-between">
+      <div className="toolbar justify-between">
         <Button variant="outline" onClick={onBack} disabled={importing}>
-          <ArrowRight className="me-1 h-4 w-4" />
-          رجوع
-        </Button>
+          <ArrowRight className="me-1 h-4 w-4" />{t("رجوع")}</Button>
         <Button
           onClick={() => onImport(mapping)}
           disabled={importing || unmappedRequired.length > 0}
         >
           {importing ? (
             <>
-              <Loader2 className="me-1 h-4 w-4 animate-spin" />
-              جارٍ الاستيراد...
-            </>
+              <Loader2 className="me-1 h-4 w-4 animate-spin" />{t("جارٍ الاستيراد...")}</>
           ) : (
             <>
               <CheckCircle2 className="me-1 h-4 w-4" />
-              استيراد {rows.length} مستند
+              {t("استيراد {n} مستند", { n: rows.length })}
             </>
           )}
         </Button>
       </div>
       {unmappedRequired.length > 0 && (
-        <p className="text-xs text-amber-600">
+        <p className="animate-fadein rounded-xl bg-warning/10 px-3 py-2 text-xs font-medium text-warning ring-1 ring-inset ring-warning/20">
           <AlertTriangle className="me-1 inline h-3 w-3" />
-          الحقول المطلوبة غير مربوطة: {unmappedRequired.map((f) => f.label).join("، ")}
+          {t("الحقول المطلوبة غير مربوطة: {f}", { f: unmappedRequired.map((f) => t(f.label)).join("، ") })}
         </p>
       )}
     </div>

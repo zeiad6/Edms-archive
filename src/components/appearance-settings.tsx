@@ -3,8 +3,11 @@
 import { Moon, Sun, Monitor } from "lucide-react";
 import { useIsDark } from "@/components/theme-provider";
 import { cn } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 export function AppearanceSettings() {
+  useLang(); // re-render on language toggle
   const dark = useIsDark();
 
   function apply(theme: "light" | "dark" | "system") {
@@ -36,16 +39,16 @@ export function AppearanceSettings() {
             key={opt.key}
             onClick={() => apply(opt.key)}
             className={cn(
-              "flex flex-col items-center gap-2 rounded-2xl border p-5 transition",
+              "flex flex-col items-center gap-2 rounded-2xl border p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-card active:translate-y-0",
               opt.active
-                ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                : "border-border bg-card hover:bg-muted"
+                ? "border-primary bg-primary/5 shadow-card ring-2 ring-primary/20"
+                : "border-border bg-card hover:border-primary/30 hover:bg-muted"
             )}
           >
-            <span className={cn("flex h-11 w-11 items-center justify-center rounded-xl", opt.active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
+            <span className={cn("flex h-11 w-11 items-center justify-center rounded-xl shadow-soft", opt.active ? "bg-primary text-primary-foreground shadow-md shadow-primary/30" : "bg-muted text-muted-foreground")}>
               <Icon className="h-5 w-5" />
             </span>
-            <span className={cn("text-sm font-semibold", opt.active ? "text-primary" : "text-foreground")}>{opt.label}</span>
+            <span className={cn("text-sm font-semibold", opt.active ? "text-primary" : "text-foreground")}>{t(opt.label)}</span>
           </button>
         );
       })}

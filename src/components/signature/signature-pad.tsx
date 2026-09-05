@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Pen, Trash2, Check, Loader2 } from "lucide-react";
@@ -9,6 +11,7 @@ interface SignaturePadProps {
 }
 
 export function SignaturePad({ documentId, onSigned }: SignaturePadProps) {
+  useLang(); // re-render on language toggle
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [drawing, setDrawing] = useState(false);
   const [hasContent, setHasContent] = useState(false);
@@ -85,11 +88,11 @@ export function SignaturePad({ documentId, onSigned }: SignaturePadProps) {
       fd.set("documentId", String(documentId));
       fd.set("dataUrl", dataUrl);
       const res = await fetch("/api/signatures", { method: "POST", body: fd });
-      if (!res.ok) throw new Error((await res.json()).error || "فشل الحفظ");
+      if (!res.ok) throw new Error(t((await res.json()).error || "فشل الحفظ"));
       clear();
       onSigned?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "فشل حفظ التوقيع");
+      setError(e instanceof Error ? t(e.message) : t("فشل حفظ التوقيع"));
     } finally {
       setBusy(false);
     }
@@ -98,35 +101,33 @@ export function SignaturePad({ documentId, onSigned }: SignaturePadProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">التوقيع الإلكتروني</span>
+        <span className="text-xs font-medium text-muted-foreground">{t("التوقيع الإلكتروني")}</span>
         <div className="flex items-center gap-1">
           {hasContent && (
             <>
               <button
                 type="button"
                 onClick={clear}
-                className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:bg-muted"
+                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-foreground shadow-soft transition hover:bg-muted hover:shadow-card"
               >
-                <Trash2 className="h-3 w-3" /> مسح
-              </button>
+                <Trash2 className="h-3 w-3" />{t("مسح")}</button>
               <button
                 type="button"
                 onClick={save}
                 disabled={busy}
-                className="inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1 text-[11px] font-medium text-background transition hover:opacity-90 disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1 text-[11px] font-medium text-background shadow-soft transition hover:opacity-90 hover:shadow-card disabled:opacity-50"
               >
                 {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                حفظ
+                {t("حفظ")}
               </button>
             </>
           )}
         </div>
       </div>
-      <div className="relative overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/50 transition focus-within:border-primary/50">
+      <div className="relative overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/50 shadow-inner transition focus-within:border-primary/50 focus-within:shadow-soft">
         {!hasContent && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <Pen className="h-4 w-4" /> وقّع هنا بالماوس أو باللمس
-          </div>
+            <Pen className="h-4 w-4" />{t("وقّع هنا بالماوس أو باللمس")}</div>
         )}
         <canvas
           ref={canvasRef}
@@ -149,10 +150,10 @@ export function SignaturePad({ documentId, onSigned }: SignaturePadProps) {
 
 export function SignatureDisplay({ dataUrl, label }: { dataUrl: string; label?: string | null }) {
   return (
-    <div className="rounded-xl border border-border bg-muted/30 p-3">
-      <div className="mb-1 text-[11px] font-medium text-muted-foreground">{label || "توقيع"}</div>
+    <div className="rounded-xl border border-border bg-muted/30 p-3 shadow-soft transition hover:shadow-card">
+      <div className="mb-1 text-[11px] font-medium text-muted-foreground">{label || t("توقيع")}</div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={dataUrl} alt="توقيع" className="h-12 object-contain" />
+      <img src={dataUrl} alt={t("توقيع")} className="h-12 object-contain" />
     </div>
   );
 }

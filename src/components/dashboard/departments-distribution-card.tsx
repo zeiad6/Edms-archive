@@ -1,6 +1,8 @@
 import { Building2 } from "lucide-react";
 import { Card } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 interface DepartmentsDistributionProps {
   byDept: Array<{ name: string; color: string; c: number }>;
@@ -9,15 +11,15 @@ interface DepartmentsDistributionProps {
 /**
  * Documents count per department with proportional bars.
  */
-export function DepartmentsDistribution({ byDept }: DepartmentsDistributionProps) {
+export async function DepartmentsDistribution({ byDept }: DepartmentsDistributionProps) {
+  const lang = await getServerLang();
   const maxDept = Math.max(1, ...byDept.map((d) => Number(d.c)));
   return (
     <Card className="p-5 lg:col-span-2">
       <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-foreground">
-        <Building2 className="h-4 w-4 text-primary" /> توزيع المستندات حسب القسم
-      </h3>
+        <Building2 className="h-4 w-4 text-primary" />{ts(lang, "توزيع المستندات حسب القسم")}</h3>
       {byDept.length === 0 ? (
-        <EmptyState compact icon={Building2} title="لا توجد أقسام بعد" description="عند إنشاء الأقسام وإيداع مستنداتها تظهر النسب هنا." />
+        <EmptyState compact icon={Building2} title={ts(lang, "لا توجد أقسام بعد")} description={ts(lang, "عند إنشاء الأقسام وإيداع مستنداتها تظهر النسب هنا.")} />
       ) : (
         <div className="space-y-3">
           {byDept.map((d) => (

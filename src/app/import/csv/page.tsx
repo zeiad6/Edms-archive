@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
@@ -9,6 +11,7 @@ import { DoneStep } from "@/components/import/csv-done-step";
 import type { Step, CsvRow, ApiResponse } from "@/lib/csv-import";
 
 export default function CsvImportPage() {
+  useLang(); // re-render on language toggle
   const [step, setStep] = useState<Step>("upload");
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<CsvRow[]>([]);
@@ -31,15 +34,15 @@ export default function CsvImportPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "فشل الاتصال" }));
-        toast.error(err.error || "خطأ في الاستيراد");
+        toast.error(t(err.error || "خطأ في الاستيراد"));
         return;
       }
       const data: ApiResponse = await res.json();
       setResult(data);
       setStep("done");
-      toast.success(`تم استيراد ${data.imported} مستند${data.imported !== 1 ? "ات" : ""}`);
+      toast.success(t("تم استيراد {n} مستند", { n: data.imported }));
     } catch (e) {
-      toast.error("حدث خطأ في الاتصال بالخادم");
+      toast.error(t("حدث خطأ في الاتصال بالخادم"));
     } finally {
       setImporting(false);
     }
@@ -83,7 +86,7 @@ export default function CsvImportPage() {
                   : "text-gray-400"
               }`}
             >
-              {s === "upload" ? "رفع الملف" : s === "preview" ? "معاينة" : "اكتمال"}
+              {s === "upload" ? t("رفع الملف") : s === "preview" ? t("معاينة") : t("اكتمال")}
             </span>
             {i < 2 && (
               <div

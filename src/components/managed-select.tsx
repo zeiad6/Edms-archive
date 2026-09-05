@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Save, X, Check, Loader2 } from "lucide-react";
@@ -37,6 +39,7 @@ export function ManagedSelect({
   allowCreate = false,
   nullable = true,
 }: Props) {
+  useLang(); // re-render on language toggle
   const router = useRouter();
   const [mode, setMode] = useState<"view" | "create" | "edit">("view");
   const [editId, setEditId] = useState<number | null>(null);
@@ -51,10 +54,10 @@ export function ManagedSelect({
       if (res && "id" in res) onChange(res.id);
       setInputVal("");
       setMode("view");
-      toast.success(`تمت إضافة "${inputVal.trim()}"`);
+      toast.success(t("تمت إضافة “{n}”", { n: inputVal.trim() }));
       router.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "فشلت الإضافة");
+      toast.error(e instanceof Error ? t(e.message) : t("فشلت الإضافة"));
     }
     setBusy(false);
   }
@@ -67,10 +70,10 @@ export function ManagedSelect({
       setInputVal("");
       setMode("view");
       setEditId(null);
-      toast.success("تم التحديث");
+      toast.success(t("تم التحديث"));
       router.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "فشل التحديث");
+      toast.error(e instanceof Error ? t(e.message) : t("فشل التحديث"));
     }
     setBusy(false);
   }
@@ -78,15 +81,15 @@ export function ManagedSelect({
   async function handleDelete(id: number) {
     if (!onDelete) return;
     const name = options.find((o) => o.id === id)?.name ?? id.toString();
-    if (!confirm(`هل أنت متأكد من حذف "${name}"؟`)) return;
+    if (!confirm(t("هل أنت متأكد من حذف “{n}”؟", { n: name }))) return;
     setBusy(true);
     try {
       await onDelete(id);
       if (value === id) onChange("");
-      toast.success(`تم حذف "${name}"`);
+      toast.success(t("تم حذف “{n}”", { n: name }));
       router.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "فشل الحذف");
+      toast.error(e instanceof Error ? t(e.message) : t("فشل الحذف"));
     }
     setBusy(false);
   }
@@ -96,20 +99,20 @@ export function ManagedSelect({
   if (mode === "create" && allowCreate) {
     return (
       <div className="space-y-1.5">
-        <span className="block text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="block text-xs font-medium text-muted-foreground">{t(label)}</span>
         <div className="flex gap-1.5">
           <input
             autoFocus
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-            placeholder={`إضافة ${label} جديد...`}
+            placeholder={t("إضافة {x} جديد...", { x: t(label) })}
             className={inputCls}
           />
-          <button onClick={handleCreate} disabled={busy || !inputVal.trim()} className="inline-flex h-7 w-7 items-center justify-center rounded-lg p-1.5 text-emerald-600 transition hover:bg-emerald-500/10">
+          <button onClick={handleCreate} disabled={busy || !inputVal.trim()} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl p-1.5 text-emerald-600 shadow-soft transition hover:bg-emerald-500/10 hover:shadow-card disabled:opacity-40">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
           </button>
-          <button onClick={() => { setMode("view"); setInputVal(""); }} className="inline-flex h-7 w-7 items-center justify-center rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted">
+          <button onClick={() => { setMode("view"); setInputVal(""); }} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl p-1.5 text-muted-foreground shadow-soft transition hover:bg-muted hover:shadow-card">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -120,20 +123,20 @@ export function ManagedSelect({
   if (mode === "edit" && editId !== null) {
     return (
       <div className="space-y-1.5">
-        <span className="block text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="block text-xs font-medium text-muted-foreground">{t(label)}</span>
         <div className="flex gap-1.5">
           <input
             autoFocus
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleUpdate(editId)}
-            placeholder={`تعديل ${label}...`}
+            placeholder={t("تعديل {x}...", { x: t(label) })}
             className={inputCls}
           />
-          <button onClick={() => handleUpdate(editId)} disabled={busy || !inputVal.trim()} className="inline-flex h-7 w-7 items-center justify-center rounded-lg p-1.5 text-emerald-600 transition hover:bg-emerald-500/10">
+          <button onClick={() => handleUpdate(editId)} disabled={busy || !inputVal.trim()} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl p-1.5 text-emerald-600 shadow-soft transition hover:bg-emerald-500/10 hover:shadow-card disabled:opacity-40">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           </button>
-          <button onClick={() => { setMode("view"); setEditId(null); setInputVal(""); }} className="inline-flex h-7 w-7 items-center justify-center rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted">
+          <button onClick={() => { setMode("view"); setEditId(null); setInputVal(""); }} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl p-1.5 text-muted-foreground shadow-soft transition hover:bg-muted hover:shadow-card">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -144,18 +147,18 @@ export function ManagedSelect({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="text-xs font-medium text-muted-foreground">{t(label)}</span>
         {allowCreate && options.length > 0 && (
           <div className="flex gap-0.5">
               <button
-              title={`إضافة ${label}`}
+              title={t("إضافة {x}", { x: t(label) })}
               onClick={() => setMode("create")}
               className="inline-flex h-6 w-6 items-center justify-center rounded-lg p-1 text-primary transition hover:bg-primary/10"
             >
               <Plus className="h-3.5 w-3.5" />
             </button>
             <button
-              title={`تعديل ${label}`}
+              title={t("تعديل {x}", { x: t(label) })}
               onClick={() => {
                 if (selected) {
                   setEditId(selected.id as number);
@@ -170,7 +173,7 @@ export function ManagedSelect({
             </button>
             {onDelete && selected && (
               <button
-                title={`حذف ${label}`}
+                title={t("حذف {x}", { x: t(label) })}
                 onClick={() => handleDelete(selected.id as number)}
                 className="inline-flex h-6 w-6 items-center justify-center rounded-lg p-1 text-rose-500 transition hover:bg-rose-500/10"
               >
@@ -186,7 +189,7 @@ export function ManagedSelect({
           onChange={(e) => onChange(e.target.value)}
           className={inputCls}
         >
-          {nullable && <option value="">{placeholder}</option>}
+          {nullable && <option value="">{t(placeholder)}</option>}
           {options.map((opt) => (
             <option key={opt.id} value={opt.id}>
               {opt.name}
@@ -197,9 +200,7 @@ export function ManagedSelect({
           <button
             onClick={() => setMode("create")}
             className="absolute end-2 top-1/2 -translate-y-1/2 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary hover:bg-primary/20"
-          >
-            + إضافة
-          </button>
+          >{t("+ إضافة")}</button>
         )}
       </div>
     </div>
@@ -207,4 +208,4 @@ export function ManagedSelect({
 }
 
 const inputCls =
-  "w-full rounded-xl border border-border bg-muted px-3 py-2.5 text-sm text-foreground outline-none transition focus:border-ring focus:bg-card focus:ring-2 focus:ring-ring/30";
+  "h-10 w-full rounded-xl border border-border bg-muted px-3 text-sm text-foreground shadow-soft outline-none transition hover:border-primary/30 focus:border-ring focus:bg-card focus:ring-2 focus:ring-ring/30";

@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useState } from "react";
 import { LayoutGrid, LayoutList } from "lucide-react";
@@ -18,6 +20,7 @@ export function UsersPageClient({
   departments: { id: number; name: string }[];
   currentUserId?: number;
 }) {
+  useLang(); // re-render on language toggle
   const [view, setView] = useState<ViewMode>("table");
 
   return (
@@ -30,7 +33,7 @@ export function UsersPageClient({
           <button
             type="button"
             onClick={() => setView("table")}
-            title="عرض جدولي"
+            title={t("عرض جدولي")}
             className={cn(
               "rounded-md p-1.5 transition",
               view === "table"
@@ -43,7 +46,7 @@ export function UsersPageClient({
           <button
             type="button"
             onClick={() => setView("cards")}
-            title="عرض بطاقات"
+            title={t("عرض بطاقات")}
             className={cn(
               "rounded-md p-1.5 transition",
               view === "cards"

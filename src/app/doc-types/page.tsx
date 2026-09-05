@@ -6,10 +6,13 @@ import { getCurrentUser } from "@/lib/server";
 import { PageHeader, Card } from "@/components/ui";
 import { CreateDocTypeForm } from "./form";
 import { DocTypesList } from "./doc-types-list";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 export const dynamic = "force-dynamic";
 
 export default async function DocTypesPage() {
+  const lang = await getServerLang();
   const user = await getCurrentUser();
   const isAdmin = user?.role === "admin";
 
@@ -24,10 +27,10 @@ export default async function DocTypesPage() {
     .orderBy(asc(docTypes.sortOrder));
 
   return (
-    <div className="animate-fadein">
+    <div className="animate-fadein page-stack">
       <PageHeader
-        title="تصنيفات المستندات"
-        subtitle="إدارة أنواع المستندات — الألوان والترتيب"
+        title={ts(lang, "تصنيفات المستندات")}
+        subtitle={ts(lang, "إدارة أنواع المستندات — الألوان والترتيب")}
         icon={<Layers className="h-5 w-5" />}
       />
 

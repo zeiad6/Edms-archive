@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { AlertTriangle, Camera, Loader2, Printer, RefreshCw, RotateCw, ScanLine, X } from "lucide-react";
 import { cn } from "@/lib/format";
@@ -24,11 +26,11 @@ interface CameraPanelProps {
  */
 
 const BTN_PRIMARY =
-  "inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card";
+  "inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-primary px-7 text-sm font-bold text-primary-foreground shadow-md shadow-primary/25 transition-all duration-150 hover:-translate-y-px hover:bg-primary/90 hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card";
 const BTN_TINT =
-  "inline-flex items-center justify-center gap-2 rounded-xl bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary ring-1 ring-inset ring-primary/20 transition hover:bg-primary/20 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-primary/10 px-5 text-sm font-bold text-primary shadow-sm ring-1 ring-inset ring-primary/20 transition-all duration-150 hover:bg-primary/20 hover:shadow active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card";
 const BTN_GHOST =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-card px-5 text-sm font-semibold text-foreground shadow-sm transition-all duration-150 hover:bg-muted hover:shadow active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card";
 
 export function CameraPanel({
   cameraActive,
@@ -43,15 +45,14 @@ export function CameraPanel({
   onSimulate,
   onOpenMultiScan,
 }: CameraPanelProps) {
+  useLang(); // re-render on language toggle
   return (
-    <section aria-label="الماسحة الضوئية" className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">
+    <section aria-label={t("الماسحة الضوئية")} className="rounded-3xl border border-border bg-card p-4 shadow-card sm:p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="flex items-center gap-2.5 text-sm font-extrabold tracking-tight text-foreground">
+          <span className="icon-tile h-9 w-9 rounded-xl">
             <Camera className="h-4 w-4" />
-          </span>
-          الماسحة الضوئية
-          <span
+          </span>{t("الماسحة الضوئية")}<span
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
               cameraActive
@@ -60,15 +61,15 @@ export function CameraPanel({
             )}
           >
             <span className={cn("h-1.5 w-1.5 rounded-full", cameraActive ? "animate-pulse bg-emerald-500" : "bg-muted-foreground/50")} />
-            {cameraActive ? "الكاميرا نشطة" : "الكاميرا متوقفة"}
+            {cameraActive ? t("الكاميرا نشطة") : t("الكاميرا متوقفة")}
           </span>
         </h3>
         {cameraActive && (
           <button
             type="button"
             onClick={onStopCamera}
-            aria-label="إيقاف الكاميرا"
-            title="إيقاف الكاميرا"
+            aria-label={t("إيقاف الكاميرا")}
+            title={t("إيقاف الكاميرا")}
             className="rounded-lg p-1.5 text-muted-foreground ring-1 ring-transparent transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X className="h-4 w-4" />
@@ -83,7 +84,7 @@ export function CameraPanel({
               ref={videoRef}
               autoPlay
               playsInline
-              aria-label="معاينة الكاميرا الحية"
+              aria-label={t("معاينة الكاميرا الحية")}
               className="h-[300px] w-full bg-black object-cover"
             />
             {/* Viewfinder corner guides (decorative) */}
@@ -93,32 +94,26 @@ export function CameraPanel({
               <i className="absolute bottom-0 start-0 h-6 w-6 rounded-bl-lg border-b-2 border-s-2 border-white/80" />
               <i className="absolute bottom-0 end-0 h-6 w-6 rounded-br-lg border-b-2 border-e-2 border-white/80" />
             </span>
-            <span className="absolute bottom-3 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-[11px] font-medium text-white backdrop-blur">
-              وجّه المستند داخل الإطار ثم اضغط التقاط
-            </span>
+            <span className="absolute bottom-3 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-[11px] font-medium text-white backdrop-blur">{t("وجّه المستند داخل الإطار ثم اضغط التقاط")}</span>
           </div>
           <canvas ref={canvasRef} className="hidden" />
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
             <button type="button" onClick={onCapture} disabled={scanning} className={BTN_PRIMARY}>
               {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-              التقاط صورة
+              {t("التقاط صورة")}
             </button>
-            <button type="button" onClick={onToggleFacing} className={BTN_GHOST} aria-label="تبديل الكاميرا">
-              <RotateCw className="h-4 w-4" />
-              تبديل الكاميرا
-            </button>
+            <button type="button" onClick={onToggleFacing} className={BTN_GHOST} aria-label={t("تبديل الكاميرا")}>
+              <RotateCw className="h-4 w-4" />{t("تبديل الكاميرا")}</button>
             <button
               type="button"
               onClick={onOpenMultiScan}
               className={BTN_TINT}
-              title="نافذة المسح من الطابعة: فردي أو متعدد — قائمة الأجهزة + اللون والدقة"
+              title={t("نافذة المسح من الطابعة: فردي أو متعدد — قائمة الأجهزة + اللون والدقة")}
             >
-              <Printer className="h-4 w-4" />
-              مسح من الطابعة
-            </button>
+              <Printer className="h-4 w-4" />{t("مسح من الطابعة")}</button>
             <button type="button" onClick={onSimulate} disabled={scanning} className={BTN_GHOST}>
               {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              محاكاة مسح
+              {t("محاكاة مسح")}
             </button>
           </div>
         </>
@@ -128,33 +123,26 @@ export function CameraPanel({
           <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">
             <ScanLine className="h-7 w-7" />
           </span>
-          <p className="relative max-w-sm text-sm font-medium text-foreground">جاهز للمسح — اختر مصدر الصفحات</p>
-          <p className="relative max-w-sm text-xs leading-5 text-muted-foreground">
-            امسح صفحة تلو الأخرى — تتجمع الصفحات في القائمة بالترتيب، ويمكنك إعادة ترتيبها قبل الإيداع
-          </p>
+          <p className="relative max-w-sm text-sm font-medium text-foreground">{t("جاهز للمسح — اختر مصدر الصفحات")}</p>
+          <p className="relative max-w-sm text-xs leading-5 text-muted-foreground">{t("امسح صفحة تلو الأخرى — تتجمع الصفحات في القائمة بالترتيب، ويمكنك إعادة ترتيبها قبل الإيداع")}</p>
           <div className="relative mt-1 flex flex-wrap items-center justify-center gap-2.5">
             <button type="button" onClick={onStartScan} className={BTN_PRIMARY}>
-              <Camera className="h-4 w-4" />
-              تشغيل الكاميرا
-            </button>
+              <Camera className="h-4 w-4" />{t("تشغيل الكاميرا")}</button>
             <button
               type="button"
               onClick={onOpenMultiScan}
               className={BTN_TINT}
-              title="نافذة المسح من الطابعة: فردي أو متعدد — قائمة الأجهزة + اللون والدقة"
+              title={t("نافذة المسح من الطابعة: فردي أو متعدد — قائمة الأجهزة + اللون والدقة")}
             >
-              <Printer className="h-4 w-4" />
-              مسح من الطابعة
-            </button>
+              <Printer className="h-4 w-4" />{t("مسح من الطابعة")}</button>
             <button type="button" onClick={onSimulate} disabled={scanning} className={BTN_GHOST}>
               {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              محاكاة مسح
+              {t("محاكاة مسح")}
             </button>
           </div>
           {scanning && (
             <p role="status" className="relative inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> جارٍ جلب صورة المحاكاة...
-            </p>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />{t("جارٍ جلب صورة المحاكاة...")}</p>
           )}
         </div>
       )}

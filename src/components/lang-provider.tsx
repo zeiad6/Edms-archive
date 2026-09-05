@@ -22,6 +22,13 @@ function applyLang(l: Lang) {
   setModuleLang(l);
   document.documentElement.lang = l;
   document.documentElement.dir = l === "ar" ? "rtl" : "ltr";
+  // Mirror to a cookie so server components render the same language
+  // (read via getServerLang) and the next full load is SSR-correct.
+  try {
+    document.cookie = `lang=${l}; path=/; max-age=31536000; SameSite=Lax`;
+  } catch {
+    /* ignore */
+  }
 }
 
 export function LangProvider({ children }: { children: ReactNode }) {

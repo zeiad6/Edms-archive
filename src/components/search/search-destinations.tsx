@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -167,6 +169,7 @@ export interface SearchDestinationsProps {
 
 /** Dropdown listing destinations matching the current query. */
 export function SearchDestinations({ query, onNavigate, searchRef, className }: SearchDestinationsProps) {
+  useLang(); // re-render on language toggle
   const router = useRouter();
   const listRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -221,13 +224,13 @@ export function SearchDestinations({ query, onNavigate, searchRef, className }: 
     <div
       ref={listRef}
       onKeyDown={handleInputKeyDown}
-      className={cn("animate-fadein absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-border bg-popover shadow-xl shadow-slate-950/10", className)}
+      className={cn("animate-fadein absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-border bg-popover shadow-pop surface-pop", className)}
     >
       <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2">
-        <span className="text-[11px] font-medium text-muted-foreground">الوجهات</span>
+        <span className="text-[11px] font-medium text-muted-foreground">{t("الوجهات")}</span>
         <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary ring-1 ring-inset ring-primary/15">{matches.length}</span>
       </div>
-      <ul role="listbox" aria-label="الوجهات المقترحة">
+      <ul role="listbox" aria-label={t("الوجهات المقترحة")}>
         {matches.map((d, i) => {
           const Icon = d.icon;
           return (
@@ -248,10 +251,10 @@ export function SearchDestinations({ query, onNavigate, searchRef, className }: 
                   <Icon className="h-4 w-4" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{highlightMatch(d.title, query)}</span>
+                  <span className="block truncate text-sm font-medium">{highlightMatch(t(d.title), query)}</span>
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    {d.popular && <Flame className="h-3 w-3 shrink-0 text-amber-500" aria-label="شائعة" />}
-                    <span className="min-w-0 flex-1 truncate">{d.description}</span>
+                    {d.popular && <Flame className="h-3 w-3 shrink-0 text-amber-500" aria-label={t("شائعة")} />}
+                    <span className="min-w-0 flex-1 truncate">{t(d.description)}</span>
                     <span dir="ltr" className="shrink-0 font-medium text-muted-foreground/60">{d.path}</span>
                   </span>
                 </span>
@@ -284,7 +287,7 @@ export function DestinationMatchBanner({ query, onNavigate }: { query: string; o
   if (!dest || dismissed) return null;
   const Icon = dest.icon;
   return (
-    <div className="animate-fadein relative inline-flex w-full items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-3 text-start">
+    <div className="animate-fadein relative inline-flex w-full items-center gap-2.5 rounded-2xl border border-primary/30 bg-primary/[0.06] px-4 py-3.5 text-start shadow-card">
       <button
         type="button"
         onClick={() => {
@@ -293,17 +296,17 @@ export function DestinationMatchBanner({ query, onNavigate }: { query: string; o
         }}
         className="flex min-w-0 flex-1 items-center gap-3 text-start transition hover:opacity-90"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25">
           <Icon className="h-4.5 w-4.5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-primary">فتح صفحة {highlightMatch(dest.title, query)}</span>
+          <span className="block text-sm font-semibold text-primary">{t("فتح صفحة")} {highlightMatch(t(dest.title), query)}</span>
           <span dir="ltr" className="block truncate text-xs text-muted-foreground">{dest.path}</span>
         </span>
       </button>
       <button
         type="button"
-        aria-label="إخفاء الاقتراح"
+        aria-label={t("إخفاء الاقتراح")}
         onClick={() => setDismissed(true)}
         className="shrink-0 rounded-lg p-1.5 text-muted-foreground/60 transition hover:bg-primary/10 hover:text-foreground"
       >

@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useMemo } from "react";
 import type { ColDef } from "ag-grid-community";
@@ -7,17 +9,18 @@ import { ROLE_META, formatDate, initials, cn } from "@/lib/format";
 import { UserActions } from "@/components/users/user-actions";
 import type { UserRow } from "@/components/users/user-row";
 
-/** Static column definitions — module scope so AG Grid keeps stable identity across renders. */
-const BASE_COLUMNS: ColDef<UserRow>[] = [
+/** Column definitions rebuilt when the language toggles (headers + labels). */
+function buildColumns(): ColDef<UserRow>[] {
+  return [
     {
-      headerName: "المستخدم",
+      headerName: t("المستخدم"),
       field: "name",
       flex: 1.6,
       minWidth: 140,
       cellRenderer: (p: any) => (
         <div className="flex items-center gap-2.5">
           <span
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white shadow-sm ring-2 ring-card"
             style={{ backgroundColor: p.data.avatarColor }}
           >
             {initials(p.data.name)}
@@ -30,7 +33,7 @@ const BASE_COLUMNS: ColDef<UserRow>[] = [
       ),
     },
     {
-      headerName: "اسم الدخول",
+      headerName: t("اسم الدخول"),
       field: "username",
       minWidth: 110,
       cellRenderer: (p: any) => (
@@ -38,13 +41,13 @@ const BASE_COLUMNS: ColDef<UserRow>[] = [
       ),
     },
     {
-      headerName: "المسمى",
+      headerName: t("المسمى"),
       field: "jobTitle",
       minWidth: 100,
       cellRenderer: (p: any) => p.value ?? <span className="text-muted-foreground">—</span>,
     },
     {
-      headerName: "الدور",
+      headerName: t("الدور"),
       field: "role",
       minWidth: 90,
       filter: "agSetColumnFilter",
@@ -53,42 +56,43 @@ const BASE_COLUMNS: ColDef<UserRow>[] = [
         return (
           <span
             className={cn(
-              "inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium",
+              "inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-sm ring-1 ring-inset ring-black/[0.06] dark:ring-white/10",
               m?.badge ?? "bg-muted text-muted-foreground"
             )}
           >
-            {m?.label ?? p.value}
+            {m?.label ? t(m.label) : p.value}
           </span>
         );
       },
     },
     {
-      headerName: "القسم",
+      headerName: t("القسم"),
       field: "deptName",
       minWidth: 100,
       filter: "agSetColumnFilter",
       cellRenderer: (p: any) => p.value ?? <span className="text-muted-foreground">—</span>,
     },
     {
-      headerName: "المستندات",
+      headerName: t("المستندات"),
       field: "docs",
       minWidth: 70,
       filter: "agNumberColumnFilter",
       cellRenderer: (p: any) => (
-        <span className="tnum inline-flex items-center justify-center rounded-lg bg-muted px-2 py-0.5 text-xs font-bold text-foreground">
+        <span className="tnum inline-flex min-w-8 items-center justify-center rounded-lg bg-muted px-2 py-1 text-xs font-bold text-foreground shadow-sm ring-1 ring-inset ring-border/60">
           {p.value}
         </span>
       ),
     },
     {
-      headerName: "تاريخ الانضمام",
+      headerName: t("تاريخ الانضمام"),
       field: "joined",
       minWidth: 100,
       filter: "agDateColumnFilter",
       valueFormatter: (p: any) => (p.value ? formatDate(p.value) : "—"),
       cellClass: "text-muted-foreground",
     },
-];
+  ];
+}
 
 export function UsersGrid({
   rows,
@@ -99,10 +103,11 @@ export function UsersGrid({
   departments: { id: number; name: string }[];
   currentUserId?: number;
 }) {
+  const { lang } = useLang(); // re-render on language toggle
   // Actions column depends on props — merged per-render, static columns stay stable.
   const columnDefs = useMemo<ColDef<UserRow>[]>(
     () => [
-      ...BASE_COLUMNS,
+      ...buildColumns(),
       {
         headerName: "",
         field: "id",
@@ -115,7 +120,7 @@ export function UsersGrid({
         },
       },
     ],
-    [depts, currentUserId]
+    [depts, currentUserId, lang]
   );
 
   return (

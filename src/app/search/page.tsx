@@ -8,8 +8,11 @@ import { SearchResults } from "@/components/search/search-results";
 import { SearchEmptyState } from "@/components/search/search-empty-state";
 import { DestinationMatchBanner, isDestinationQuery } from "@/components/search/search-destinations";
 import type { SearchResult, DeptOption, TagOption } from "@/components/search/search-types";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 export default function AdvancedSearchPage() {
+  useLang(); // re-render on language toggle
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [operator, setOperator] = useState<"AND" | "OR">("AND");
@@ -143,7 +146,7 @@ export default function AdvancedSearchPage() {
   }
 
   return (
-    <div className="animate-fadein space-y-6">
+    <div className="animate-fadein page-stack">
       {/* Hero search */}
       <SearchHero
         query={query}
@@ -183,8 +186,9 @@ export default function AdvancedSearchPage() {
 
       {/* Results */}
       {loading && (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-border bg-card px-6 py-20 shadow-card">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <div className="skeleton-shimmer h-2 w-48 rounded-full" aria-hidden />
         </div>
       )}
 

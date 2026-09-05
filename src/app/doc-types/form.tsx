@@ -1,10 +1,13 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useState } from "react";
 import { Plus, Trash2, Save, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export function CreateDocTypeForm() {
+  useLang(); // re-render on language toggle
   const r = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -26,13 +29,13 @@ export function CreateDocTypeForm() {
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "فشل الإنشاء");
+        alert(t(err.error || "فشل الإنشاء"));
         return;
       }
       r.refresh();
       setOpen(false);
     } catch {
-      alert("حدث خطأ");
+      alert(t("حدث خطأ غير متوقع"));
     } finally {
       setBusy(false);
     }
@@ -43,61 +46,58 @@ export function CreateDocTypeForm() {
       {!open ? (
         <button
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+          className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition hover:-translate-y-px hover:opacity-90 hover:shadow-lg active:translate-y-0"
         >
-          <Plus className="h-4 w-4" /> إضافة تصنيف جديد
-        </button>
+          <Plus className="h-4 w-4" />{t("إضافة تصنيف جديد")}</button>
       ) : (
-        <Card className="p-4">
+        <Card className="card-sheen p-4 sm:p-5 shadow-card">
           <form onSubmit={handle} className="flex flex-wrap items-end gap-3">
-            <div className="flex-1">
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">الاسم</label>
+            <div className="min-w-40 flex-1">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("الاسم")}</label>
               <input
                 name="name"
                 required
-                className="w-full rounded-xl border border-border bg-muted px-3 py-2 text-sm outline-none focus:border-ring"
+                className="h-10 w-full rounded-xl border border-border bg-muted px-3 text-sm shadow-soft outline-none transition hover:border-primary/30 focus:border-ring focus:bg-card focus:ring-2 focus:ring-ring/30"
               />
             </div>
             <div className="w-28">
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">إنجليزي</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("إنجليزي")}</label>
               <input
                 name="nameEn"
-                className="w-full rounded-xl border border-border bg-muted px-3 py-2 text-sm outline-none focus:border-ring"
+                className="h-10 w-full rounded-xl border border-border bg-muted px-3 text-sm shadow-soft outline-none transition hover:border-primary/30 focus:border-ring focus:bg-card focus:ring-2 focus:ring-ring/30"
               />
             </div>
             <div className="w-20">
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">اللون</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("اللون")}</label>
               <input
                 name="color"
                 type="color"
                 defaultValue="#6366f1"
-                className="h-9 w-full cursor-pointer rounded-xl border border-border bg-muted p-1"
+                className="h-10 w-full cursor-pointer rounded-xl border border-border bg-muted p-1 shadow-soft"
               />
             </div>
             <div className="w-20">
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">الترتيب</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("الترتيب")}</label>
               <input
                 name="sortOrder"
                 type="number"
                 defaultValue={0}
-                className="w-full rounded-xl border border-border bg-muted px-3 py-2 text-sm outline-none focus:border-ring"
+                className="h-10 w-full rounded-xl border border-border bg-muted px-3 text-sm shadow-soft outline-none transition hover:border-primary/30 focus:border-ring focus:bg-card focus:ring-2 focus:ring-ring/30"
               />
             </div>
             <div className="flex gap-2">
               <button
                 type="submit"
                 disabled={busy}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition hover:-translate-y-px hover:opacity-90 hover:shadow-lg active:translate-y-0 disabled:opacity-50"
               >
-                {busy ? "..." : "حفظ"}
+                {busy ? "..." : t("حفظ")}
               </button>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-xl border border-border px-4 py-2.5 text-sm text-muted-foreground transition hover:bg-muted"
-              >
-                إلغاء
-              </button>
+                className="h-10 rounded-xl border border-border px-4 text-sm text-muted-foreground shadow-soft transition hover:bg-muted hover:text-foreground"
+              >{t("إلغاء")}</button>
             </div>
           </form>
         </Card>
@@ -107,11 +107,12 @@ export function CreateDocTypeForm() {
 }
 
 export function DeleteDocTypeButton({ name }: { name: string }) {
+  useLang(); // re-render on language toggle
   const r = useRouter();
   const [busy, setBusy] = useState(false);
 
   async function handle() {
-    if (!confirm(`حذف التصنيف "${name}"؟`)) return;
+    if (!confirm(t("حذف التصنيف “{n}”؟", { n: name }))) return;
     setBusy(true);
     try {
       const res = await fetch("/api/doc-types", {
@@ -121,12 +122,12 @@ export function DeleteDocTypeButton({ name }: { name: string }) {
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "فشل الحذف");
+        alert(t(err.error || "فشل الحذف"));
         return;
       }
       r.refresh();
     } catch {
-      alert("حدث خطأ");
+      alert(t("حدث خطأ غير متوقع"));
     } finally {
       setBusy(false);
     }
@@ -136,8 +137,8 @@ export function DeleteDocTypeButton({ name }: { name: string }) {
     <button
       onClick={handle}
       disabled={busy}
-      className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500 disabled:opacity-50"
-      title="حذف"
+      className="rounded-lg p-1.5 text-muted-foreground shadow-soft transition hover:bg-rose-500/10 hover:text-rose-500 hover:shadow-card disabled:opacity-50"
+      title={t("حذف")}
     >
       <Trash2 className="h-3.5 w-3.5" />
     </button>
@@ -157,6 +158,7 @@ export function InlineEditForm({
   defaultNameEn: string | null;
   defaultSortOrder: number;
 }) {
+  useLang(); // re-render on language toggle
   const r = useRouter();
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -179,13 +181,13 @@ export function InlineEditForm({
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "فشل التحديث");
+        alert(t(err.error || "فشل التحديث"));
         return;
       }
       r.refresh();
       setEditing(false);
     } catch {
-      alert("حدث خطأ");
+      alert(t("حدث خطأ غير متوقع"));
     } finally {
       setBusy(false);
     }
@@ -196,10 +198,8 @@ export function InlineEditForm({
       <button
         onClick={() => setEditing(true)}
         className="rounded-lg p-1 text-xs text-muted-foreground transition hover:bg-primary/10 hover:text-primary"
-        title="تعديل"
-      >
-        تعديل
-      </button>
+        title={t("تعديل")}
+      >{t("تعديل")}</button>
     );
   }
 
@@ -233,7 +233,7 @@ export function InlineEditForm({
         type="submit"
         disabled={busy}
         className="rounded-lg p-1 text-muted-foreground transition hover:bg-primary/10 hover:text-primary disabled:opacity-50"
-        title="حفظ"
+        title={t("حفظ")}
       >
         {busy ? <span className="text-xs">...</span> : <Save className="h-3.5 w-3.5" />}
       </button>
@@ -241,7 +241,7 @@ export function InlineEditForm({
         type="button"
         onClick={() => setEditing(false)}
         className="rounded-lg p-1 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500"
-        title="إلغاء"
+        title={t("إلغاء")}
       >
         <X className="h-3.5 w-3.5" />
       </button>
@@ -250,5 +250,5 @@ export function InlineEditForm({
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-xl border border-border bg-card ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl border border-border bg-card shadow-card ${className}`}>{children}</div>;
 }

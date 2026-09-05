@@ -6,19 +6,22 @@ import { getCurrentUser } from "@/lib/server";
 import { can } from "@/lib/permissions";
 import { PageHeader } from "@/components/ui";
 import TrashClient from "@/components/trash-client";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 export const dynamic = "force-dynamic";
 
 export default async function TrashPage() {
+  const lang = await getServerLang();
   const user = await getCurrentUser();
   if (!user || !can(user, "trash.view")) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-500/10">
-          <AlertTriangle className="h-8 w-8" />
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
+        <div className="mb-1 flex h-20 w-20 items-center justify-center rounded-3xl bg-rose-500/10 text-rose-600 shadow-card ring-1 ring-inset ring-rose-500/25 dark:text-rose-400">
+          <AlertTriangle className="h-10 w-10" />
         </div>
-        <h2 className="text-lg font-bold text-foreground">لا تملك صلاحية الوصول</h2>
-        <p className="mt-1 text-sm text-muted-foreground">سلة المحذوفات متاحة فقط للمسؤولين.</p>
+        <h2 className="text-xl font-extrabold tracking-tight text-foreground">{ts(lang, "لا تملك صلاحية الوصول")}</h2>
+        <p className="max-w-md text-sm leading-6 text-muted-foreground">{ts(lang, "سلة المحذوفات متاحة فقط للمسؤولين.")}</p>
       </div>
     );
   }
@@ -50,11 +53,11 @@ export default async function TrashPage() {
   ]);
 
   return (
-    <div className="animate-fadein">
+    <div className="animate-fadein page-stack">
       <PageHeader
         icon={<AlertTriangle className="h-5 w-5" />}
-        title="سلة المحذوفات"
-        subtitle="المستندات المحذوفة مؤقتاً — يمكن استعادتها أو حذفها نهائياً."
+        title={ts(lang, "سلة المحذوفات")}
+        subtitle={ts(lang, "المستندات المحذوفة مؤقتاً — يمكن استعادتها أو حذفها نهائياً.")}
       />
       <TrashClient deletedDocs={deletedDocs} totalCount={deletedDocs.length} docTypes={allDocTypes} />
     </div>

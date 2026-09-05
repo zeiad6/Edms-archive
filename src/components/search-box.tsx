@@ -1,4 +1,5 @@
 "use client";
+import { useLang } from "@/components/lang-provider";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -25,6 +26,7 @@ export interface SearchItem {
  * with no active result falls back to the full server-side content search.
  */
 export function SearchBox({ index }: { index: SearchItem[] }) {
+  useLang(); // re-render on language toggle
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -159,15 +161,12 @@ export function SearchBox({ index }: { index: SearchItem[] }) {
           className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl shadow-black/10"
         >
           {results.length === 0 ? (
-            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-              لا توجد نتائج مطابقة لـ «<span className="font-semibold text-foreground">{q}</span>»
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">{t("لا توجد نتائج مطابقة لـ «")}<span className="font-semibold text-foreground">{q}</span>»
               <div className="mt-2">
                 <button
                   onClick={() => router.push(`/documents?q=${encodeURIComponent(q)}`)}
                   className="text-xs font-semibold text-primary hover:opacity-80"
-                >
-                  جرّب البحث الكامل في المحتوى (OCR) ↗
-                </button>
+                >{t("جرّب البحث الكامل في المحتوى (OCR) ↗")}</button>
               </div>
             </div>
           ) : (
@@ -210,13 +209,9 @@ export function SearchBox({ index }: { index: SearchItem[] }) {
               </div>
               <div className="flex items-center justify-between gap-2 border-t border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
-                  <kbd className="rounded bg-card px-1.5 py-0.5 ring-1 ring-border"><ChevronUp className="inline h-3 w-3" /><ChevronDown className="inline h-3 w-3" /></kbd>
-                  للتنقل
-                </span>
+                  <kbd className="rounded bg-card px-1.5 py-0.5 ring-1 ring-border"><ChevronUp className="inline h-3 w-3" /><ChevronDown className="inline h-3 w-3" /></kbd>{t("للتنقل")}</span>
                 <span className="inline-flex items-center gap-1">
-                  <kbd className="rounded bg-card px-1.5 py-0.5 ring-1 ring-border"><CornerDownLeft className="inline h-3 w-3" /></kbd>
-                  فتح / بحث كامل في المحتوى
-                </span>
+                  <kbd className="rounded bg-card px-1.5 py-0.5 ring-1 ring-border"><CornerDownLeft className="inline h-3 w-3" /></kbd>{t("فتح / بحث كامل في المحتوى")}</span>
               </div>
             </>
           )}

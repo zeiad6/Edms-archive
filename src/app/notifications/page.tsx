@@ -4,17 +4,20 @@ import { db } from "@/db";
 import { notifications } from "@/db/schema";
 import { desc, eq, sql, and } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/server";
-import { CheckCheck, Trash2 } from "lucide-react";
+import { Bell, CheckCheck, Trash2 } from "lucide-react";
 import { cn } from "@/lib/format";
 import { TYPE_TABS, READ_TABS } from "@/lib/notifications";
 import { markAllNotificationsRead, deleteReadNotifications } from "@/actions/notifications";
 import { NotificationList } from "@/components/notifications/notification-list";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 export const dynamic = "force-dynamic";
 
 export default async function NotificationsPage(props: {
   searchParams?: Promise<{ type?: string; read?: string }>;
 }) {
+  const lang = await getServerLang();
   const searchParams = await props.searchParams;
   const typeFilter = searchParams?.type ?? "";
   const readFilter = searchParams?.read ?? "";
@@ -46,26 +49,27 @@ export default async function NotificationsPage(props: {
   const unreadCount = unreadRow?.count ?? 0;
 
   return (
-    <div className="space-y-6">
+    <div className="animate-fadein page-stack">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">الإشعارات</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3.5">
+          <span className="icon-tile h-12 w-12"><Bell className="h-5 w-5" /></span>
+          <div className="min-w-0">
+            <h1 className="text-[1.65rem] font-extrabold leading-snug tracking-tight text-foreground">{ts(lang, "الإشعارات")}</h1>
+            <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
             {unreadCount > 0
-              ? `لديك ${unreadCount} إشعار${unreadCount === 1 ? "" : "ات"} غير مقروءة`
-              : "جميع الإشعارات مقروءة"}
-          </p>
+              ? ts(lang, "لديك {n} إشعارات غير مقروءة", { n: unreadCount })
+              : ts(lang, "جميع الإشعارات مقروءة")}
+            </p>
+          </div>
         </div>
         {all.length > 0 && unreadCount > 0 && (
           <form action={markAllNotificationsRead}>
             <button
               type="submit"
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-sm transition-all duration-150 hover:bg-muted hover:shadow active:scale-[0.98]"
             >
-              <CheckCheck className="h-4 w-4" />
-              تحديد الكل كمقروء
-            </button>
+              <CheckCheck className="h-4 w-4" />{ts(lang, "تحديد الكل كمقروء")}</button>
           </form>
         )}
       </div>
@@ -82,13 +86,13 @@ export default async function NotificationsPage(props: {
               key={tab.value}
               href={href}
               className={cn(
-                "rounded-lg px-3.5 py-1.5 text-xs font-medium transition",
+                "h-9 rounded-xl px-4 py-1.5 text-xs font-bold transition-all duration-150 active:scale-[0.97]",
                 active
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "border border-border bg-card text-muted-foreground hover:bg-muted",
+                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                  : "border border-border bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground hover:shadow",
               )}
             >
-              {tab.label}
+              {ts(lang, tab.label)}
             </Link>
           );
         })}
@@ -106,15 +110,15 @@ export default async function NotificationsPage(props: {
               key={tab.value}
               href={href}
               className={cn(
-                "rounded-lg px-3 py-1 text-[11px] font-medium transition",
+                "h-8 rounded-lg px-3.5 py-1 text-[11px] font-bold transition-all duration-150",
                 active
-                  ? "bg-muted-foreground/10 text-foreground ring-1 ring-inset ring-border"
-                  : "text-muted-foreground hover:text-foreground",
+                  ? "bg-muted-foreground/10 text-foreground shadow-sm ring-1 ring-inset ring-border"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
               )}
             >
               {tab.value === "unread" && unreadCount > 0
-                ? `${tab.label} (${unreadCount})`
-                : tab.label}
+                ? ts(lang, "{label} ({n})", { label: ts(lang, tab.label), n: unreadCount })
+                : ts(lang, tab.label)}
             </Link>
           );
         })}
@@ -123,11 +127,9 @@ export default async function NotificationsPage(props: {
           <form action={deleteReadNotifications}>
             <button
               type="submit"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3.5 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 dark:hover:bg-red-950/20"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3.5 text-xs font-semibold text-red-600 shadow-sm transition-all duration-150 hover:bg-red-50 hover:shadow active:scale-[0.98] dark:text-red-400 dark:hover:bg-red-950/20"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              حذف المقروءة
-            </button>
+              <Trash2 className="h-3.5 w-3.5" />{ts(lang, "حذف المقروءة")}</button>
           </form>
         )}
       </div>

@@ -138,7 +138,7 @@ export default async function Dashboard() {
   const today = getTodayFormatted();
 
   return (
-    <div className="animate-fadein space-y-5">
+    <div className="animate-fadein page-stack">
       <DashboardHero
         greeting={greeting}
         name={user?.name?.split(" ")[0] ?? ""}
@@ -158,22 +158,22 @@ export default async function Dashboard() {
       />
 
       {/* Recent + Activity: fill the row proportionally (2:1 on lg+ screens) */}
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 lg:gap-6">
         <RecentDocumentsCard recent={recent} />
         <ActivityFeedCard activity={activity} />
       </div>
 
       {/* Distribution cards: auto-fit so they fill the width at every size */}
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 lg:gap-6">
         <DepartmentsDistribution byDept={byDept} />
-        <div className="space-y-5">
+        <div className="space-y-5 lg:space-y-6">
           <StorageUsageCard storage={storage} />
           <StatusDistribution segments={statusSegments} />
         </div>
       </div>
 
       {/* Three chart cards side by side on wide screens */}
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+      <div className="stagger grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 lg:gap-6">
         <MonthlyTrendCard months={months} raw={monthlySeries} max={monthlyMax} />
         <PopularTagsCard tagStats={tagStats} />
         <DocTypesCard typeRows={typeRows} total={total} />

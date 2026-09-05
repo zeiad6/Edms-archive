@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useState } from "react";
 import { Search, X, Hash, Save, Trash2 } from "lucide-react";
@@ -13,6 +15,7 @@ interface TagItem {
 }
 
 export function TagsList({ tags }: { tags: TagItem[] }) {
+  useLang(); // re-render on language toggle
   const [q, setQ] = useState("");
 
   const filtered = q
@@ -20,13 +23,13 @@ export function TagsList({ tags }: { tags: TagItem[] }) {
     : tags;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
       {/* Header with count + search */}
       <div className="border-b border-border px-5 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary">
+          <span className="tnum inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary shadow-soft ring-1 ring-inset ring-primary/20">
             <Hash className="h-3.5 w-3.5" />
-            {filtered.length} / {tags.length} وسام
+            {t("{a} / {b} وسم", { a: filtered.length, b: tags.length })}
           </span>
 
           {tags.length > 5 && (
@@ -35,14 +38,15 @@ export function TagsList({ tags }: { tags: TagItem[] }) {
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="بحث في الوسوم..."
-                className="w-full rounded-xl border border-border bg-muted py-1.5 ps-9 pe-8 text-sm text-foreground outline-none transition focus:border-ring focus:bg-card focus:ring-2 focus:ring-ring/30"
-              />
-              {q && (
-                <button
-                  onClick={() => setQ("")}
-                  className="absolute end-2 top-1/2 -translate-y-1/2 rounded-lg p-0.5 text-muted-foreground transition hover:text-foreground"
-                >
+                placeholder={t("بحث في الوسوم...")}
+              className="h-10 w-full rounded-xl border border-border bg-muted ps-9 pe-8 text-sm text-foreground shadow-soft outline-none transition hover:border-primary/30 focus:border-ring focus:bg-card focus:ring-2 focus:ring-ring/30"
+            />
+            {q && (
+              <button
+                onClick={() => setQ("")}
+                aria-label={t("مسح")}
+                className="absolute end-2 top-1/2 -translate-y-1/2 rounded-lg p-0.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
                   <X className="h-4 w-4" />
                 </button>
               )}
@@ -56,14 +60,14 @@ export function TagsList({ tags }: { tags: TagItem[] }) {
           {q ? (
             <>
               <Search className="mb-3 h-10 w-10 opacity-20" />
-              <p className="text-sm font-medium">لا توجد نتائج</p>
-              <p className="mt-1 text-xs">حاول بكلمة بحث مختلفة</p>
+              <p className="text-sm font-medium">{t("لا توجد نتائج")}</p>
+              <p className="mt-1 text-xs">{t("حاول بكلمة بحث مختلفة")}</p>
             </>
           ) : (
             <>
               <Hash className="mb-3 h-12 w-12 opacity-20" />
-              <p className="text-sm font-medium">لا توجد وسوم بعد</p>
-              <p className="mt-1 text-xs">أضف وسماً جديداً ليظهر هنا</p>
+              <p className="text-sm font-medium">{t("لا توجد وسوم بعد")}</p>
+              <p className="mt-1 text-xs">{t("أضف وسماً جديداً ليظهر هنا")}</p>
             </>
           )}
         </div>
@@ -93,9 +97,9 @@ function TagRow({
       />
 
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium text-foreground">{tag.name}</div>
-        <div className="text-[11px] text-muted-foreground">
-          {tag.docCount} مستند
+        <div className="truncate text-sm font-medium text-foreground">{tag.name}</div>
+        <div className="tnum text-[11px] text-muted-foreground">
+          {t("{n} مستند", { n: tag.docCount })}
         </div>
       </div>
 
@@ -119,7 +123,7 @@ function TagRow({
         <button
           type="submit"
           className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition hover:bg-primary/10 hover:text-primary group-hover:opacity-100"
-          title="حفظ"
+          title={t("حفظ")}
         >
           <Save className="h-4 w-4" />
         </button>
@@ -130,9 +134,9 @@ function TagRow({
         <button
           type="submit"
           className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30 group-hover:opacity-100"
-          title="حذف"
+          title={t("حذف")}
           onClick={(e: any) => {
-            if (!confirm(`حذف الوسم "${tag.name}" نهائياً؟`)) e.preventDefault();
+            if (!confirm(t("حذف الوسم “{n}” نهائياً؟", { n: tag.name }))) e.preventDefault();
           }}
         >
           <Trash2 className="h-4 w-4" />

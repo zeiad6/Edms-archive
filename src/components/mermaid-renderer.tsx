@@ -3,6 +3,8 @@
 // Supports: flowchart, sequence, gantt, class, state, er, journey, pie, etc.
 
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/format";
@@ -56,6 +58,7 @@ export function MermaidRenderer({
   className,
   id,
 }: MermaidRendererProps) {
+  useLang(); // re-render on language toggle
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +121,7 @@ export function MermaidRenderer({
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "فشل عرض المخطط");
+          setError(e instanceof Error ? t(e.message) : t("فشل عرض المخطط"));
           setLoading(false);
         }
       }
@@ -141,9 +144,7 @@ export function MermaidRenderer({
             textAlign: "center",
             padding: "8px",
           }}
-        >
-          جارٍ عرض المخطط...
-        </div>
+        >{t("جارٍ عرض المخطط...")}</div>
       )}
       {error && (
         <div

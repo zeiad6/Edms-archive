@@ -19,6 +19,8 @@ import { DocumentPreviewCard } from "@/components/documents/document-preview-car
 import { DocumentDescriptionCard } from "@/components/documents/document-description-card";
 import { OcrCard } from "@/components/documents/ocr-card";
 import { DocumentTagsCard } from "@/components/documents/document-tags-card";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,7 @@ export default async function DocumentDetail({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const lang = await getServerLang();
   await ensureSeeded();
   const { id } = await params;
   const docId = Number(id);
@@ -57,18 +60,17 @@ export default async function DocumentDetail({
   } = await getDocumentDetailData(docId);
 
   return (
-    <div className="animate-fadein">
+    <div className="animate-fadein page-stack">
       <Link
         href="/documents"
-        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-primary"
+        className="inline-flex w-fit items-center gap-1.5 rounded-lg px-1 py-0.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <ArrowRight className="h-4 w-4" /> رجوع إلى المستندات
-      </Link>
+        <ArrowRight className="h-4 w-4" />{ts(lang, "رجوع إلى المستندات")}</Link>
 
       <PageHeader
         title={doc.title}
         subtitle={
-          meta.deptName ? `${meta.deptName} · ${doc.docNumber ?? "بدون رقم"}` : doc.docNumber ?? ""
+          meta.deptName ? `${meta.deptName} · ${doc.docNumber ?? ts(lang, "بدون رقم")}` : (doc.docNumber ?? "")
         }
         icon={<FileText className="h-5 w-5" />}
         actions={
@@ -82,9 +84,9 @@ export default async function DocumentDetail({
         }
       />
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3 lg:gap-6 xl:grid-cols-4">
         {/* Main */}
-        <div className="space-y-5 md:col-span-2">
+        <div className="space-y-5 md:col-span-2 lg:space-y-6 xl:col-span-3">
           <DocumentPreviewCard doc={doc} meta={meta} />
           <DocumentDescriptionCard doc={doc} />
           <OcrCard doc={doc} />
@@ -92,17 +94,17 @@ export default async function DocumentDetail({
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-5">
+        <div className="space-y-5 lg:space-y-6">
           <DocumentSidebar doc={doc} meta={meta} />
 
-          <Card className="p-4">
+          <Card className="p-5 shadow-card">
             <Tabs defaultValue="versions">
               <TabsList>
-                <TabsTrigger value="versions">الإصدارات</TabsTrigger>
-                <TabsTrigger value="approvals">الموافقات</TabsTrigger>
-                <TabsTrigger value="signatures">التوقيعات</TabsTrigger>
-                <TabsTrigger value="audit">السجل</TabsTrigger>
-                {canWrite && <TabsTrigger value="edit">تعديل</TabsTrigger>}
+                <TabsTrigger value="versions">{ts(lang, "الإصدارات")}</TabsTrigger>
+                <TabsTrigger value="approvals">{ts(lang, "الموافقات")}</TabsTrigger>
+                <TabsTrigger value="signatures">{ts(lang, "التوقيعات")}</TabsTrigger>
+                <TabsTrigger value="audit">{ts(lang, "السجل")}</TabsTrigger>
+                {canWrite && <TabsTrigger value="edit">{ts(lang, "تعديل")}</TabsTrigger>}
               </TabsList>
 
               <TabsContent value="versions">

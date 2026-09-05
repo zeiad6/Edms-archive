@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useState, useCallback, useEffect } from "react";
 import {
@@ -55,21 +57,21 @@ function TextPreview({ url, title }: { url: string; title: string }) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center">
         <FileText className="h-10 w-10 text-muted-foreground" />
-        <p className="text-xs text-muted-foreground">تعذّر تحميل المعاينة النصية — نزّل الملف لعرضه</p>
+        <p className="text-xs text-muted-foreground">{t("تعذّر تحميل المعاينة النصية — نزّل الملف لعرضه")}</p>
       </div>
     );
   }
   if (text === null) {
     return (
       <div className="flex h-full w-full items-center justify-center p-6">
-        <p className="animate-pulse text-xs text-muted-foreground">جارٍ تحميل المعاينة...</p>
+        <p className="animate-pulse text-xs text-muted-foreground">{t("جارٍ تحميل المعاينة...")}</p>
       </div>
     );
   }
   return (
     <pre
       dir="auto"
-      aria-label={`معاينة نصية: ${title}`}
+      aria-label={t("معاينة نصية: {x}", { x: title })}
       className="h-full w-full overflow-auto whitespace-pre-wrap break-words bg-muted/30 p-4 text-right text-xs leading-6 text-foreground"
     >
       {text}
@@ -90,6 +92,7 @@ export function DocumentPreview({
   title: string;
   fileSize: number | null;
 }) {
+  useLang(); // re-render on language toggle
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -144,9 +147,7 @@ export function DocumentPreview({
             loading="lazy"
             className="h-full w-full object-contain transition duration-300 group-hover:scale-105"
           />
-          <span className="absolute bottom-3 left-3 rounded-lg bg-black/60 px-2.5 py-1 text-xs font-medium text-white opacity-0 transition group-hover:opacity-100">
-            اضغط للتكبير
-          </span>
+          <span className="absolute bottom-3 left-3 rounded-lg bg-black/60 px-2.5 py-1 text-xs font-medium text-white opacity-0 transition group-hover:opacity-100">{t("اضغط للتكبير")}</span>
         </button>
 
         {/* Lightbox modal */}
@@ -156,7 +157,7 @@ export function DocumentPreview({
             onClick={closeLightbox}
             role="dialog"
             aria-modal="true"
-            aria-label={`معاينة: ${title}`}
+            aria-label={t("معاينة: {x}", { x: title })}
           >
             {/* Toolbar */}
             <div
@@ -167,7 +168,7 @@ export function DocumentPreview({
                 type="button"
                 onClick={() => setZoom((z) => Math.min(z + 0.25, 3))}
                 className="rounded-lg p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
-                aria-label="تكبير"
+                aria-label={t("تكبير")}
               >
                 <ZoomIn className="h-4 w-4" />
               </button>
@@ -175,7 +176,7 @@ export function DocumentPreview({
                 type="button"
                 onClick={() => setZoom((z) => Math.max(z - 0.25, 0.25))}
                 className="rounded-lg p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
-                aria-label="تصغير"
+                aria-label={t("تصغير")}
               >
                 <ZoomOut className="h-4 w-4" />
               </button>
@@ -183,7 +184,7 @@ export function DocumentPreview({
                 type="button"
                 onClick={() => setRotation((r) => (r + 90) % 360)}
                 className="rounded-lg p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
-                aria-label="تدوير"
+                aria-label={t("تدوير")}
               >
                 <RotateCw className="h-4 w-4" />
               </button>
@@ -191,7 +192,7 @@ export function DocumentPreview({
               <a
                 href={downloadUrl}
                 className="rounded-lg p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
-                aria-label="تنزيل"
+                aria-label={t("تنزيل")}
               >
                 <Download className="h-4 w-4" />
               </a>
@@ -200,7 +201,7 @@ export function DocumentPreview({
                 type="button"
                 onClick={closeLightbox}
                 className="rounded-lg p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
-                aria-label="إغلاق"
+                aria-label={t("إغلاق")}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -212,7 +213,7 @@ export function DocumentPreview({
             </div>
 
             {!imgLoaded && (
-              <div className="skeleton-shimmer h-64 w-64 rounded-2xl" role="status" aria-label="جارٍ تحميل الصورة" />
+              <div className="skeleton-shimmer h-64 w-64 rounded-2xl" role="status" aria-label={t("جارٍ تحميل الصورة")} />
             )}
             {/* Image */}
             {/* eslint-disable-next-line @next/next/no-img-element -- dynamic API document image, zoom/rotate via CSS transform */}
@@ -245,9 +246,7 @@ export function DocumentPreview({
             href={downloadUrl}
             className="inline-flex items-center gap-1.5 rounded-lg bg-black/60 px-3 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:bg-black/80"
           >
-            <Download className="h-3.5 w-3.5" />
-            تنزيل
-          </a>
+            <Download className="h-3.5 w-3.5" />{t("تنزيل")}</a>
         </div>
       </div>
     );
@@ -269,24 +268,22 @@ export function DocumentPreview({
       <ExtIcon ext={normalizedExt} />
       <div className="text-center">
         <p className="text-sm font-medium text-foreground">
-          {ext ? `.${ext.toUpperCase()}` : "ملف"}
+          {ext ? `.${ext.toUpperCase()}` : t("ملف")}
         </p>
         {fileSize !== null && fileSize !== undefined && (
           <p className="mt-0.5 text-xs text-muted-foreground">{formatBytes(fileSize)}</p>
         )}
         <p className="mx-auto mt-2 max-w-xs text-xs leading-5 text-muted-foreground">
           {officeOnly
-            ? "لا يدعم المتصفح عرض ملفات Word و Excel مباشرة — نزّل الملف لفتحه في التطبيق المناسب"
-            : "لا يمكن معاينة هذا النوع داخل المتصفح — نزّل الملف لعرضه"}
+            ? t("لا يدعم المتصفح عرض ملفات Word و Excel مباشرة — نزّل الملف لفتحه في التطبيق المناسب")
+            : t("لا يمكن معاينة هذا النوع داخل المتصفح — نزّل الملف لعرضه")}
         </p>
       </div>
       <a
         href={downloadUrl}
         className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition hover:opacity-90"
       >
-        <Download className="h-4 w-4" />
-        تنزيل الملف
-      </a>
+        <Download className="h-4 w-4" />{t("تنزيل الملف")}</a>
     </div>
   );
 }

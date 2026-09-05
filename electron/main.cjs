@@ -37,8 +37,24 @@ const PORT_MIN = 43110; // unlikely to collide; verified free before use
 let serverProcess = null;
 let win = null;
 
+// Portable detection: electron-builder portable sets PORTABLE_EXECUTABLE_DIR.
+// Portable must keep ALL writable state beside the exe (edms-data/), never in
+// %APPDATA%, otherwise the "portable" exe is not portable and data is lost
+// when moving the folder. NSIS keeps %APPDATA%/enterprise-edms.
+function isPortable() {
+  return Boolean(process.env.PORTABLE_EXECUTABLE_DIR);
+}
+function portableBase() {
+  return process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(app.getPath("exe"));
+}
+function baseUserData() {
+  if (IS_DEV) return app.getPath("userData");
+  if (isPortable()) return path.join(portableBase(), "edms-data");
+  return app.getPath("userData");
+}
+
 function userDataDir() {
-  const base = app.getPath("userData"); // %APPDATA%/enterprise-edms
+  const base = baseUserData();
   const dirs = {
     data: path.join(base, "data"),
     storage: path.join(base, "storage"),
@@ -57,7 +73,7 @@ function userDataDir() {
 // ---------------------------------------------------------------------------
 function ensureAuthSecret() {
   if (process.env.AUTH_SECRET?.trim()) return process.env.AUTH_SECRET.trim();
-  const file = path.join(app.getPath("userData"), "auth_secret");
+  const file = path.join(baseUserData(), "auth_secret");
   try {
     if (fs.existsSync(file)) {
       const existing = fs.readFileSync(file, "utf8").trim();
@@ -215,6 +231,20 @@ async function bootNext(port) {
   ensureAuthSecret();
   env.AUTH_SECRET = process.env.AUTH_SECRET;
 
+  // Bundled Tesseract: the Next child runs with ELECTRON_RUN_AS_NODE, so
+  // process.resourcesPath is undefined inside it and src/lib/tesseract.ts
+  // cannot resolve the bundled engine. Pass it explicitly (stale values fall
+  // through inside resolveTesseract). Portable and NSIS share the same layout:
+  // resources/tesseract/tesseract.exe + resources/tesseract/tessdata.
+  try {
+    const bundledExe = path.join(process.resourcesPath, "tesseract", "tesseract.exe");
+    const bundledData = path.join(process.resourcesPath, "tesseract", "tessdata");
+    if (fs.existsSync(bundledExe) && fs.existsSync(bundledData)) {
+      env.TESSERACT_SRC = bundledExe;
+      env.TESSDATA_PREFIX = bundledData;
+    }
+  } catch { /* OCR falls back to PATH/machine install */ }
+
   // Scan script lives outside asar too (child process must exec it).
   if (fs.existsSync(path.join(process.resourcesPath, "scan-wia.ps1"))) {
     fs.copyFileSync(
@@ -254,7 +284,12 @@ async function createWindow(url) {
     // dark for an explicit stored preference) — match the light page
     // background so there is no dark flash while the renderer loads.
     backgroundColor: "#f2f5fa",
-    icon: path.join(__dirname, "..", "resources", "icon", "icon-256.png"),
+    // Packaged layout: extraResources land in process.resourcesPath (next to
+    // app.asar), NOT under dist/ — the dev-relative path below only works
+    // unpackaged. Without this the built app shows the default Electron icon.
+    icon: app.isPackaged
+      ? path.join(process.resourcesPath, "icon", "icon-256.png")
+      : path.join(__dirname, "..", "resources", "icon", "icon-256.png"),
     title: "أرشيف — نظام الأرشفة الإلكتروني",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -344,6 +379,11 @@ const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
+  // Portable: redirect Electron userData beside the exe BEFORE ready, so
+  // session/cache/auth_secret/data all live in <exe-dir>/edms-data.
+  if (!IS_DEV && isPortable()) {
+    try { app.setPath("userData", path.join(portableBase(), "edms-data")); } catch { /* keep default */ }
+  }
   app.on("second-instance", () => {
     if (win) {
       if (win.isMinimized()) win.restore();

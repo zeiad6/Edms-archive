@@ -2,6 +2,8 @@ import { Medal } from "lucide-react";
 import { Card } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
 import { initials } from "@/lib/format";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 interface TopUploadersCardProps {
   uploaders: Array<{ name: string; avatarColor: string; c: number }>;
@@ -11,14 +13,14 @@ interface TopUploadersCardProps {
 /**
  * Top 5 uploaders with avatar initials and counts.
  */
-export function TopUploadersCard({ uploaders, total }: TopUploadersCardProps) {
+export async function TopUploadersCard({ uploaders, total }: TopUploadersCardProps) {
+  const lang = await getServerLang();
   return (
     <Card className="p-5">
       <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-foreground">
-        <Medal className="h-4 w-4 text-primary" /> أكثر المستخدمين إيداعاً
-      </h3>
+        <Medal className="h-4 w-4 text-primary" />{ts(lang, "أكثر المستخدمين إيداعاً")}</h3>
       {uploaders.length === 0 ? (
-        <EmptyState compact icon={Medal} title="لا يوجد إيداعات بعد" description="عند إيداع المستندات تظهر قائمة أكثر المساهمين." />
+        <EmptyState compact icon={Medal} title={ts(lang, "لا يوجد إيداعات بعد")} description={ts(lang, "عند إيداع المستندات تظهر قائمة أكثر المساهمين.")} />
       ) : (
       <div className="flex flex-wrap gap-3">
         {uploaders.map((u, i) => (
@@ -33,8 +35,8 @@ export function TopUploadersCard({ uploaders, total }: TopUploadersCardProps) {
             </div>
             <div className="min-w-0">
               <div className="truncate text-sm font-medium text-foreground">{u.name}</div>
-              <div className="text-xs text-muted-foreground">
-                {u.c} مستند{u.c === 1 ? "" : "ات"}
+              <div className="tnum text-xs text-muted-foreground">
+                {ts(lang, "{n} مستند", { n: u.c })}
                 {i === 0 && total > 0 && <span className="ms-1 font-bold text-amber-500">🥇</span>}
               </div>
             </div>

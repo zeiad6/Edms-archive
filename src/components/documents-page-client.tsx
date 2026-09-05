@@ -13,6 +13,8 @@ import {
 import { DocumentsGrid, type DocRow } from "@/components/grids/documents-grid";
 import { toast } from "sonner";
 import { STATUS_META } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 import { useRouter } from "next/navigation";
 
 interface TagItem {
@@ -22,6 +24,7 @@ interface TagItem {
 }
 
 export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
+  useLang(); // re-render on language toggle
   const router = useRouter();
   const [selected, setSelected] = useState<DocRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -54,7 +57,7 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
 
   async function handleBulkDownload() {
     if (selected.length === 0) {
-      toast.error("اختر مستنداً واحداً على الأقل أولاً");
+      toast.error(t("اختر مستنداً واحداً على الأقل أولاً"));
       return;
     }
     setBusy("download");
@@ -66,7 +69,7 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "فشل التحميل" }));
-        throw new Error(err.error || "فشل التحميل");
+        throw new Error(t(err.error || "فشل التحميل"));
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -78,10 +81,10 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
       document.body.removeChild(a);
       // Defer revocation — revoking synchronously can abort the download in Firefox.
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast.success(`تم تحميل ${selected.length} مستند${selected.length === 1 ? "" : "اً"} بنجاح`);
+      toast.success(t("تم تحميل {n} مستند بنجاح", { n: selected.length }));
       setSelected([]);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "تعذّر التحميل المجمع");
+      toast.error(e instanceof Error ? t(e.message) : t("تعذّر التحميل المجمع"));
     } finally {
       setBusy(null);
     }
@@ -89,7 +92,7 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
 
   async function handleExportSelected() {
     if (selected.length === 0) {
-      toast.error("اختر مستنداً واحداً على الأقل أولاً");
+      toast.error(t("اختر مستنداً واحداً على الأقل أولاً"));
       return;
     }
     setBusy("export");
@@ -101,7 +104,7 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "فشل التصدير" }));
-        throw new Error(err.error || "فشل التصدير");
+        throw new Error(t(err.error || "فشل التصدير"));
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -113,10 +116,10 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
       document.body.removeChild(a);
       // Defer revocation — revoking synchronously can abort the download in Firefox.
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast.success(`تم تصدير ${selected.length} مستند${selected.length === 1 ? "" : "اً"} مع كشف Excel`);
+      toast.success(t("تم تصدير {n} مستند مع كشف Excel", { n: selected.length }));
       setSelected([]);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "تعذّر التصدير مع الكشف");
+      toast.error(e instanceof Error ? t(e.message) : t("تعذّر التصدير مع الكشف"));
     } finally {
       setBusy(null);
     }
@@ -131,13 +134,13 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "delete", ids }),
       });
-      if (!res.ok) throw new Error((await res.json()).error || "فشل");
-      toast.success(`نقل ${ids.length} مستند إلى السلة`);
+      if (!res.ok) throw new Error(t((await res.json()).error || "فشل"));
+      toast.success(t("نقل {n} مستند إلى السلة", { n: ids.length }));
       setSelected([]);
       setDeleteOpen(false);
       router.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "فشل الحذف المجمع");
+      toast.error(e instanceof Error ? t(e.message) : t("فشل الحذف المجمع"));
     } finally {
       setBusy(null);
     }
@@ -152,13 +155,13 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "status", ids, status }),
       });
-      if (!res.ok) throw new Error((await res.json()).error || "فشل");
-      toast.success(`تحديث حالة ${ids.length} مستند`);
+      if (!res.ok) throw new Error(t((await res.json()).error || "فشل"));
+      toast.success(t("تحديث حالة {n} مستند", { n: ids.length }));
       setSelected([]);
       setStatusOpen(false);
       router.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "فشل تحديث الحالة");
+      toast.error(e instanceof Error ? t(e.message) : t("فشل تحديث الحالة"));
     } finally {
       setBusy(null);
     }
@@ -173,13 +176,13 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "tag", ids, tagId }),
       });
-      if (!res.ok) throw new Error((await res.json()).error || "فشل");
-      toast.success(`إضافة الوسم إلى ${ids.length} مستند`);
+      if (!res.ok) throw new Error(t((await res.json()).error || "فشل"));
+      toast.success(t("إضافة الوسم إلى {n} مستند", { n: ids.length }));
       setSelected([]);
       setTagOpen(false);
       router.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "فشل إضافة الوسم");
+      toast.error(e instanceof Error ? t(e.message) : t("فشل إضافة الوسم"));
     } finally {
       setBusy(null);
     }
@@ -191,16 +194,17 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
           selected so the grid gets the full viewport height (no phantom
           ~52px strip); fades in on first selection. */}
       <div
-        className={`z-10 mb-2 flex shrink-0 items-center justify-between rounded-2xl border px-4 py-3 shadow-sm backdrop-blur-xl transition-all duration-200 ${
+        className={`z-10 mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3 shadow-card backdrop-blur-xl transition-all duration-200 ${
           selected.length > 0
             ? "border-indigo-200 bg-indigo-50/90 animate-fadein dark:border-indigo-800 dark:bg-indigo-950/40"
             : "hidden"
         }`}
       >
-        <span className="text-sm font-medium text-foreground">
-          <ListChecks className="me-1.5 inline h-4 w-4 text-indigo-500" />
-          {selected.length} مستند{" "}
-          {selected.length === 1 ? "مُحدد" : selected.length <= 10 ? "مُحددة" : "مُحدد"}
+        <span className="tnum inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
+          <span className="icon-tile h-7 w-7 bg-indigo-500/10 text-indigo-500 [&_svg]:h-3.5 [&_svg]:w-3.5">
+            <ListChecks className="h-3.5 w-3.5" />
+          </span>
+          {t("مستندات محددة: {n}", { n: selected.length })}
         </span>
         <div className="flex items-center gap-1.5">
           {/* Tag */}
@@ -208,34 +212,34 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
             <button
               onClick={() => setTagOpen(!tagOpen)}
               disabled={busy === "tag"}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-medium text-foreground shadow-sm ring-1 ring-border transition hover:bg-muted disabled:opacity-60 dark:bg-indigo-950/60"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-white px-3 text-xs font-medium text-foreground shadow-soft ring-1 ring-border transition hover:bg-muted hover:shadow-card disabled:opacity-60 dark:bg-indigo-950/60"
             >
               {busy === "tag" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Tag className="h-3.5 w-3.5" />}
-              وسم
+              {t("وسم")}
             </button>
             {tagOpen && (
-              <div className="absolute bottom-full start-0 mb-2 w-52 rounded-xl border border-border bg-card shadow-xl">
+              <div className="absolute bottom-full start-0 z-20 mb-2 w-52 animate-pop rounded-2xl border border-border bg-card shadow-pop">
                 <div className="border-b border-border px-3 py-2 text-[11px] font-semibold text-muted-foreground">
-                  اختر الوسم
+                  {t("اختر الوسم")}
                 </div>
                 <div className="max-h-48 overflow-y-auto p-1.5">
-                  {tags.map((t) => (
+                  {tags.map((tag) => (
                     <button
-                      key={t.id}
-                      onClick={() => handleBulkTag(t.id)}
+                      key={tag.id}
+                      onClick={() => handleBulkTag(tag.id)}
                       className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-foreground transition hover:bg-muted"
                     >
                       <span
                         className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: t.color }}
+                        style={{ backgroundColor: tag.color }}
                       />
-                      {t.name}
+                      {tag.name}
                     </button>
                   ))}
                   {tagsError ? (
-                    <p className="px-2.5 py-3 text-xs text-rose-500">تعذّر تحميل الوسوم</p>
+                    <p className="px-2.5 py-3 text-xs text-rose-500">{t("تعذّر تحميل الوسوم")}</p>
                   ) : tags.length === 0 ? (
-                    <p className="px-2.5 py-3 text-xs text-muted-foreground">لا توجد وسوم</p>
+                    <p className="px-2.5 py-3 text-xs text-muted-foreground">{t("لا توجد وسوم")}</p>
                   ) : null}
                 </div>
               </div>
@@ -247,15 +251,15 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
             <button
               onClick={() => setStatusOpen(!statusOpen)}
               disabled={busy === "status"}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-medium text-foreground shadow-sm ring-1 ring-border transition hover:bg-muted disabled:opacity-60 dark:bg-indigo-950/60"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-white px-3 text-xs font-medium text-foreground shadow-soft ring-1 ring-border transition hover:bg-muted hover:shadow-card disabled:opacity-60 dark:bg-indigo-950/60"
             >
               {busy === "status" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-              حالة
+              {t("حالة")}
             </button>
             {statusOpen && (
-              <div className="absolute bottom-full start-0 mb-2 w-48 rounded-xl border border-border bg-card shadow-xl">
+              <div className="absolute bottom-full start-0 z-20 mb-2 w-48 animate-pop rounded-2xl border border-border bg-card shadow-pop">
                 <div className="border-b border-border px-3 py-2 text-[11px] font-semibold text-muted-foreground">
-                  تغيير الحالة إلى
+                  {t("تغيير الحالة إلى")}
                 </div>
                 <div className="p-1.5">
                   {(["active", "pending_review", "archived", "draft"] as const).map((s) => {
@@ -267,7 +271,7 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
                         className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-foreground transition hover:bg-muted"
                       >
                         <span className={`h-2 w-2 rounded-full ${m.dot}`} />
-                        {m.label}
+                        {t(m.label)}
                       </button>
                     );
                   })}
@@ -284,25 +288,25 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
               className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-medium text-rose-600 shadow-sm ring-1 ring-border transition hover:bg-rose-50 disabled:opacity-60 dark:bg-indigo-950/60"
             >
               {busy === "delete" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-              حذف
+              {t("حذف")}
             </button>
             {deleteOpen && (
-              <div className="absolute bottom-full start-0 mb-2 w-56 rounded-xl border border-border bg-card p-3 shadow-xl">
+              <div className="absolute bottom-full start-0 z-20 mb-2 w-56 animate-pop rounded-2xl border border-border bg-card p-3 shadow-pop">
                 <p className="text-xs text-foreground">
-                  نقل <strong>{ids.length}</strong> مستند إلى سلة المحذوفات؟
+                  {t("نقل {n} مستند إلى سلة المحذوفات؟", { n: ids.length })}
                 </p>
                 <div className="mt-2 flex gap-2">
                   <button
                     onClick={handleBulkDelete}
                     className="flex-1 rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-600"
                   >
-                    نقل للسلة
+                    {t("نقل للسلة")}
                   </button>
                   <button
                     onClick={() => setDeleteOpen(false)}
                     className="flex-1 rounded-lg bg-muted px-3 py-1.5 text-xs font-medium text-foreground hover:bg-border"
                   >
-                    إلغاء
+                    {t("إلغاء")}
                   </button>
                 </div>
               </div>
@@ -327,9 +331,9 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
           <button
             onClick={handleExportSelected}
             disabled={busy === "export"}
-            title="تنزيل ZIP فيه الملفات + كشف Excel (غلاف EDMS، روابط تفتح داخل الحزمة)"
+            title={t("تنزيل ZIP فيه الملفات + كشف Excel (غلاف EDMS، روابط تفتح داخل الحزمة)")}
             aria-busy={busy === "export"}
-            aria-label="تصدير ZIP مع كشف Excel"
+            aria-label={t("تصدير ZIP مع كشف Excel")}
             className="group inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-4 py-2 text-xs font-bold text-white shadow-[0_0_18px_-4px_rgba(16,185,129,0.7)] ring-1 ring-emerald-300/40 transition hover:from-emerald-500 hover:to-teal-500 hover:shadow-[0_0_24px_-4px_rgba(16,185,129,0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:opacity-60"
           >
             {busy === "export" ? (
@@ -337,7 +341,7 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
             ) : (
               <FileSpreadsheet className="h-3.5 w-3.5 transition group-hover:scale-110" />
             )}
-            {busy === "export" ? "جارٍ تجهيز الكشف…" : "ZIP + كشف"}
+            {busy === "export" ? t("جارٍ تجهيز الكشف…") : t("ZIP + كشف")}
           </button>
         </div>
       </div>
@@ -356,13 +360,14 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
  * blob, and surface success/failure via toasts.
  */
 export function CsvExportButton() {
+  useLang(); // re-render on language toggle
   const [busy, setBusy] = useState(false);
 
   async function handleExportCsv() {
     setBusy(true);
     try {
       const res = await fetch("/api/reports/export?type=documents");
-      if (!res.ok) throw new Error(`فشل التصدير (${res.status})`);
+      if (!res.ok) throw new Error(t("فشل التصدير ({code})", { code: res.status }));
       const blob = await res.blob();
       const cd = res.headers.get("Content-Disposition") || "";
       let filename = `documents-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -379,9 +384,9 @@ export function CsvExportButton() {
       document.body.removeChild(a);
       // Defer revocation — revoking synchronously can abort the download in Firefox.
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast.success("تم تصدير كشف CSV بنجاح");
+      toast.success(t("تم تصدير كشف CSV بنجاح"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "تعذّر تصدير CSV");
+      toast.error(e instanceof Error ? t(e.message) : t("تعذّر تصدير CSV"));
     } finally {
       setBusy(false);
     }
@@ -396,7 +401,7 @@ export function CsvExportButton() {
       className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-60"
     >
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      {busy ? "جارٍ التصدير…" : "تصدير CSV"}
+      {busy ? t("جارٍ التصدير…") : t("تصدير CSV")}
     </button>
   );
 }

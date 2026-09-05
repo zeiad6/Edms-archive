@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { AlertCircle, Check, Copy, KeyRound, Loader2, Lock, UsersRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/format";
-import { GITHUB_ACCOUNT_URL, GithubMark } from "@/components/github-mark";
+import { GITHUB_ACCOUNT_URL, GithubMark, SIGNAL_CONTACT_URL, SignalMark } from "@/components/github-mark";
 import { LoginForm } from "./login-form";
 import { Avatar } from "@/components/ui";
 import { ROLE_META } from "@/lib/format";
@@ -27,7 +27,7 @@ const initialState = { error: undefined as string | undefined };
 
 /** Shared field styling — matches the password-tab form (h-11, icon padding). */
 const inputClass =
-  "h-11 w-full rounded-xl border border-border bg-card pr-10 pl-3 text-left text-sm text-foreground shadow-sm outline-none transition-all duration-150 placeholder:text-muted-foreground/50 hover:border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20";
+  "h-11 w-full rounded-xl border border-border bg-card pe-3 ps-10 text-start text-sm text-foreground shadow-soft outline-none transition-all duration-150 placeholder:text-muted-foreground/50 hover:border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20";
 
 /** Shared primary button styling — matches the password-tab form. */
 const submitClass =
@@ -74,7 +74,7 @@ function UserPasswordPanel({
           {t("كلمة المرور")}
         </label>
         <div className="relative">
-          <Lock className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" />
+          <Lock className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" />
           <input
             id="picker-password"
             name="password"
@@ -118,11 +118,11 @@ function DefaultPasswordCopy() {
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText("Password@123");
+      await navigator.clipboard.writeText("12345678");
     } catch {
       // Clipboard API unavailable (permissions) — fallback via selection.
       const ta = document.createElement("textarea");
-      ta.value = "Password@123";
+        ta.value = "12345678";
       ta.style.position = "fixed";
       ta.style.opacity = "0";
       document.body.appendChild(ta);
@@ -143,7 +143,7 @@ function DefaultPasswordCopy() {
       aria-label={t("نسخ كلمة المرور الافتراضية")}
       className="tnum inline-flex cursor-pointer items-center gap-1 rounded-md bg-white/10 px-1.5 py-0.5 font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/20 hover:ring-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
     >
-      <span dir="ltr">Password@123</span>
+      <span dir="ltr">12345678</span>
       {copied ? <Check className="h-3 w-3 text-emerald-300" /> : <Copy className="h-3 w-3 opacity-70" />}
     </button>
   );
@@ -188,7 +188,7 @@ export function LoginTabs({ users }: { users: LoginUserOption[] }) {
       </div>
 
       {/* One unified card — both tabs share the same surface */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card/80 shadow-2xl shadow-slate-950/40 backdrop-blur-xl">
+      <div className="surface-dialog animate-pop overflow-hidden rounded-2xl border border-border bg-card/80 backdrop-blur-xl">
         {tab === "password" ? (
           <LoginForm />
         ) : (
@@ -258,8 +258,7 @@ export function LoginTabs({ users }: { users: LoginUserOption[] }) {
 
       {/* Footer credits (dev + phone) */}
       <div className="mt-6 border-t border-white/10 pt-4 text-center text-[11px] leading-relaxed text-white/55">
-        <p>{t("واجهة محاكاة صلاحيات · نظام تجريبي")}</p>
-        <p className="mt-1 flex items-center justify-center gap-1.5">
+        <p className="flex items-center justify-center gap-1.5">
           {t("تم تطوير البرنامج بواسطة")}{" "}
           <span className="font-semibold text-white/80">Ziad Al-hammadi</span> ·{" "}
           <span dir="ltr" className="tnum">+967 784 908 515</span>
@@ -272,6 +271,16 @@ export function LoginTabs({ users }: { users: LoginUserOption[] }) {
             className="rounded-md p-1 text-white/60 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
           >
             <GithubMark className="h-3.5 w-3.5" />
+          </a>
+          <a
+            href={SIGNAL_CONTACT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t("مراسلة المطور على Signal")}
+            title="Signal"
+            className="rounded-md p-1 text-white/60 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          >
+            <SignalMark className="h-3.5 w-3.5" />
           </a>
         </p>
       </div>

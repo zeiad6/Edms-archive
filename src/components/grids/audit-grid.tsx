@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useState, useMemo } from "react";
 import type { ColDef } from "ag-grid-community";
@@ -56,48 +58,70 @@ const ACTION_META: Record<string, { label: string; tone: string; icon: React.Rea
 
 export interface AuditRow {
   id: number;
-  /** Parsed timestamp — a real Date so AG Grid's date filter and sorting work reliably. */
-  time: Date;
+  /**
+   * Parsed timestamp — normally a real Date from the server, but RSC
+   * serialization may deliver it as an ISO string on the client, so every
+   * consumer must go through `timeMs()` instead of calling `getTime()` directly.
+   */
+  time: Date | string;
   user: string | null;
   action: string;
   details: string | null;
 }
 
-/** Static column definitions — module scope so AG Grid keeps stable identity across renders. */
-const BASE_COLUMNS: ColDef<AuditRow>[] = [
+/** Safe timestamp accessor — never throws/NaN: corrupt values fall back to epoch (0). */
+function timeMs(v: AuditRow["time"]): number {
+  try {
+    const d = v instanceof Date ? v : new Date(v as string);
+    const m = d.getTime();
+    return Number.isNaN(m) ? 0 : m;
+  } catch {
+    return 0;
+  }
+}
+
+/** Column definitions rebuilt when the language toggles (headers + labels). */
+function buildColumns(): ColDef<AuditRow>[] {
+  return [
     {
-      headerName: "التاريخ والوقت",
+      headerName: t("التاريخ والوقت"),
       field: "time",
       minWidth: 180,
       filter: "agDateColumnFilter",
       sort: "desc",
+      // Normalize to a real Date so AG Grid's date filter + sorting work even
+      // when RSC serialization delivered `time` as an ISO string.
+      valueGetter: (p: any) => {
+        const v = p.data?.time;
+        if (v instanceof Date) return v;
+        const d = new Date(v);
+        return Number.isNaN(d.getTime()) ? new Date(0) : d;
+      },
       valueFormatter: (p: any) => (p.value ? formatDateTime(p.value) : "—"),
       cellClass: "text-muted-foreground",
     },
     {
-      headerName: "المستخدم",
+      headerName: t("المستخدم"),
       field: "user",
       minWidth: 130,
       filter: "agSetColumnFilter",
       cellRenderer: (p: any) =>
         p.value ? (
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground shadow-sm ring-1 ring-inset ring-border/50">
               {p.value.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
             </span>
             <span className="font-medium text-foreground">{p.value}</span>
           </div>
         ) : (
-          <span className="flex items-center gap-2 text-muted-foreground">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/50">
+          <span className="flex items-center gap-2.5 text-muted-foreground">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/50 shadow-sm ring-1 ring-inset ring-border/50">
               <Settings className="h-3 w-3" />
-            </span>
-            النظام
-          </span>
+            </span>{t("النظام")}</span>
         ),
     },
     {
-      headerName: "العملية",
+      headerName: t("العملية"),
       field: "action",
       minWidth: 130,
       filter: "agSetColumnFilter",
@@ -105,16 +129,16 @@ const BASE_COLUMNS: ColDef<AuditRow>[] = [
         const m = ACTION_META[p.value];
         return (
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${m?.tone ?? "bg-muted text-muted-foreground"}`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-sm ring-1 ring-inset ring-black/[0.05] dark:ring-white/10 ${m?.tone ?? "bg-muted text-muted-foreground"}`}
           >
             {m?.icon ?? <Tag className="h-3 w-3" />}
-            {m?.label ?? p.value}
+            {m?.label ? t(m.label) : p.value}
           </span>
         );
       },
     },
     {
-      headerName: "التفاصيل",
+      headerName: t("التفاصيل"),
       field: "details",
       flex: 1.5,
       minWidth: 260,
@@ -127,9 +151,11 @@ const BASE_COLUMNS: ColDef<AuditRow>[] = [
           <span className="text-muted-foreground">—</span>
         ),
     },
-];
+  ];
+}
 
 export function AuditGrid({ rows }: { rows: AuditRow[] }) {
+  const { lang } = useLang(); // re-render on language toggle
   const [actionFilter, setActionFilter] = useState<string | null>(null);
   const [textSearch, setTextSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -154,15 +180,20 @@ export function AuditGrid({ rows }: { rows: AuditRow[] }) {
     }
     if (textSearch.trim()) {
       const q = textSearch.trim().toLowerCase();
-      result = result.filter((r) => (r.user ?? "").toLowerCase().includes(q) || (r.details ?? "").toLowerCase().includes(q));
+      result = result.filter(
+        (r) =>
+          (r.user ?? "").toLowerCase().includes(q) ||
+          (r.details ?? "").toLowerCase().includes(q) ||
+          (r.action ?? "").toLowerCase().includes(q),
+      );
     }
     if (dateFrom) {
       const fromT = localDay(dateFrom).getTime();
-      result = result.filter((r) => r.time.getTime() >= fromT);
+      if (!Number.isNaN(fromT)) result = result.filter((r) => timeMs(r.time) >= fromT);
     }
     if (dateTo) {
-      const toT = localDay(dateTo).getTime() + 86_400_000; // end of day
-      result = result.filter((r) => r.time.getTime() <= toT);
+      const dayT = localDay(dateTo).getTime();
+      if (!Number.isNaN(dayT)) result = result.filter((r) => timeMs(r.time) <= dayT + 86_400_000); // end of day
     }
     return result;
   }, [rows, actionFilter, textSearch, dateFrom, dateTo]);
@@ -176,75 +207,70 @@ export function AuditGrid({ rows }: { rows: AuditRow[] }) {
     return { total: filtered.length, users: uniqueUsers.size, actions: Object.keys(byAction).length };
   }, [filtered]);
 
-  const columnDefs = useMemo<ColDef<AuditRow>[]>(() => BASE_COLUMNS, []);
+  const columnDefs = useMemo<ColDef<AuditRow>[]>(() => buildColumns(), [lang]);
 
   return (
-    <div className="space-y-5">
+    <div className="page-stack">
       {/* Stats bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs">
-        <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
-          <span>
-            إجمالي: <strong className="text-foreground">{stats.total}</strong>
+      <div className="section-card card-sheen flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 !py-3.5 text-xs">
+        <div className="toolbar !gap-x-5 !gap-y-2 text-muted-foreground">
+          <span>{t("إجمالي:")}<strong className="text-foreground">{stats.total}</strong>
           </span>
-          <span>
-            مستخدمون: <strong className="text-foreground">{stats.users}</strong>
+          <span>{t("مستخدمون:")}<strong className="text-foreground">{stats.users}</strong>
           </span>
-          <span>
-            أنواع عمليات: <strong className="text-foreground">{stats.actions}</strong>
+          <span>{t("أنواع عمليات:")}<strong className="text-foreground">{stats.actions}</strong>
           </span>
         </div>
-        <div className="text-[11px] text-muted-foreground">
-          آخر تحديث: {formatDateTime(new Date().toISOString())}
+        <div className="tnum text-[11px] text-muted-foreground">
+          {t("آخر تحديث:")} {formatDateTime(new Date().toISOString())}
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="toolbar">
         {/* Action-type chips — only types present in the data, most frequent first */}
         <button
           onClick={() => setActionFilter(null)}
-          className={`rounded-full px-3 py-1 text-[11px] font-medium transition ${
-            !actionFilter ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground hover:bg-muted/80"
+          className={`rounded-full px-3 py-1.5 text-[11px] font-semibold shadow-sm ring-1 ring-inset ring-border/50 transition hover:shadow ${
+            !actionFilter ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
           }`}
-        >
-          الكل
-        </button>
+        >{t("الكل")}</button>
         {availableActions.map((key) => {
           const m = ACTION_META[key];
           return (
             <button
               key={key}
               onClick={() => setActionFilter(actionFilter === key ? null : key)}
-              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium transition ${
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold shadow-sm ring-1 ring-inset ring-border/50 transition hover:shadow ${
                 actionFilter === key
-                  ? `${m?.tone ?? "bg-primary text-primary-foreground"} shadow-sm ring-1 ring-border`
+                  ? `${m?.tone ?? "bg-primary text-primary-foreground"} ring-border`
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
               {m?.icon ?? <Tag className="h-3 w-3" />}
-              {m?.label ?? key}
+              {m?.label ? t(m.label) : key}
             </button>
           );
         })}
 
         {/* Date range filter */}
-        <div className="ms-auto flex items-center gap-2 text-xs">
-          <label className="flex items-center gap-1">
-            <span className="text-muted-foreground">من</span>
+        <div className="filter-bar ms-auto !gap-2.5 text-xs">
+          <label className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">{t("من")}</span>
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="h-7 rounded-md border border-border bg-card px-2 text-xs text-foreground outline-none transition focus:border-primary/40"
+              className="h-8 rounded-xl border border-border bg-card px-2.5 text-xs text-foreground shadow-sm outline-none transition hover:border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
             />
           </label>
-          <label className="flex items-center gap-1">
-            <span className="text-muted-foreground">إلى</span>
+          <label className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">{t("إلى")}</span>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="h-7 rounded-md border border-border bg-card px-2 text-xs text-foreground outline-none transition focus:border-primary/40"
+              className="h-8 rounded-xl border border-border bg-card px-2.5 text-xs text-foreground shadow-sm outline-none transition hover:border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
             />
           </label>
           {(dateFrom || dateTo) && (
@@ -258,13 +284,13 @@ export function AuditGrid({ rows }: { rows: AuditRow[] }) {
         </div>
 
         {/* Text search */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <Search className="h-3.5 w-3.5 text-muted-foreground" />
           <input
             value={textSearch}
             onChange={(e) => setTextSearch(e.target.value)}
-            placeholder="بحث في المستخدم أو التفاصيل…"
-            className="h-8 w-44 rounded-lg border border-border bg-card px-3 text-xs text-foreground outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
+            placeholder={t("بحث في المستخدم أو التفاصيل…")}
+            className="h-9 w-44 rounded-xl border border-border bg-card px-3.5 text-xs text-foreground shadow-sm outline-none transition hover:border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 sm:w-52"
           />
           {textSearch && (
             <button onClick={() => setTextSearch("")} className="text-muted-foreground hover:text-foreground">

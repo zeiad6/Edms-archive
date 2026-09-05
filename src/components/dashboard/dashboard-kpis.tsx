@@ -1,6 +1,8 @@
 import { Archive, ClipboardCheck, Clock4, FileCheck2, Files, HardDrive } from "lucide-react";
 import { StatCard } from "@/components/ui";
 import { formatBytes } from "@/lib/format";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 interface DashboardKpisProps {
   total: number;
@@ -14,7 +16,7 @@ interface DashboardKpisProps {
 /**
  * KPI stat cards row of the dashboard.
  */
-export function DashboardKpis({
+export async function DashboardKpis({
   total,
   active,
   pendingReview,
@@ -22,8 +24,9 @@ export function DashboardKpis({
   pendingApprovalsCount,
   storage,
 }: DashboardKpisProps) {
+  const lang = await getServerLang();
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+    <div className="stat-grid">
       <StatCard icon={<Files className="h-5 w-5" />} label="إجمالي المستندات" value={total} hint="مؤرشفة في النظام" accent="indigo" />
       <StatCard icon={<FileCheck2 className="h-5 w-5" />} label="مستندات سارية" value={active} hint="معتمدة ونافذة" accent="emerald" />
       <StatCard icon={<Clock4 className="h-5 w-5" />} label="قيد المراجعة" value={pendingReview} hint="بانتظار الاعتماد" accent="amber" delta={pendingReview > 0 ? { value: "تحتاج إجراء" } : undefined} />

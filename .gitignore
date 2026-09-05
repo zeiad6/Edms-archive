@@ -39,9 +39,16 @@ pnpm-debug.log*
 
 # Build artifacts - never commit
 dist/
+release/
 *.exe
 *.blockmap
 win-unpacked/
+
+# Large media - never via git push (use YouTube / Releases)
+*.mp4
+*.mov
+*.mkv
+EDMS-YouTube*.mp4
 
 
 # Tool caches - never commit
@@ -57,3 +64,8 @@ tsconfig.tsbuildinfo
 
 # Playwright MCP test artifacts
 .playwright-mcp/
+
+# Never ignore README web images (logo + screenshots)
+!public/**/*.png
+!public/**/*.svg
+!resources/icon/*

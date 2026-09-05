@@ -1,6 +1,8 @@
 import { Tags } from "lucide-react";
 import { Card } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 interface PopularTagsCardProps {
   tagStats: Array<{ name: string; color: string; c: number }>;
@@ -9,14 +11,14 @@ interface PopularTagsCardProps {
 /**
  * Most-used tags cloud with usage counts.
  */
-export function PopularTagsCard({ tagStats }: PopularTagsCardProps) {
+export async function PopularTagsCard({ tagStats }: PopularTagsCardProps) {
+  const lang = await getServerLang();
   return (
     <Card className="p-5">
       <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-foreground">
-        <Tags className="h-4 w-4 text-primary" /> الوسوم الأكثر استخداماً
-      </h3>
+        <Tags className="h-4 w-4 text-primary" />{ts(lang, "الوسوم الأكثر استخداماً")}</h3>
       {tagStats.length === 0 ? (
-        <EmptyState compact icon={Tags} title="لا توجد وسوم بعد" description="أضف وسوماً عند إيداع المستندات لتصنيفها بسهولة." />
+        <EmptyState compact icon={Tags} title={ts(lang, "لا توجد وسوم بعد")} description={ts(lang, "أضف وسوماً عند إيداع المستندات لتصنيفها بسهولة.")} />
       ) : (
         <div className="flex flex-wrap gap-2">
           {tagStats.map((t) => (

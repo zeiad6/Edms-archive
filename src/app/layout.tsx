@@ -13,6 +13,7 @@ import { Shell } from "@/components/shell";
 import { ElectronTitleBar } from "@/components/electron-titlebar";
 import { Toaster } from "@/components/ui/sonner";
 import { LangProvider } from "@/components/lang-provider";
+import { getServerLang } from "@/lib/server-lang";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -37,21 +38,27 @@ const themeInit = `(function(){try{var t=localStorage.getItem('theme');if(t==='d
 // Defaults to Arabic (ar/rtl) — the SSR default in <html lang="ar" dir="rtl">.
 const langInit = `(function(){try{var l=localStorage.getItem('lang');if(l==='en'){document.documentElement.lang='en';document.documentElement.dir='ltr';}}catch(e){console.error('[lang-init]',e)}})();`;
 
-export const metadata: Metadata = {
-  title: "أرشيف · نظام الأرشفة الإلكترونية EDMS",
-  description:
-    "منصة أرشفة إلكترونية مؤسسية آمنة: تخزين محلي آمن، بحث متكامل، صلاحيات، تدقيق، وبث آمن للمستندات.",
-  icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const lang = await getServerLang();
+  return {
+    title: lang === "en" ? "Archive · EDMS Electronic Archive System" : "أرشيف · نظام الأرشفة الإلكترونية EDMS",
+    description:
+      lang === "en"
+        ? "Secure institutional electronic-archive platform: safe local storage, integrated search, permissions, audit, and secure document streaming."
+        : "منصة أرشفة إلكترونية مؤسسية آمنة: تخزين محلي آمن، بحث متكامل، صلاحيات، تدقيق، وبث آمن للمستندات.",
+    icons: {
+      icon: "/icon.svg",
+      shortcut: "/icon.svg",
+      apple: "/icon.svg",
+    },
+  };
+}
 
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   await ensureSeeded();
+  const serverLang = await getServerLang();
   // Wave 1: current user + user directory (needed by both Shell and the queries below).
   const [currentUser, allUsers] = await Promise.all([
     getCurrentUser(),
@@ -122,7 +129,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   }
 
   return (
-    <html lang="ar" dir="rtl" className={`${cairo.variable} ${plexArabic.variable}`} suppressHydrationWarning>
+    <html lang={serverLang} dir={serverLang === "ar" ? "rtl" : "ltr"} className={`${cairo.variable} ${plexArabic.variable}`} suppressHydrationWarning>
       <head>
         <Script id="theme-init" strategy="beforeInteractive">{themeInit}</Script>
         <Script id="lang-init" strategy="beforeInteractive">{langInit}</Script>

@@ -1,0 +1,691 @@
+[
+  {
+    "file": "app\\analytics\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\approvals\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\audit\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\departments\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\doc-types\\doc-types-list.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\doc-types\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\documents\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\documents\\page.tsx",
+    "client": false,
+    "T": "tr",
+    "notes": [
+      "server-lang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\documents\\[id]\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\documents\\[id]\\page.tsx",
+    "client": false,
+    "T": "t",
+    "notes": [
+      "server-lang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\folders\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\import\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\layout.tsx",
+    "client": false,
+    "T": "t",
+    "notes": [
+      "import-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\login\\page.tsx",
+    "client": false,
+    "T": "t",
+    "notes": [
+      "server-lang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\notifications\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\notifications\\page.tsx",
+    "client": false,
+    "T": "t",
+    "notes": [
+      "server-lang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\permissions\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\reports\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\scan\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\search\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\search\\page.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "import-added",
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\settings\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\tags\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\templates\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\trash\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\upload\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "app\\users\\error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\app-logo.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\appearance-settings.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "import-added",
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\approvals-client.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\dashboard\\dashboard-kpis.tsx",
+    "client": false,
+    "T": "t",
+    "notes": [
+      "server-lang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\data-grid.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\doc-viewer.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\documents\\approvals-tab-content.tsx",
+    "client": false,
+    "T": "t",
+    "notes": [
+      "server-lang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\documents\\doc-viewer-content.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\documents\\doc-viewer-toolbar.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\documents\\document-preview-card.tsx",
+    "client": false,
+    "T": "t",
+    "notes": [
+      "import-added",
+      "server-lang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\documents\\document-preview.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\documents\\edit-tab-content.tsx",
+    "client": false,
+    "T": "tr",
+    "notes": [
+      "server-lang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\documents\\versions-tab-content.tsx",
+    "client": false,
+    "T": "t",
+    "notes": [
+      "server-lang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\grids\\documents-grid.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "NEEDS-MANUAL-useLang"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\grids\\users-grid.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\import\\csv-done-step.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\import\\csv-preview-step.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\import\\csv-upload-step.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\login\\login-header.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-import-added",
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\managed-select.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\mermaid-renderer.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\notifications\\notification-list.tsx",
+    "client": false,
+    "T": "t",
+    "notes": [
+      "server-lang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\page-error.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\reports\\filter-controls.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\reports\\reports-summary.tsx",
+    "client": false,
+    "T": "t",
+    "notes": [
+      "import-added",
+      "server-lang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\reports\\section.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\scanner\\camera-panel.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\scanner\\pages-grid.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\scanner\\save-form.tsx",
+    "client": true,
+    "T": "tr",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\scanner-client.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\search\\search-empty-state.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\search\\search-filters.tsx",
+    "client": true,
+    "T": "tr",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\search\\search-result-card.tsx",
+    "client": true,
+    "T": "tr",
+    "notes": [
+      "import-added",
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\settings\\backup-restore-card.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [],
+    "newKeys": []
+  },
+  {
+    "file": "components\\templates\\template-form.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\theme-provider.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "import-added",
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\trash-client.tsx",
+    "client": true,
+    "T": "tr",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\ui\\dialog.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "NEEDS-MANUAL-useLang"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\upload-zone\\drop-zone.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\upload-zone\\file-item-row.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\upload-zone\\file-list.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\upload-zone\\metadata-panel.tsx",
+    "client": true,
+    "T": "tr",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\upload-zone\\tag-selector.tsx",
+    "client": true,
+    "T": "tr",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\upload-zone.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\users\\user-actions.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\users\\user-create-form.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\users\\users-cards.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  },
+  {
+    "file": "components\\users\\users-page-client.tsx",
+    "client": true,
+    "T": "t",
+    "notes": [
+      "useLang-added"
+    ],
+    "newKeys": []
+  }
+]

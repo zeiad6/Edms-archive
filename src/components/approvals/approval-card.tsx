@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import Link from "next/link";
 import { FileText, CheckCircle2, XCircle, Clock, MessageSquare, ArrowUpRight } from "lucide-react";
@@ -51,6 +53,7 @@ interface ApprovalCardProps {
 
 /** Single approval request card: metadata + approve/reject actions. */
 export function ApprovalCard({ req, isApprover, canApprove }: ApprovalCardProps) {
+  useLang(); // re-render on language toggle
   const st = STATUS_STYLES[req.status] ?? STATUS_STYLES.pending;
   const StatusIcon = st.icon;
 
@@ -61,9 +64,9 @@ export function ApprovalCard({ req, isApprover, canApprove }: ApprovalCardProps)
         <div className="min-w-0 flex-1 space-y-3">
           {/* Header */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold", st.classes)}>
+            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm", st.classes)}>
               <StatusIcon className="h-3.5 w-3.5" />
-              {st.label}
+              {t(st.label)}
             </span>
             <StatusBadge status={req.docStatus} />
           </div>
@@ -78,11 +81,11 @@ export function ApprovalCard({ req, isApprover, canApprove }: ApprovalCardProps)
             <ArrowUpRight className="h-3.5 w-3.5 shrink-0 opacity-0 transition group-hover:opacity-100" />
           </Link>
           {req.docNumber && (
-            <span className="block text-xs text-muted-foreground">رقم المستند: {req.docNumber}</span>
+            <span className="tnum block text-xs text-muted-foreground">{t("رقم المستند: {n}", { n: req.docNumber })}</span>
           )}
 
           {/* Requester */}
-          <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-xl bg-muted/60 px-3.5 py-2.5 ring-1 ring-inset ring-border/40">
             <Avatar name={req.requesterName} color={req.requesterColor} size="sm" />
             <span className="text-sm">
               <span className="font-medium text-foreground">{req.requesterName}</span>
@@ -94,18 +97,18 @@ export function ApprovalCard({ req, isApprover, canApprove }: ApprovalCardProps)
 
           {/* Assignee */}
           {req.assigneeName && (
-            <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2">
+            <div className="flex items-center gap-2 rounded-xl bg-muted/60 px-3.5 py-2.5 ring-1 ring-inset ring-border/40">
               <Avatar name={req.assigneeName} color={req.assigneeColor ?? "#64748b"} size="sm" />
               <span className="text-sm">
                 <span className="font-medium text-foreground">{req.assigneeName}</span>
-                <span className="ms-1 text-xs text-muted-foreground">· المُسنَد إليه</span>
+                <span className="ms-1 text-xs text-muted-foreground">{t("· المُسنَد إليه")}</span>
               </span>
             </div>
           )}
 
           {/* Comment */}
           {req.comment && (
-            <div className="flex items-start gap-2 rounded-lg border border-border bg-card px-3 py-2.5">
+            <div className="flex items-start gap-2.5 rounded-xl border border-border bg-card px-3.5 py-3 shadow-sm">
               <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <p className="text-sm leading-relaxed text-muted-foreground">{req.comment}</p>
             </div>
@@ -114,7 +117,7 @@ export function ApprovalCard({ req, isApprover, canApprove }: ApprovalCardProps)
           {/* Response note */}
           {req.responseNote && (
             <div className={cn(
-              "flex items-start gap-2 rounded-lg border px-3 py-2.5",
+              "flex items-start gap-2.5 rounded-xl border px-3.5 py-3 shadow-sm",
               req.status === "approved"
                 ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30"
                 : "border-rose-200 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/30",
@@ -122,7 +125,7 @@ export function ApprovalCard({ req, isApprover, canApprove }: ApprovalCardProps)
               <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div>
                 <p className="text-xs font-semibold text-foreground">
-                  {req.status === "approved" ? "رد الموافقة" : "سبب الرفض"}
+                  {req.status === "approved" ? t("رد الموافقة") : t("سبب الرفض")}
                 </p>
                 <p className="text-sm leading-relaxed text-muted-foreground">{req.responseNote}</p>
               </div>
@@ -131,8 +134,8 @@ export function ApprovalCard({ req, isApprover, canApprove }: ApprovalCardProps)
 
           {/* Timestamps — approvals timeline meta */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 font-medium"><Clock className="h-3 w-3" />{req.createdAt ? `أُرسل: ${timeAgo(req.createdAt)}` : "أُرسل: —"}</span>
-            {req.respondedAt && <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 font-medium">استُجيب: {formatDate(req.respondedAt)}</span>}
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 font-medium"><Clock className="h-3 w-3" />{req.createdAt ? t("أُرسل: {x}", { x: timeAgo(req.createdAt) }) : t("أُرسل: —")}</span>
+            {req.respondedAt && <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 font-medium">{t("استُجيب: {d}", { d: formatDate(req.respondedAt) })}</span>}
           </div>
         </div>
 
@@ -144,16 +147,14 @@ export function ApprovalCard({ req, isApprover, canApprove }: ApprovalCardProps)
               <div className="flex flex-col gap-2">
                 <input
                   name="responseNote"
-                  placeholder="ملاحظة (اختياري)..."
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder={t("ملاحظة (اختياري)...")}
+                  className="w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs text-foreground shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
                 <button
                   type="submit"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-semibold text-white shadow-md shadow-emerald-600/25 transition hover:bg-emerald-700 active:scale-[0.98]"
                 >
-                  <CheckCircle2 className="h-4 w-4" />
-                  اعتماد
-                </button>
+                  <CheckCircle2 className="h-4 w-4" />{t("اعتماد")}</button>
               </div>
             </form>
             <form action={rejectDocument} className="w-full">
@@ -161,17 +162,15 @@ export function ApprovalCard({ req, isApprover, canApprove }: ApprovalCardProps)
               <div className="flex flex-col gap-2">
                 <input
                   name="responseNote"
-                  placeholder="سبب الرفض..."
+                  placeholder={t("سبب الرفض...")}
                   required
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs text-foreground shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
                 <button
                   type="submit"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-rose-200 bg-card px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 dark:border-rose-900 dark:hover:bg-rose-950/30"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-card px-3 py-2.5 text-xs font-semibold text-rose-600 shadow-sm transition hover:bg-rose-50 hover:shadow-md dark:border-rose-900 dark:hover:bg-rose-950/30"
                 >
-                  <XCircle className="h-4 w-4" />
-                  رفض
-                </button>
+                  <XCircle className="h-4 w-4" />{t("رفض")}</button>
               </div>
             </form>
           </div>

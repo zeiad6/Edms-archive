@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { FileText, Plus } from "lucide-react";
@@ -11,6 +13,7 @@ import { defaultForm, type DeptFolder, type Template, type TemplateFormValues } 
 import { filterTemplates } from "@/lib/template-utils";
 
 export default function TemplatesPage() {
+  useLang(); // re-render on language toggle
   const [templates, setTemplates] = useState<Template[]>([]);
   const [depts, setDepts] = useState<DeptFolder[]>([]);
   const [folders, setFolders] = useState<DeptFolder[]>([]);
@@ -87,13 +90,13 @@ export default function TemplatesPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "فشل");
+        throw new Error(t(err.error || "فشل"));
       }
-      setMsg({ type: "ok", text: editing ? "تم تحديث القالب بنجاح" : "تم إنشاء القالب بنجاح" });
+      setMsg({ type: "ok", text: editing ? t("تم تحديث القالب بنجاح") : t("تم إنشاء القالب بنجاح") });
       setShowForm(false);
       load();
     } catch (e) {
-      setMsg({ type: "err", text: e instanceof Error ? e.message : "فشل" });
+      setMsg({ type: "err", text: e instanceof Error ? t(e.message) : "فشل" });
     } finally {
       setSaving(false);
     }
@@ -102,30 +105,28 @@ export default function TemplatesPage() {
   const filteredTemplates = useMemo(() => filterTemplates(templates, search), [templates, search]);
 
   async function handleDelete(id: number) {
-    if (!confirm("هل تريد حذف هذا القالب؟")) return;
+    if (!confirm(t("هل تريد حذف هذا القالب؟"))) return;
     try {
       const res = await fetch(`/api/templates?id=${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("فشل الحذف");
+      if (!res.ok) throw new Error(t("فشل الحذف"));
       load();
     } catch {
-      alert("فشل حذف القالب");
+      alert(t("فشل حذف القالب"));
     }
   }
 
   return (
-    <div className="animate-fadein">
+    <div className="animate-fadein page-stack">
       <PageHeader
-        title="قوالب المستندات"
-        subtitle="أنشئ قوالب لرفع المستندات بسرعة دون إعادة إدخال البيانات الوصفية"
+        title={t("قوالب المستندات")}
+        subtitle={t("أنشئ قوالب لرفع المستندات بسرعة دون إعادة إدخال البيانات الوصفية")}
         icon={<FileText className="h-5 w-5" />}
         actions={
           <button
             onClick={openCreate}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground shadow-md shadow-primary/25 transition-all duration-150 hover:-translate-y-px hover:bg-primary/90 hover:shadow-lg active:scale-[0.98]"
           >
-            <Plus className="h-4 w-4" />
-            قالب جديد
-          </button>
+            <Plus className="h-4 w-4" />{t("قالب جديد")}</button>
         }
       />
 

@@ -9,7 +9,7 @@ export const DEFAULT_TITLE = "مستند ممسوح ضوئياً";
 export const DEFAULT_DOC_TYPE = "صورة ضوئية";
 
 export const INPUT_CLS =
-  "w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground shadow-sm outline-none transition hover:border-primary/30 focus:border-primary/50 focus:bg-card focus:ring-2 focus:ring-ring/30 focus-visible:ring-2 focus-visible:ring-ring/40 placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:opacity-60";
+  "w-full rounded-xl border border-border/80 bg-card px-3 py-2.5 text-sm text-foreground shadow-[0_1px_2px_rgb(0_0_0/0.05),0_1px_3px_rgb(0_0_0/0.07)] outline-none transition hover:border-primary/40 hover:shadow-[0_2px_6px_rgb(0_0_0/0.07)] focus:border-primary focus:bg-card focus:shadow-[0_2px_8px_rgb(0_0_0/0.08)] focus:ring-2 focus:ring-ring/30 focus-visible:ring-2 focus-visible:ring-ring/40 placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:opacity-60";
 
 export interface SavePayload {
   title: string;

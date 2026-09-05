@@ -4,6 +4,8 @@ import { PERMISSIONS, PERMISSION_LABELS, ROLE_LABELS, can } from "@/lib/permissi
 import { getCurrentUser } from "@/lib/server";
 import { redirect } from "next/navigation";
 import type { PermissionKey } from "@/lib/permissions";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 export const dynamic = "force-dynamic";
 
@@ -40,16 +42,17 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default async function PermissionsPage() {
+  const lang = await getServerLang();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!can(user, "permissions.view")) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-        <ShieldCheck className="mb-4 h-14 w-14 text-muted-foreground/40" />
-        <h1 className="text-xl font-bold text-foreground">لا تملك صلاحية الوصول</h1>
-        <p className="mt-2 max-w-md text-sm text-muted-foreground">
-          مصفوفة الصلاحيات متاحة للمديرين ومسؤولي النظام فقط. تواصل مع مدير النظام إذا كنت بحاجة إلى الوصول.
-        </p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
+        <span className="mb-1 flex h-20 w-20 items-center justify-center rounded-3xl bg-muted text-muted-foreground/50 shadow-card ring-1 ring-inset ring-border">
+          <ShieldCheck className="h-10 w-10" />
+        </span>
+        <h1 className="text-xl font-extrabold tracking-tight text-foreground">{ts(lang, "لا تملك صلاحية الوصول")}</h1>
+        <p className="max-w-md text-sm leading-6 text-muted-foreground">{ts(lang, "مصفوفة الصلاحيات متاحة للمديرين ومسؤولي النظام فقط. تواصل مع مدير النظام إذا كنت بحاجة إلى الوصول.")}</p>
       </div>
     );
   }
@@ -58,29 +61,29 @@ export default async function PermissionsPage() {
   const groups = groupByCategory(entries);
 
   return (
-    <div className="animate-fadein">
+    <div className="animate-fadein page-stack">
       <PageHeader
-        title="الصلاحيات"
-        subtitle="مصفوفة صلاحيات الأدوار — تعريف الصلاحيات لكل دور"
+        title={ts(lang, "الصلاحيات")}
+        subtitle={ts(lang, "مصفوفة صلاحيات الأدوار — تعريف الصلاحيات لكل دور")}
         icon={<ShieldCheck className="h-5 w-5" />}
       />
 
-      <div className="space-y-6">
+      <div className="space-y-5 lg:space-y-6">
         {groups.map(({ category, permissions }) => (
-          <Card key={category} className="overflow-hidden">
-            <div className="border-b border-border bg-muted/30 px-5 py-3">
-              <h2 className="text-sm font-bold text-foreground">
-                {CATEGORY_LABELS[category] ?? category}
+          <Card key={category} className="overflow-hidden shadow-card">
+            <div className="border-b border-border bg-gradient-to-b from-muted/50 to-muted/20 px-5 py-3.5 sm:px-6">
+              <h2 className="text-sm font-extrabold tracking-tight text-foreground">
+                {ts(lang, CATEGORY_LABELS[category] ?? category)}
               </h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
-                  <tr className="border-b border-border bg-muted/20 text-xs font-semibold text-muted-foreground">
-                    <th className="px-5 py-3 text-right">الصلاحية</th>
+                  <tr className="border-b border-border bg-muted/20 text-xs font-bold text-muted-foreground">
+                    <th className="px-5 py-3.5 text-start sm:px-6">{ts(lang, "الصلاحية")}</th>
                     {ROLES.map((role) => (
-                      <th key={role} className="px-4 py-3 text-center" title={`دور ${ROLE_LABELS[role]}`}>
-                        {ROLE_LABELS[role]}
+                      <th key={role} className="px-4 py-3.5 text-center" title={ts(lang, "دور {r}", { r: ts(lang, ROLE_LABELS[role]) })}>
+                        {ts(lang, ROLE_LABELS[role])}
                       </th>
                     ))}
                   </tr>
@@ -95,9 +98,9 @@ export default async function PermissionsPage() {
                           : "border-b border-border/50 bg-muted/10"
                       }
                     >
-                      <td className="px-5 py-3 text-foreground">
-                        <div className="font-medium text-sm">{PERMISSION_LABELS[key]}</div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">{key}</div>
+                      <td className="px-5 py-3.5 text-foreground sm:px-6">
+                        <div className="font-semibold text-sm">{ts(lang, PERMISSION_LABELS[key])}</div>
+                        <div className="text-[11px] text-muted-foreground mt-1 font-mono" dir="ltr">{key}</div>
                       </td>
                       {ROLES.map((role) => {
                         const hasIt = allowedRoles.includes(role);
@@ -105,14 +108,14 @@ export default async function PermissionsPage() {
                           <td
                             key={role}
                             className="px-4 py-3 text-center"
-                            aria-label={`${PERMISSION_LABELS[key]} — ${ROLE_LABELS[role]}: ${hasIt ? "متاح" : "غير متاح"}`}
+                            aria-label={ts(lang, "{p} — {r}: {s}", { p: ts(lang, PERMISSION_LABELS[key]), r: ts(lang, ROLE_LABELS[role]), s: ts(lang, hasIt ? "متاح" : "غير متاح") })}
                           >
                             {hasIt ? (
-                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" title="متاح">
+                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" title={ts(lang, "متاح")}>
                                 <Check className="h-4 w-4" />
                               </span>
                             ) : (
-                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground/40" title="غير متاح">
+                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground/40" title={ts(lang, "غير متاح")}>
                                 <X className="h-4 w-4" />
                               </span>
                             )}

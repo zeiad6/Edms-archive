@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useEffect } from "react";
 import { RotateCcw, AlertTriangle } from "lucide-react";
@@ -20,6 +22,7 @@ export function PageError({
   message = "حدث خطأ أثناء تحميل هذه الصفحة. يرجى المحاولة مرة أخرى.",
   icon,
 }: PageErrorProps) {
+  useLang(); // re-render on language toggle
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -30,14 +33,13 @@ export function PageError({
         {icon ?? <AlertTriangle className="h-7 w-7" />}
         <span aria-hidden className="absolute -inset-2 rounded-3xl bg-rose-500/5 blur-xl" />
       </div>
-      <h2 className="text-lg font-extrabold tracking-tight text-foreground">{title}</h2>
-      <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-muted-foreground">{message}</p>
+      <h2 className="text-lg font-extrabold tracking-tight text-foreground">{t(title)}</h2>
+      <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-muted-foreground">{t(message)}</p>
       {error?.digest && <p dir="ltr" className="tnum mt-2 rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">#{error.digest}</p>}
       <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
         <Button onClick={reset}>
-          <RotateCcw className="h-4 w-4" /> إعادة المحاولة
-        </Button>
-        <Button variant="outline" onClick={() => window.location.assign("/")}>العودة للرئيسية</Button>
+          <RotateCcw className="h-4 w-4" />{t("إعادة المحاولة")}</Button>
+        <Button variant="outline" onClick={() => window.location.assign("/")}>{t("العودة للرئيسية")}</Button>
       </div>
     </div>
   );

@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -42,6 +44,7 @@ export function DataGrid({
   rowSelection,
   onSelectionChanged,
 }: DataGridProps) {
+  const { lang } = useLang(); // re-render on language toggle
   const [mounted, setMounted] = useState(false);
   const [quickFilter, setQuickFilter] = useState("");
   const [dark, setDark] = useState(false);
@@ -79,44 +82,43 @@ export function DataGrid({
       const api = apiRef.current;
       const count = api?.getDisplayedRowCount() ?? rows.length;
       if (count === 0) {
-        toast.error("لا توجد بيانات للتصدير");
+        toast.error(t("لا توجد بيانات للتصدير"));
         return;
       }
       // exportDataAsCsv is synchronous (no reliable Promise) — toast right after.
       api?.exportDataAsCsv({ fileName: `${exportName}.csv`, allColumns: true });
-      toast.success(`تم تصدير ${count} سجل إلى ${exportName}.csv`);
+      toast.success(t("تم تصدير {n} سجل إلى {f}.csv", { n: count, f: exportName }));
     } catch {
-      toast.error("فشل تصدير CSV");
+      toast.error(t("فشل تصدير CSV"));
     }
   }, [exportName, rows.length]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm shadow-black/[0.03]">
-      <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card ring-1 ring-inset ring-black/[0.03] dark:ring-white/[0.04] sm:rounded-3xl">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border bg-gradient-to-b from-card to-muted/30 px-4 py-3.5 sm:px-5">
         <div className="relative min-w-[220px] flex-1">
-          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={quickFilter}
             onChange={(e) => setQuickFilter(e.target.value)}
-            placeholder={quickFilterPlaceholder}
-            className="w-full rounded-xl border border-border bg-muted py-2.5 ps-10 pe-3 text-sm text-foreground outline-none transition focus:border-ring focus:bg-card focus:ring-2 focus:ring-ring/30"
+            placeholder={t(quickFilterPlaceholder)}
+            className="h-10 w-full rounded-xl border border-border bg-card ps-10 pe-3 text-sm text-foreground shadow-sm outline-none transition-all duration-150 hover:border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
           />
         </div>
         <div className="flex items-center gap-2">
-          <span className="tnum inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary">
+          <span className="tnum inline-flex h-9 items-center gap-1.5 rounded-xl bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary ring-1 ring-inset ring-primary/20">
             <Table2 className="h-3.5 w-3.5" />
-            {rows.length} سجل
+            {t("{n} سجل", { n: rows.length })}
           </span>
           <button
             onClick={onExport}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground shadow-sm transition-all duration-150 hover:bg-muted hover:shadow hover:border-primary/25 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Download className="h-3.5 w-3.5" /> تصدير CSV
-          </button>
+            <Download className="h-3.5 w-3.5" />{t("تصدير CSV")}</button>
         </div>
       </div>
 
-      <div style={{ height, width: "100%" }} dir="rtl" className="w-full">
+      <div style={{ height, minHeight: 320, width: "100%" }} dir={lang === "ar" ? "rtl" : "ltr"} className="w-full">
         {mounted ? (
           <AgGrid
             dark={dark}
@@ -155,16 +157,12 @@ export function DataGrid({
             // Larger rows + headers so badges, chips and multi-line cells fit.
             rowHeight={52}
             headerHeight={46}
-            overlayNoRowsTemplate={
-              '<span style="padding:24px;color:var(--muted-foreground);font-size:13px">لا توجد سجلات مطابقة</span>'
-            }
+            overlayNoRowsTemplate={`<span style="padding:24px;color:var(--muted-foreground);font-size:13px">${t("لا توجد سجلات مطابقة")}</span>`}
             onGridReady={onReady}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-muted-foreground">
-            <Loader2 className="me-2 h-5 w-5 animate-spin" />
-            جارٍ تحميل الجدول...
-          </div>
+            <Loader2 className="me-2 h-5 w-5 animate-spin" />{t("جارٍ تحميل الجدول...")}</div>
         )}
       </div>
     </div>

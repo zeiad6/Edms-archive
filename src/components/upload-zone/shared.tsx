@@ -1,5 +1,5 @@
 export const inputCls =
-  "w-full rounded-xl border border-border bg-muted px-3 py-2.5 text-sm text-foreground outline-none transition focus:border-ring focus:bg-card focus:ring-2 focus:ring-ring/30";
+  "w-full rounded-xl border border-border bg-muted px-3 py-2.5 text-sm text-foreground shadow-soft outline-none transition hover:border-primary/30 focus:border-ring focus:bg-card focus:ring-2 focus:ring-ring/30";
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

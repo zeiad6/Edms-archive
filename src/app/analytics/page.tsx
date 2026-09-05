@@ -33,10 +33,13 @@ import { TopUploadersCard } from "@/components/dashboard/top-uploaders-card";
 import { RecentDocumentsCard } from "@/components/dashboard/recent-documents-card";
 import { FolderStructureCard } from "@/components/analytics/folder-structure-card";
 import { WorkflowCard } from "@/components/analytics/workflow-card";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
+  const lang = await getServerLang();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -195,16 +198,16 @@ export default async function AnalyticsPage() {
   const folderTreeDef = EDMS_DIAGRAMS.folderTree(
     folderStats.map((f) => ({
       // Show per-folder document counts inside the tree labels
-      name: `${f.name || "مجلد غير مسمى"} (${f.count})`,
+      name: `${f.name || ts(lang, "مجلد غير مسمى")} (${f.count})`,
       children: [],
     }))
   );
 
   return (
-    <div className="animate-fadein space-y-6">
+    <div className="animate-fadein page-stack">
       <PageHeader
-        title="لوحة تحليلات الأرشيف"
-        subtitle="نظرة شاملة على الأرشيف: التوزيعات، الاتجاهات، الهيكل، ونشاط الإيداع"
+        title={ts(lang, "لوحة تحليلات الأرشيف")}
+        subtitle={ts(lang, "نظرة شاملة على الأرشيف: التوزيعات، الاتجاهات، الهيكل، ونشاط الإيداع")}
         icon={<BarChart3 className="h-5 w-5" />}
       />
 
@@ -219,11 +222,10 @@ export default async function AnalyticsPage() {
       />
 
       {/* ── Section: distributions ── */}
-      <section className="space-y-4">
-        <h2 className="flex items-center gap-2 text-sm font-bold text-foreground after:content-[''] after:ms-3 after:flex-1 after:h-px after:bg-gradient-to-l after:from-border after:to-transparent">
-          <LayoutGrid className="h-4 w-4 text-primary" /> التوزيعات
-        </h2>
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+      <section className="space-y-5">
+        <h2 className="flex items-center gap-2.5 text-sm font-extrabold tracking-tight text-foreground after:ms-3 after:h-px after:flex-1 after:bg-gradient-to-l after:from-border after:to-transparent after:content-['']">
+          <span className="icon-tile h-8 w-8 rounded-xl"><LayoutGrid className="h-4 w-4" /></span>{ts(lang, "التوزيعات")}</h2>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:gap-6 2xl:grid-cols-3">
           <DepartmentsDistribution byDept={deptRows} />
           <StatusDistribution segments={statusSegments} />
           <DocTypesCard typeRows={typeRows} total={total} />
@@ -231,11 +233,10 @@ export default async function AnalyticsPage() {
       </section>
 
       {/* ── Section: trend & activity ── */}
-      <section className="space-y-4">
-        <h2 className="flex items-center gap-2 text-sm font-bold text-foreground after:content-[''] after:ms-3 after:flex-1 after:h-px after:bg-gradient-to-l after:from-border after:to-transparent">
-          <TrendingUp className="h-4 w-4 text-primary" /> الاتجاه والنشاط
-        </h2>
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <section className="space-y-5">
+        <h2 className="flex items-center gap-2.5 text-sm font-extrabold tracking-tight text-foreground after:ms-3 after:h-px after:flex-1 after:bg-gradient-to-l after:from-border after:to-transparent after:content-['']">
+          <span className="icon-tile h-8 w-8 rounded-xl"><TrendingUp className="h-4 w-4" /></span>{ts(lang, "الاتجاه والنشاط")}</h2>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:gap-6 xl:grid-cols-3">
           <MonthlyTrendCard months={months} raw={monthlyRaw} max={monthlyMax} />
           <PopularTagsCard tagStats={tagStats} />
           <TopUploadersCard uploaders={topUploaders} total={total} />
@@ -243,13 +244,12 @@ export default async function AnalyticsPage() {
       </section>
 
       {/* ── Section: recent docs + folder structure ── */}
-      <section className="space-y-4">
-        <h2 className="flex items-center gap-2 text-sm font-bold text-foreground after:content-[''] after:ms-3 after:flex-1 after:h-px after:bg-gradient-to-l after:from-border after:to-transparent">
-          <GitBranch className="h-4 w-4 text-primary" /> الأرشيف الحديث والهيكل
-        </h2>
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+      <section className="space-y-5">
+        <h2 className="flex items-center gap-2.5 text-sm font-extrabold tracking-tight text-foreground after:ms-3 after:h-px after:flex-1 after:bg-gradient-to-l after:from-border after:to-transparent after:content-['']">
+          <span className="icon-tile h-8 w-8 rounded-xl"><GitBranch className="h-4 w-4" /></span>{ts(lang, "الأرشيف الحديث والهيكل")}</h2>
+        <div className="grid grid-cols-1 gap-5 lg:gap-6 xl:grid-cols-3">
           <RecentDocumentsCard recent={recent} />
-          <FolderStructureCard folders={folderStats.map((f) => ({ name: f.name ?? "مجلد غير مسمى", count: f.count }))} />
+          <FolderStructureCard folders={folderStats.map((f) => ({ name: f.name ?? ts(lang, "مجلد غير مسمى"), count: f.count }))} />
         </div>
       </section>
 

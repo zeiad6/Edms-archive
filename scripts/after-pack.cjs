@@ -18,14 +18,18 @@ exports.default = async function afterPack(context) {
     throw new Error(`afterPack: standalone server.js missing at ${src}`);
   }
 
-  // Copy while skipping the .next/node_modules duplication left behind by
-  // Turbopack's output tracing (a duplicate of the real node_modules) — it
-  // adds weight and pushes paths toward MAX_PATH.
-  const SKIP = [".next", "node_modules", "public"];
+  // Strict allowlist — NEVER copy stray root files (docs, media, logs, and
+  // especially .env with secrets) into the installer, even if tracing drops
+  // them next to server.js again.
+  const ALLOW = new Set(["server.js", "package.json", "node_modules", ".next", "public"]);
 
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src)) {
-    if (SKIP.includes(entry)) continue;
+    if (entry === ".next" || entry === "node_modules" || entry === "public") continue; // copied whole below
+    if (!ALLOW.has(entry)) {
+      console.log(`afterPack: skipping non-runtime file ${entry}`);
+      continue;
+    }
     fs.cpSync(path.join(src, entry), path.join(dest, entry), { recursive: true });
   }
   // .next must be copied WHOLE — server/ chunks, BUILD_ID, manifests AND
@@ -96,6 +100,40 @@ exports.default = async function afterPack(context) {
     console.log(`afterPack: completed external package ${pkg}`);
   }
 
+  // Prune Next.js SWC binaries for other OS/arch (only win32-x64-msvc can
+  // ever load on the target). Saves ~100 MB of installer weight.
+  {
+    let freed = 0;
+    const kill = (p) => {
+      try {
+        freed += fs.statSync(p).size;
+        fs.rmSync(p, { recursive: true, force: true });
+        console.log(`afterPack: pruned ${path.relative(dest, p)}`);
+      } catch { /* already gone */ }
+    };
+    const walkSwc = (dir) => {
+      let entries = [];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch { return; }
+      for (const e of entries) {
+        const q = path.join(dir, e.name);
+        if (e.isDirectory()) {
+          if (/^@next[\\/]swc-/.test(path.relative(stagedModules, q).replace(/\\/g, "/")) && !/win32-x64-msvc/.test(q)) {
+            // Optional-platform SWC package (darwin/linux/...) — never loaded here.
+            kill(q);
+          } else {
+            walkSwc(q);
+          }
+        } else if (/^next-swc\..*\.node$/.test(e.name) && !e.name.includes("win32-x64-msvc")) {
+          kill(q);
+        }
+      }
+    };
+    walkSwc(stagedModules);
+    if (freed > 0) console.log(`afterPack: SWC prune freed ${(freed / 1024 / 1024).toFixed(1)} MB`);
+  }
+
   const mb = (p) => Math.round((fs.statSync(p).size / 1024 / 1024) * 10) / 10;
   console.log(`afterPack: standalone staged at ${dest}`);
   console.log(
@@ -134,4 +172,25 @@ exports.default = async function afterPack(context) {
   console.log(
     `afterPack: bundled tesseract runtime OK — ${tessFiles} files, ${mb(tessDir)} MB at ${tessDir}`
   );
+
+  // Portable/NSIS shared-contract verify (static, no build): the child Next
+  // server runs from resources/standalone, scan driver from resources/, and
+  // main.cjs now passes TESSERACT_SRC/TESSDATA_PREFIX explicitly because the
+  // ELECTRON_RUN_AS_NODE child has no process.resourcesPath. Fail loudly here
+  // instead of shipping a portable exe that shows a blank window.
+  {
+    const resDir = path.join(appOutDir, "resources");
+    const mustExist = [
+      path.join(dest, "server.js"),
+      path.join(dest, ".next", "BUILD_ID"),
+      path.join(resDir, "scan-wia.ps1"),
+      path.join(resDir, "icon", "icon-256.png"),
+    ];
+    for (const p of mustExist) {
+      if (!fs.existsSync(p)) {
+        throw new Error(`afterPack: required runtime file MISSING at ${p}`);
+      }
+    }
+    console.log("afterPack: portable contract OK — standalone + scan-wia.ps1 + icon present");
+  }
 };

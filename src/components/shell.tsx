@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { switchUser, logoutUser } from "@/actions/auth";
 import { AppLogo } from "@/components/app-logo";
-import { GITHUB_ACCOUNT_URL, GithubMark } from "@/components/github-mark";
+import { GITHUB_ACCOUNT_URL, GithubMark, SIGNAL_CONTACT_URL, SignalMark } from "@/components/github-mark";
 import { Avatar } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -198,12 +198,12 @@ export function Shell({
         {/* Sidebar */}
         <aside
           className={cn(
-            "fixed inset-y-0 start-0 z-50 flex w-72 transform flex-col border-e border-border bg-sidebar transition-[transform,width] duration-300 ease-in-out lg:static lg:z-40 lg:h-full lg:shrink-0 lg:translate-x-0",
-            open ? "translate-x-0" : "translate-x-full",
-            collapsed && "lg:w-[78px]"
+            "fixed inset-y-0 start-0 z-50 flex w-[17.5rem] transform flex-col border-e border-border bg-sidebar shadow-card transition-[transform,width,box-shadow] duration-300 ease-in-out lg:static lg:z-40 lg:h-full lg:shrink-0 lg:translate-x-0 lg:shadow-none",
+            open ? "translate-x-0 shadow-pop" : "translate-x-full",
+            collapsed && "lg:w-[80px]"
           )}
         >
-          <div className="flex h-14 items-center justify-between gap-2 border-b border-border px-4">
+          <div className="flex h-16 items-center justify-between gap-2 border-b border-border bg-gradient-to-b from-card/60 to-transparent px-4">
             <Link href="/" className="flex items-center gap-3 overflow-hidden">
               <AppLogo size={40} className="shrink-0 rounded-xl shadow-lg shadow-primary/30" />
               <div className={cn("leading-tight transition-opacity", collapsed && "lg:opacity-0 lg:w-0 lg:overflow-hidden")}>
@@ -219,13 +219,13 @@ export function Shell({
             </button>
           </div>
 
-          <nav className="flex-1 space-y-3 overflow-y-auto overflow-x-hidden px-3 py-3">
+          <nav className="flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-3 py-4">
             {NAV_GROUPS.map((group) => (
               <div key={group.label}>
-                <div className={cn("px-3 pb-1.5 text-[10px] font-bold tracking-normal text-muted-foreground/70", collapsed && "lg:hidden")}>
+                <div className={cn("px-3 pb-2 text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground/60", collapsed && "lg:hidden")}>
                   {t(group.label)}
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   {group.items.map((item) => {
                     const active = isActive(item.href, item.exact);
                     const Icon = item.icon;
@@ -240,8 +240,8 @@ export function Shell({
                         href={item.href}
                         onClick={() => setOpen(false)}
                         className={cn(
-                          "group relative flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] font-medium transition-all duration-150",
-                          active ? "bg-primary/10 font-semibold text-primary shadow-sm shadow-primary/10" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                          "group relative flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-[13px] font-medium transition-all duration-150 hover:-translate-y-px",
+                          active ? "bg-gradient-to-l from-primary/[0.14] to-primary/[0.07] font-bold text-primary shadow-sm shadow-primary/10 ring-1 ring-inset ring-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground hover:shadow-sm",
                           collapsed && "lg:justify-center lg:px-0"
                         )}
                       >
@@ -301,13 +301,23 @@ export function Shell({
               >
                 <GithubMark className="h-3 w-3" />
               </a>
+              <a
+                href={SIGNAL_CONTACT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={t("مراسلة المطور على Signal")}
+                title="Signal"
+                className="rounded-md p-1 text-muted-foreground/70 transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <SignalMark className="h-3 w-3" />
+              </a>
             </p>
           </div>
         </aside>
 
         {/* Main */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card/70 px-4 backdrop-blur-xl sm:px-6 lg:px-8 2xl:px-10">
+          <header className="surface-header z-30 flex h-16 shrink-0 items-center gap-2 border-b border-border bg-card/80 px-4 backdrop-blur-xl sm:px-6 lg:px-8 2xl:px-10">
             <button
               className="rounded-lg p-2 text-muted-foreground transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none lg:hidden"
               onClick={() => setOpen(true)}
@@ -371,11 +381,11 @@ export function Shell({
                 {menuOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                    <div className="absolute end-0 z-50 mt-2 w-64 animate-fadein overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-slate-950/10">
+                    <div className="surface-pop absolute end-0 z-50 mt-2 w-64 animate-pop overflow-hidden rounded-2xl bg-card">
                       {currentUser.role === "admin" && (
                         <>
                           <div className="border-b border-border bg-muted px-4 py-2.5 text-[11px] font-bold tracking-normal text-muted-foreground">
-                            {t("تبديل المُشغّل (محاكاة الصلاحيات)")}
+                            {t("تبديل المُشغّل")}
                           </div>
                           <div className="max-h-72 overflow-y-auto py-1">
                             {users.map((u) => (
@@ -410,7 +420,7 @@ export function Shell({
             </div>
           </header>
 
-          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 sm:px-6 lg:px-8 lg:py-5 2xl:px-10">
+          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6 lg:px-8 lg:py-6 2xl:px-10">
             <div className="mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col">{children}</div>
           </main>
         </div>

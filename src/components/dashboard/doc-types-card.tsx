@@ -1,6 +1,8 @@
 import { PieChart } from "lucide-react";
 import { Card } from "@/components/ui";
 import { EmptyState } from "@/components/empty-state";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 interface DocTypesCardProps {
   typeRows: Array<{ type: string | null; c: number; color: string | null }>;
@@ -10,14 +12,14 @@ interface DocTypesCardProps {
 /**
  * Document type distribution bars (top 6 types).
  */
-export function DocTypesCard({ typeRows, total }: DocTypesCardProps) {
+export async function DocTypesCard({ typeRows, total }: DocTypesCardProps) {
+  const lang = await getServerLang();
   return (
     <Card className="p-5">
       <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-foreground">
-        <PieChart className="h-4 w-4 text-primary" /> توزيع الأنواع
-      </h3>
+        <PieChart className="h-4 w-4 text-primary" />{ts(lang, "توزيع الأنواع")}</h3>
       {typeRows.length === 0 ? (
-        <EmptyState compact icon={PieChart} title="لا توجد أنواع بعد" description="تظهر هنا توزيعات أنواع المستندات عند الإيداع." />
+        <EmptyState compact icon={PieChart} title={ts(lang, "لا توجد أنواع بعد")} description={ts(lang, "تظهر هنا توزيعات أنواع المستندات عند الإيداع.")} />
       ) : (
         <div className="space-y-2.5">
           {typeRows.slice(0, 6).map((r) => {
@@ -25,7 +27,7 @@ export function DocTypesCard({ typeRows, total }: DocTypesCardProps) {
             const hex = r.color ?? "#64748b";
             return (
               <div key={r.type ?? "null"} className="group flex items-center gap-2">
-                <span className="w-20 shrink-0 truncate text-[11px] text-muted-foreground">{r.type ?? "غير محدد"}</span>
+                <span className="w-20 shrink-0 truncate text-[11px] text-muted-foreground">{r.type ?? ts(lang, "غير محدد")}</span>
                 <div className="h-5 flex-1 overflow-hidden rounded-lg bg-muted">
                   <div
                     className="flex h-full items-center justify-end rounded-lg px-1.5 text-[10px] font-bold text-white transition-all duration-150 group-hover:opacity-90"

@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useEffect } from "react";
 import { SearchX, RotateCcw } from "lucide-react";
@@ -11,6 +13,7 @@ export default function SearchError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useLang(); // re-render on language toggle
   useEffect(() => { console.error(error); }, [error]);
 
   return (
@@ -18,13 +21,10 @@ export default function SearchError({
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500">
         <SearchX className="h-7 w-7" />
       </div>
-      <h2 className="font-bold text-foreground">تعذّر إجراء البحث</h2>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        حدث خطأ أثناء محاولة البحث. يرجى المحاولة مرة أخرى.
-      </p>
+      <h2 className="font-bold text-foreground">{t("تعذّر إجراء البحث")}</h2>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t("حدث خطأ أثناء محاولة البحث. يرجى المحاولة مرة أخرى.")}</p>
       <Button onClick={reset} className="mt-5">
-        <RotateCcw className="h-4 w-4" /> إعادة المحاولة
-      </Button>
+        <RotateCcw className="h-4 w-4" />{t("إعادة المحاولة")}</Button>
     </div>
   );
 }

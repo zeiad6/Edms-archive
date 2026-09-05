@@ -15,6 +15,8 @@ import {
 import { Card, Avatar } from "@/components/ui";
 import { formatDate, formatBytes } from "@/lib/format";
 import { InfoRow } from "./info-row";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 interface Meta {
   deptName: string | null;
@@ -40,12 +42,13 @@ interface Doc {
   mimeType?: string;
 }
 
-export function DocumentSidebar({ doc, meta }: { doc: Doc; meta: Meta }) {
+export async function DocumentSidebar({ doc, meta }: { doc: Doc; meta: Meta }) {
+  const lang = await getServerLang();
   const statusLabel: Record<string, string> = {
-    draft: "مسودة",
-    pending_review: "قيد المراجعة",
-    active: "نشط",
-    archived: "مؤرشف",
+    draft: ts(lang, "مسودة"),
+    pending_review: ts(lang, "قيد المراجعة"),
+    active: ts(lang, "نشط"),
+    archived: ts(lang, "مؤرشف"),
   };
   const statusDot: Record<string, string> = {
     draft: "bg-slate-400",
@@ -58,29 +61,27 @@ export function DocumentSidebar({ doc, meta }: { doc: Doc; meta: Meta }) {
   const mimeLabel = doc.mimeType ? doc.mimeType.split("/")[1]?.toUpperCase() ?? doc.mimeType : null;
 
   return (
-    <Card className="p-5">
-      <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-foreground">
-        <FileText className="h-4 w-4 text-primary" /> معلومات المستند
-      </h3>
+    <Card className="card-sheen p-4 sm:p-5">
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
+        <span className="icon-tile h-7 w-7 bg-primary/10 text-primary [&_svg]:h-3.5 [&_svg]:w-3.5"><FileText className="h-3.5 w-3.5" /></span>{ts(lang, "معلومات المستند")}</h3>
 
-      {/* Metadata grid: 1 column on mobile, 2 on tablets, 3 on wide screens —
-          reflows automatically to the available width. */}
-      <div className="grid grid-cols-1 gap-2.5 text-sm sm:grid-cols-2 xl:grid-cols-3">
-        <InfoRow icon={<Hash className="h-4 w-4" />} label="الرقم المرجعي" value={doc.docNumber ?? "—"} />
-        <InfoRow icon={<FileText className="h-4 w-4" />} label="النوع" value={doc.docType ?? "—"} />
-        <InfoRow icon={<Building2 className="h-4 w-4" />} label="القسم" value={meta.deptName ?? "غير محدد"} />
-        <InfoRow icon={<FolderClosed className="h-4 w-4" />} label="المجلد" value={meta.folderName ?? "غير محدد"} />
-        <InfoRow icon={<Calendar className="h-4 w-4" />} label="تاريخ المستند" value={formatDate(doc.docDate)} />
-        <InfoRow icon={<Calendar className="h-4 w-4" />} label="تاريخ الإيداع" value={formatDate(doc.createdAt)} />
+      {/* Metadata grid: 1 column on mobile, 2 on sm and up — avoids cramped 3-col layout. */}
+      <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 xl:grid-cols-2">
+        <InfoRow icon={<Hash className="h-3.5 w-3.5" />} label={ts(lang, "الرقم المرجعي")} value={doc.docNumber ?? "—"} />
+        <InfoRow icon={<FileText className="h-3.5 w-3.5" />} label={ts(lang, "النوع")} value={doc.docType ?? "—"} />
+        <InfoRow icon={<Building2 className="h-3.5 w-3.5" />} label={ts(lang, "القسم")} value={meta.deptName ?? ts(lang, "غير محدد")} />
+        <InfoRow icon={<FolderClosed className="h-3.5 w-3.5" />} label={ts(lang, "المجلد")} value={meta.folderName ?? ts(lang, "غير محدد")} />
+        <InfoRow icon={<Calendar className="h-3.5 w-3.5" />} label={ts(lang, "تاريخ المستند")} value={formatDate(doc.docDate)} />
+        <InfoRow icon={<Calendar className="h-3.5 w-3.5" />} label={ts(lang, "تاريخ الإيداع")} value={formatDate(doc.createdAt)} />
         {doc.updatedAt && (
-          <InfoRow icon={<Clock className="h-4 w-4" />} label="آخر تحديث" value={formatDate(doc.updatedAt)} />
+          <InfoRow icon={<Clock className="h-3.5 w-3.5" />} label={ts(lang, "آخر تحديث")} value={formatDate(doc.updatedAt)} />
         )}
-        <InfoRow icon={<HardDrive className="h-4 w-4" />} label="الحجم" value={formatBytes(doc.fileSize)} />
-        <InfoRow icon={<Layers className="h-4 w-4" />} label="الصفحات / الإصدار" value={`${doc.pageCount ?? 1} · v${doc.version}`} />
+        <InfoRow icon={<HardDrive className="h-3.5 w-3.5" />} label={ts(lang, "الحجم")} value={formatBytes(doc.fileSize)} />
+        <InfoRow icon={<Layers className="h-3.5 w-3.5" />} label={ts(lang, "الصفحات / الإصدار")} value={`${doc.pageCount ?? 1} · v${doc.version}`} />
         {doc.status && (
           <InfoRow
-            icon={<BadgeCheck className="h-4 w-4" />}
-            label="الحالة"
+            icon={<BadgeCheck className="h-3.5 w-3.5" />}
+            label={ts(lang, "الحالة")}
             value={
               <span className="inline-flex items-center gap-1.5">
                 <span className={`h-2 w-2 rounded-full ${statusDot[status] ?? "bg-slate-400"}`} />
@@ -90,16 +91,14 @@ export function DocumentSidebar({ doc, meta }: { doc: Doc; meta: Meta }) {
           />
         )}
         {mimeLabel && (
-          <InfoRow icon={<FileType2 className="h-4 w-4" />} label="نوع الملف" value={mimeLabel} />
+          <InfoRow icon={<FileType2 className="h-3.5 w-3.5" />} label={ts(lang, "نوع الملف")} value={mimeLabel} />
         )}
         {isConfidential && (
           <InfoRow
-            icon={<ShieldAlert className="h-4 w-4" />}
-            label="السرية"
+            icon={<ShieldAlert className="h-3.5 w-3.5" />}
+            label={ts(lang, "السرية")}
             value={
-              <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
-                سري
-              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[11px] font-semibold text-rose-600 dark:text-rose-400">{ts(lang, "سري")}</span>
             }
           />
         )}
@@ -113,7 +112,7 @@ export function DocumentSidebar({ doc, meta }: { doc: Doc; meta: Meta }) {
               <User className="h-3.5 w-3.5 text-muted-foreground" />
               {meta.uploaderName}
             </div>
-            <div className="text-[11px] text-muted-foreground">{meta.uploaderTitle ?? "المُودِع"}</div>
+            <div className="text-[11px] text-muted-foreground">{meta.uploaderTitle ?? ts(lang, "المُودِع")}</div>
           </div>
         </div>
       )}

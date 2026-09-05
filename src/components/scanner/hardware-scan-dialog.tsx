@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -64,6 +66,7 @@ const CONFIRM_RESET_MS = 3000;
  * where archiving (الإيداع) happens from the single save form.
  */
 export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScanDialogProps) {
+  useLang(); // re-render on language toggle
   const [devices, setDevices] = useState<ScanDevice[]>([]);
   const [devicesLoading, setDevicesLoading] = useState(false);
   const [deviceIdx, setDeviceIdx] = useState<number>(1);
@@ -99,7 +102,7 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
         setDeviceIdx((prev) => (list.some((x) => x.index === prev) ? prev : list[0].index));
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "تعذر سرد أجهزة المسح");
+      setErr(e instanceof Error ? t(e.message) : t("تعذر سرد أجهزة المسح"));
     } finally {
       setDevicesLoading(false);
     }
@@ -182,7 +185,7 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
       }
       setPages((prev) => [...prev, { id: nextScanId(), dataUrl: d.image }]);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "تعذر إجراء المسح الضوئي");
+      setErr(e instanceof Error ? t(e.message) : t("تعذر إجراء المسح الضوئي"));
     } finally {
       setScanning(false);
     }
@@ -198,7 +201,7 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
       setPages([]);
       onOpenChange(false);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "تعذر إضافة الصفحات");
+      setErr(e instanceof Error ? t(e.message) : t("تعذر إضافة الصفحات"));
       setAdopting(false);
     }
   }
@@ -207,54 +210,47 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto shadow-pop">
+      <DialogContent className="surface-dialog animate-pop max-h-[90vh] max-w-4xl overflow-y-auto rounded-3xl p-5 shadow-pop sm:p-6">
         <DialogHeader className="border-b border-border pb-4">
           <DialogTitle className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">
               <Printer className="h-4 w-4" />
             </span>
-            المسح من الطابعة
+            {t("المسح من الطابعة")}
             {pages.length > 0 && (
-              <span className="tnum rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary ring-1 ring-inset ring-primary/20">{pages.length} {pages.length === 1 ? "صفحة" : "صفحات"}</span>
+              <span className="tnum rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary ring-1 ring-inset ring-primary/20">{pages.length} {t(pages.length === 1 ? "صفحة" : "صفحات")}</span>
             )}
           </DialogTitle>
-          <DialogDescription className="mt-1 leading-6">
-            امسح صفحة واحدة أو عدة صفحات — عند الانتهاء تُضاف الصفحات إلى الواجهة الرئيسية، ومن
-            هناك يتم الإيداع في المستندات.
-          </DialogDescription>
+          <DialogDescription className="mt-1 leading-6">{t("امسح صفحة واحدة أو عدة صفحات — عند الانتهاء تُضاف الصفحات إلى الواجهة الرئيسية، ومن هناك يتم الإيداع في المستندات.")}</DialogDescription>
         </DialogHeader>
 
         {/* ── Devices + settings ─────────────────────────────── */}
         <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-xl border border-border bg-muted/30 p-3">
+          <div className="rounded-2xl border border-border bg-muted/30 p-3.5 shadow-sm">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-bold text-foreground">الأجهزة المتصلة</span>
+              <span className="text-xs font-bold text-foreground">{t("الأجهزة المتصلة")}</span>
               <button
                 type="button"
                 onClick={() => void loadDevices()}
                 disabled={devicesLoading}
                 className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-60"
-                title="تحديث قائمة الأجهزة"
+                title={t("تحديث قائمة الأجهزة")}
               >
-                <RefreshCw className={cn("h-3.5 w-3.5", devicesLoading && "animate-spin")} />
-                تحديث
-              </button>
+                <RefreshCw className={cn("h-3.5 w-3.5", devicesLoading && "animate-spin")} />{t("تحديث")}</button>
             </div>
             {devicesLoading && devices.length === 0 ? (
-              <div className="space-y-2" role="status" aria-label="جارٍ سرد الأجهزة">
+              <div className="space-y-2" role="status" aria-label={t("جارٍ سرد الأجهزة")}>
                 <div className="skeleton-shimmer h-9 rounded-xl" />
-                <p className="text-xs text-muted-foreground">جارٍ سرد الأجهزة...</p>
+                <p className="text-xs text-muted-foreground">{t("جارٍ سرد الأجهزة...")}</p>
               </div>
             ) : devices.length === 0 ? (
-              <p className="rounded-lg bg-muted/60 px-3 py-2.5 text-xs leading-5 text-muted-foreground ring-1 ring-inset ring-border/60">
-                لا توجد أجهزة مسح متصلة. تأكد من توصيل الطابعة/الماسح وتشغيله ثم اضغط تحديث.
-              </p>
+              <p className="rounded-lg bg-muted/60 px-3 py-2.5 text-xs leading-5 text-muted-foreground ring-1 ring-inset ring-border/60">{t("لا توجد أجهزة مسح متصلة. تأكد من توصيل الطابعة/الماسح وتشغيله ثم اضغط تحديث.")}</p>
             ) : (
               <select
                 value={deviceIdx}
                 onChange={(e) => setDeviceIdx(Number(e.target.value))}
                 className={INPUT_CLS}
-                aria-label="جهاز المسح"
+                aria-label={t("جهاز المسح")}
               >
                 {devices.map((d) => (
                   <option key={d.index} value={d.index}>
@@ -265,9 +261,9 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-muted/30 p-3">
+          <div className="grid grid-cols-2 gap-2.5 rounded-2xl border border-border bg-muted/30 p-3.5 shadow-sm">
             <label className="block">
-              <span className="mb-1 block text-[11px] font-bold text-foreground">لون المسح</span>
+              <span className="mb-1 block text-[11px] font-bold text-foreground">{t("لون المسح")}</span>
               <select
                 value={color}
                 onChange={(e) => setColor(e.target.value as ScanColorId)}
@@ -281,7 +277,7 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
               </select>
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11px] font-bold text-foreground">الدقة (DPI)</span>
+              <span className="mb-1 block text-[11px] font-bold text-foreground">{t("الدقة (DPI)")}</span>
               <select
                 value={dpi}
                 onChange={(e) => setDpi(Number(e.target.value) as ScanDpi)}
@@ -298,7 +294,7 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
         </div>
 
         <p className="text-[11px] leading-5 text-muted-foreground">
-          {selectedDevice && `الجهاز: ${selectedDevice.name} · `}الدقة {dpi} DPI
+          {selectedDevice && t("الجهاز: {name} · ", { name: selectedDevice.name })}{t("الدقة")} {dpi} DPI
         </p>
 
         {/* ── Scan action (the single hardware-scan button) ──── */}
@@ -306,14 +302,14 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
           type="button"
           onClick={() => void handleScan()}
           disabled={scanning || devices.length === 0}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition hover:shadow-lg hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {scanning ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Printer className="h-4 w-4" />
           )}
-          {scanning ? "جارٍ المسح..." : pages.length > 0 ? `مسح صفحة جديدة (${pages.length} ممسوحة)` : "مسح"}
+          {scanning ? t("جارٍ المسح...") : pages.length > 0 ? t("مسح صفحة جديدة ({n} ممسوحة)", { n: pages.length }) : t("مسح")}
         </button>
 
         {err && (
@@ -324,12 +320,12 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
 
         {/* ── Scanned gallery (scan order) ───────────────────── */}
         {pages.length > 0 ? (
-          <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <GripVertical className="h-3.5 w-3.5" />
-                الصور الممسوحة بالترتيب — {pages.length} {pages.length === 1 ? "صفحة" : "صفحات"} ·
-                اضغط مرتين على أي صورة لتكبيرها
+                {t("الصور الممسوحة بالترتيب —")} {pages.length} {t(pages.length === 1 ? "صفحة" : "صفحات")} ·
+                {t("اضغط مرتين على أي صورة لتكبيرها")}
               </div>
               <button
                 type="button"
@@ -338,9 +334,7 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
                   resetConfirm();
                 }}
                 className="text-xs font-medium text-muted-foreground underline underline-offset-2 hover:text-rose-500"
-              >
-                إفراغ الكل
-              </button>
+              >{t("إفراغ الكل")}</button>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               {pages.map((page, idx) => {
@@ -356,8 +350,8 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
                     onDragOver={(e) => handleDragOver(e, idx)}
                     onDragEnd={handleDragEnd}
                     onDoubleClick={() => openLightbox(idx)}
-                    title="اضغط مرتين للتكبير"
-                    aria-label={`صفحة ممسوحة ${idx + 1} من ${pages.length} — اضغط مرتين للتكبير`}
+                    title={t("اضغط مرتين للتكبير")}
+                    aria-label={t("صفحة ممسوحة {i} من {n} — اضغط مرتين للتكبير", { i: idx + 1, n: pages.length })}
                     className={cn(
                       "group relative cursor-zoom-in overflow-hidden rounded-xl border border-border bg-muted transition hover:border-primary/50",
                       dragIdx === idx && "opacity-50",
@@ -371,8 +365,8 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
                       type="button"
                       draggable={false}
                       onClick={() => openLightbox(idx)}
-                      title="تكبير"
-                      aria-label={`تكبير صفحة ${idx + 1}`}
+                      title={t("تكبير")}
+                      aria-label={t("تكبير صفحة {i}", { i: idx + 1 })}
                       className="absolute right-1 top-1 z-10 rounded-md bg-black/60 p-1.5 text-white opacity-0 transition group-hover:opacity-100 hover:bg-primary"
                     >
                       <Maximize2 className="h-3 w-3" />
@@ -386,8 +380,8 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
                           reorderPage(idx, idx - 1);
                           resetConfirm();
                         }}
-                        title="تحريك لأعلى"
-                        aria-label={`تحريك صفحة ${idx + 1} لأعلى`}
+                        title={t("تحريك لأعلى")}
+                        aria-label={t("تحريك صفحة {i} لأعلى", { i: idx + 1 })}
                         className="flex h-6 w-6 items-center justify-center rounded-md bg-black/60 text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-30"
                       >
                         <ChevronUp className="h-3 w-3" />
@@ -400,8 +394,8 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
                           reorderPage(idx, idx + 1);
                           resetConfirm();
                         }}
-                        title="تحريك لأسفل"
-                        aria-label={`تحريك صفحة ${idx + 1} لأسفل`}
+                        title={t("تحريك لأسفل")}
+                        aria-label={t("تحريك صفحة {i} لأسفل", { i: idx + 1 })}
                         className="flex h-6 w-6 items-center justify-center rounded-md bg-black/60 text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-30"
                       >
                         <ChevronDown className="h-3 w-3" />
@@ -411,8 +405,8 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
                       type="button"
                       draggable={false}
                       onClick={() => handleDeleteClick(page.id)}
-                      title={isConfirming ? "اضغط مرة أخرى للتأكيد" : "حذف الصورة"}
-                      aria-label={isConfirming ? `تأكيد حذف صفحة ${idx + 1}` : `حذف صفحة ${idx + 1}`}
+                      title={isConfirming ? t("اضغط مرة أخرى للتأكيد") : t("حذف الصورة")}
+                      aria-label={isConfirming ? t("تأكيد حذف صفحة {i}", { i: idx + 1 }) : t("حذف صفحة {i}", { i: idx + 1 })}
                       className={cn(
                         "absolute bottom-1 right-1 z-10 inline-flex h-6 min-w-6 items-center justify-center gap-1 rounded-md px-1.5 text-[10px] font-semibold text-white transition",
                         isConfirming
@@ -420,12 +414,12 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
                           : "bg-black/60 opacity-80 hover:bg-rose-600 hover:opacity-100",
                       )}
                     >
-                      {isConfirming ? "تأكيد؟" : <Trash2 className="h-3 w-3" />}
+                      {isConfirming ? t("تأكيد؟") : <Trash2 className="h-3 w-3" />}
                     </button>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={page.dataUrl}
-                      alt={`صفحة ممسوحة ${idx + 1}`}
+                      alt={t("صفحة ممسوحة {i}", { i: idx + 1 })}
                       draggable={false}
                       loading="lazy"
                       className="h-36 w-full object-cover"
@@ -441,8 +435,8 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
             <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/5 text-primary/60 ring-1 ring-inset ring-primary/15">
               <Printer className="h-6 w-6" />
             </span>
-            <p className="relative text-sm font-medium text-foreground">لا توجد صور ممسوحة بعد</p>
-            <p className="relative text-xs text-muted-foreground">اضغط «مسح» لبدء المسح — ستظهر الصفحات هنا بالترتيب</p>
+            <p className="relative text-sm font-medium text-foreground">{t("لا توجد صور ممسوحة بعد")}</p>
+            <p className="relative text-xs text-muted-foreground">{t("اضغط «مسح» لبدء المسح — ستظهر الصفحات هنا بالترتيب")}</p>
           </div>
         )}
 
@@ -451,14 +445,14 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
           type="button"
           onClick={() => void handleAdopt()}
           disabled={adopting || scanning || pages.length === 0}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-6 py-3 text-sm font-semibold text-background transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-6 py-3 text-sm font-semibold text-background shadow-md transition hover:shadow-lg hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {adopting ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <CheckCircle2 className="h-4 w-4" />
           )}
-          {adopting ? "جارٍ الإضافة..." : `إضافة إلى الواجهة الرئيسية (${pages.length})`}
+          {adopting ? t("جارٍ الإضافة...") : t("إضافة إلى الواجهة الرئيسية ({n})", { n: pages.length })}
         </button>
 
         {/* ── Lightbox (double-click enlarge) ────────────────── */}
@@ -468,7 +462,7 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
             onClick={() => setLightboxIdx(null)}
             role="dialog"
             aria-modal="true"
-            aria-label={`تكبير صفحة ${lightboxIdx + 1}`}
+            aria-label={t("تكبير صفحة {i}", { i: lightboxIdx + 1 })}
           >
             <div
               className="absolute right-4 top-4 z-10 flex items-center gap-1 rounded-xl bg-black/50 p-1.5 backdrop-blur"
@@ -478,7 +472,7 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
                 type="button"
                 onClick={() => setLightboxZoom((z) => Math.min(z + 0.25, 3))}
                 className="rounded-lg p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
-                aria-label="تكبير"
+                aria-label={t("تكبير")}
               >
                 <ZoomIn className="h-4 w-4" />
               </button>
@@ -486,7 +480,7 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
                 type="button"
                 onClick={() => setLightboxZoom((z) => Math.max(z - 0.25, 0.25))}
                 className="rounded-lg p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
-                aria-label="تصغير"
+                aria-label={t("تصغير")}
               >
                 <ZoomOut className="h-4 w-4" />
               </button>
@@ -495,18 +489,18 @@ export function HardwareScanDialog({ open, onOpenChange, onAdopt }: HardwareScan
                 type="button"
                 onClick={() => setLightboxIdx(null)}
                 className="rounded-lg p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
-                aria-label="إغلاق"
+                aria-label={t("إغلاق")}
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg bg-black/50 px-3 py-1.5 text-xs text-white/70 backdrop-blur">
-              صفحة {lightboxIdx + 1} من {pages.length} · {Math.round(lightboxZoom * 100)}%
+              {t("صفحة {i} من {n} · {p}%", { i: lightboxIdx + 1, n: pages.length, p: Math.round(lightboxZoom * 100) })}
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={pages[lightboxIdx].dataUrl}
-              alt={`صفحة ممسوحة مكبرة ${lightboxIdx + 1}`}
+              alt={t("صفحة ممسوحة مكبرة {i}", { i: lightboxIdx + 1 })}
               onClick={(e) => e.stopPropagation()}
               style={{ transform: `scale(${lightboxZoom})` }}
               className="max-h-[85vh] max-w-[90vw] select-none rounded-lg bg-white shadow-2xl transition-transform duration-200"

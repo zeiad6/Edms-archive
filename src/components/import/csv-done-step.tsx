@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useRouter } from "next/navigation";
 import { CheckCircle2, AlertTriangle, Upload, ArrowLeft } from "lucide-react";
@@ -12,71 +14,66 @@ export function DoneStep({
   result: ApiResponse;
   onReset: () => void;
 }) {
+  useLang(); // re-render on language toggle
   const router = useRouter();
   const failures = result.results.filter((r) => !r.success);
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
+    <div className="mx-auto max-w-xl animate-pop space-y-6">
       <div className="text-center">
         {result.failed === 0 ? (
-          <CheckCircle2 className="mx-auto h-16 w-16 text-green-500" />
+          <span className="icon-tile mx-auto h-16 w-16 !rounded-2xl !text-success"><CheckCircle2 className="h-8 w-8" /></span>
         ) : (
-          <AlertTriangle className="mx-auto h-16 w-16 text-amber-500" />
+          <span className="icon-tile mx-auto h-16 w-16 !rounded-2xl !text-warning"><AlertTriangle className="h-8 w-8" /></span>
         )}
-        <h2 className="mt-4 text-xl font-bold text-gray-900 dark:text-white">
-          {result.failed === 0 ? "تم الاستيراد بنجاح" : "اكتمل مع بعض الأخطاء"}
+        <h2 className="mt-4 text-xl font-extrabold text-foreground">
+          {result.failed === 0 ? t("تم الاستيراد بنجاح") : t("اكتمل مع بعض الأخطاء")}
         </h2>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-xl border border-gray-200 p-4 text-center dark:border-gray-700">
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+      <div className="stat-grid !grid-cols-3">
+        <div className="section-card card-sheen !rounded-2xl p-4 text-center">
+          <div className="tnum text-2xl font-extrabold text-foreground">
             {result.total}
           </div>
-          <div className="text-xs text-gray-500">الإجمالي</div>
+          <div className="mt-1 text-xs font-medium text-muted-foreground">{t("الإجمالي")}</div>
         </div>
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-center dark:border-green-800 dark:bg-green-900/20">
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+        <div className="rounded-2xl border border-success/30 bg-success/10 p-4 text-center shadow-soft">
+          <div className="tnum text-2xl font-extrabold text-success">
             {result.imported}
           </div>
-          <div className="text-xs text-green-600 dark:text-green-400">تم بنجاح</div>
+          <div className="mt-1 text-xs font-semibold text-success">{t("تم بنجاح")}</div>
         </div>
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-center dark:border-red-800 dark:bg-red-900/20">
-          <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+        <div className="rounded-2xl border border-danger/30 bg-danger/10 p-4 text-center shadow-soft">
+          <div className="tnum text-2xl font-extrabold text-danger">
             {result.failed}
           </div>
-          <div className="text-xs text-red-600 dark:text-red-400">فشل</div>
+          <div className="mt-1 text-xs font-semibold text-danger">{t("فشل")}</div>
         </div>
       </div>
 
       {failures.length > 0 && (
-        <div className="rounded-xl border border-red-200 p-4 dark:border-red-800">
-          <h3 className="mb-2 text-sm font-semibold text-red-600 dark:text-red-400">
-            تفاصيل الأخطاء
-          </h3>
-          <div className="max-h-40 space-y-1 overflow-y-auto">
+        <div className="rounded-2xl border border-danger/30 bg-danger/[0.04] p-4 shadow-soft">
+          <h3 className="section-title mb-2 !text-danger">{t("تفاصيل الأخطاء")}</h3>
+          <div className="max-h-40 space-y-1.5 overflow-y-auto">
             {failures.map((f) => (
-              <div key={f.row} className="flex gap-2 text-xs">
-                <span className="shrink-0 font-mono text-gray-400">#{f.row}</span>
-                <span className="text-gray-600 dark:text-gray-300">
-                  {f.title || "(بدون عنوان)"}
+              <div key={f.row} className="flex items-center gap-2 rounded-lg bg-card px-2 py-1.5 text-xs shadow-soft ring-1 ring-inset ring-border/50">
+                <span className="tnum shrink-0 font-mono text-muted-foreground">#{f.row}</span>
+                <span className="min-w-0 flex-1 truncate text-foreground">
+                  {f.title || t("(بدون عنوان)")}
                 </span>
-                <span className="text-red-500">— {f.error}</span>
+                <span className="shrink-0 text-danger">— {f.error ? t(f.error) : ""}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <div className="flex justify-center gap-3">
+      <div className="toolbar justify-center">
         <Button variant="outline" onClick={onReset}>
-          <Upload className="me-1 h-4 w-4" />
-          استيراد ملف آخر
-        </Button>
+          <Upload className="me-1 h-4 w-4" />{t("استيراد ملف آخر")}</Button>
         <Button onClick={() => router.push("/documents")}>
-          <ArrowLeft className="me-1 h-4 w-4" />
-          عرض المستندات
-        </Button>
+          <ArrowLeft className="me-1 h-4 w-4" />{t("عرض المستندات")}</Button>
       </div>
     </div>
   );

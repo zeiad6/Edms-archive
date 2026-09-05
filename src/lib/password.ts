@@ -11,19 +11,23 @@ import crypto from "crypto";
  * never throws on Node's default 32 MiB cap.
  */
 
-export const DEFAULT_PASSWORD = "Password@123";
+export const DEFAULT_PASSWORD = "12345678";
 
 /**
- * Sanitize a pasted/typed login password before verification.
+ * Sanitize a pasted/typed password before comparison, verification, or storage.
  *
- * Copying the default password from an RTL page routinely grabs invisible
+ * Copying a password from an RTL page routinely grabs invisible
  * junk around it (trailing spaces/newlines, LRM/RLM marks, zero-width
  * characters) — and pasting it verbatim then fails verification, locking the
  * user out with a correct password. Stripping that surrounding noise is safe:
- * real passwords are never meant to start/end with it.
+ * real passwords are never meant to start/end with it. Inner content is left
+ * untouched.
  *
- * NOTE: applied ONLY to the *current-password* check at login. New passwords
- * chosen by the user are stored exactly as typed.
+ * MUST be applied consistently on both sides: to the *current-password* check
+ * at login AND to every new-password input before compare/store (first-login
+ * change in `loginUser`, `createUser`/`updateUser`, `changePassword`) —
+ * otherwise a dirty paste stored raw will never verify against the sanitized
+ * login check.
  */
 export function sanitizePastedPassword(raw: string): string {
   return raw.replace(/^[\s\u200B-\u200F\u202A-\u202E\u2066-\u2069]+|[\s\u200B-\u200F\u202A-\u202E\u2066-\u2069]+$/g, "");

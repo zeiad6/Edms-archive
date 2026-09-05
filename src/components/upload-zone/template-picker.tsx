@@ -1,4 +1,6 @@
 "use client";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/components/lang-provider";
 
 import { useEffect, useState, useRef } from "react";
 import { FileText, ChevronDown } from "lucide-react";
@@ -20,6 +22,7 @@ interface Props {
 }
 
 export function TemplatePicker({ onApply, onTagNames }: Props) {
+  useLang(); // re-render on language toggle
   const [open, setOpen] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +65,7 @@ export function TemplatePicker({ onApply, onTagNames }: Props) {
   return (
     <div ref={panelRef} className="relative mb-4">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">قالب سريع</span>
+        <span className="text-xs font-medium text-muted-foreground">{t("قالب سريع")}</span>
         {appliedId && (
           <button
             type="button"
@@ -80,16 +83,14 @@ export function TemplatePicker({ onApply, onTagNames }: Props) {
               onTagNames([]);
             }}
             className="text-[11px] text-muted-foreground underline hover:text-foreground"
-          >
-            إلغاء
-          </button>
+          >{t("إلغاء")}</button>
         )}
       </div>
 
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="mt-1 flex w-full items-center justify-between rounded-xl border border-border bg-muted/50 px-3 py-2 text-start text-sm transition hover:bg-muted"
+        className="mt-1.5 flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-muted/50 px-3.5 py-2.5 text-start text-sm shadow-sm transition hover:border-primary/30 hover:bg-muted hover:shadow-md"
       >
         {appliedId ? (
           <span className="flex items-center gap-2">
@@ -99,19 +100,19 @@ export function TemplatePicker({ onApply, onTagNames }: Props) {
             </span>
           </span>
         ) : (
-          <span className="text-muted-foreground">اختر قالباً لملء الحقول تلقائياً...</span>
+          <span className="text-muted-foreground">{t("اختر قالباً لملء الحقول تلقائياً...")}</span>
         )}
         <ChevronDown className={`h-4 w-4 text-muted-foreground transition ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
-        <div className="absolute start-0 z-20 mt-1 w-full rounded-xl border border-border bg-card shadow-lg">
+        <div className="surface-pop animate-pop absolute start-0 z-20 mt-1.5 w-full overflow-hidden rounded-2xl border border-border bg-card shadow-pop">
           {templates.map((tpl) => (
             <button
               key={tpl.id}
               type="button"
               onClick={() => apply(tpl)}
-              className={`flex w-full items-start gap-3 px-3 py-2.5 text-start text-sm transition hover:bg-muted first:rounded-t-xl last:rounded-b-xl ${
+              className={`flex w-full items-start gap-3 px-3.5 py-3 text-start text-sm transition hover:bg-primary/[0.05] first:rounded-t-2xl last:rounded-b-2xl ${
                 appliedId === tpl.id ? "bg-primary/5" : ""
               }`}
             >

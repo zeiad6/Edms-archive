@@ -38,7 +38,9 @@ export function formatDate(value: string | Date | null | undefined): string {
 export function formatDateTime(value: string | Date | null | undefined): string {
   if (!value) return "—";
   try {
-    return arDateTime.format(new Date(value));
+    const d = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(d.getTime())) return "—";
+    return arDateTime.format(d);
   } catch {
     // invalid date string — safe fallback
     return "—";

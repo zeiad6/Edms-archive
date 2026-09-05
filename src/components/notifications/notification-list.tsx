@@ -5,39 +5,42 @@ import { EmptyState } from "@/components/empty-state";
 import type { Notification } from "@/db/schema";
 import { NOTIFICATION_LABELS } from "@/lib/notifications";
 import { markNotificationRead } from "@/actions/notifications";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
-export function NotificationList({
+export async function NotificationList({
   items,
   typeFilter,
 }: {
   items: Notification[];
   typeFilter: string;
 }) {
+  const lang = await getServerLang();
   if (items.length === 0) {
     return (
       <EmptyState
         icon={typeFilter ? Eye : Bell}
-        title={typeFilter ? "لا توجد إشعارات من هذا النوع" : "لا توجد إشعارات"}
-        description={typeFilter ? undefined : "عندما يصلك إشعار، سيظهر هنا"}
-        action={typeFilter ? { label: "عرض الكل", href: "/notifications" } : undefined}
+        title={typeFilter ? ts(lang, "لا توجد إشعارات من هذا النوع") : ts(lang, "لا توجد إشعارات")}
+        description={typeFilter ? undefined : ts(lang, "عندما يصلك إشعار، سيظهر هنا")}
+        action={typeFilter ? { label: ts(lang, "عرض الكل"), href: "/notifications" } : undefined}
       />
     );
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {items.map((n) => (
         <div
           key={n.id}
           className={cn(
-            "group flex items-start gap-4 rounded-xl border border-border p-4 transition hover:bg-muted/50",
-            !n.readAt && "border-indigo-200 bg-indigo-50/50 dark:border-indigo-800 dark:bg-indigo-950/20",
+            "group flex items-start gap-4 rounded-2xl border border-border bg-card p-4 shadow-soft transition-all duration-150 hover:-translate-y-px hover:shadow-card sm:p-5",
+            !n.readAt && "border-primary/30 bg-primary/[0.04] dark:border-primary/30",
           )}
         >
           {/* Icon */}
           <div
             className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm ring-1 ring-inset ring-black/[0.05] dark:ring-white/10",
               n.type === "approval_approved"
                 ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
                 : n.type === "approval_rejected"
@@ -67,10 +70,10 @@ export function NotificationList({
                       : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
                 )}
               >
-                {NOTIFICATION_LABELS[n.type] ?? n.type}
+                {ts(lang, NOTIFICATION_LABELS[n.type] ?? n.type)}
               </span>
-              <span className="text-[11px] text-muted-foreground">
-                {new Date(n.createdAt).toLocaleDateString("ar-SA", {
+              <span className="tnum text-[11px] text-muted-foreground">
+                {new Date(n.createdAt).toLocaleDateString(lang === "en" ? "en-US" : "ar-SA", {
                   day: "numeric",
                   month: "long",
                   year: "numeric",
@@ -91,9 +94,7 @@ export function NotificationList({
                 <Link
                   href={`/documents/${n.documentId}`}
                   className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
-                >
-                  عرض المستند ←
-                </Link>
+                >{ts(lang, "عرض المستند ←")}</Link>
               )}
               {!n.readAt && (
                 <form action={markNotificationRead}>
@@ -101,9 +102,7 @@ export function NotificationList({
                   <button
                     type="submit"
                     className="text-xs font-medium text-muted-foreground hover:text-foreground"
-                  >
-                    تحديد كمقروء
-                  </button>
+                  >{ts(lang, "تحديد كمقروء")}</button>
                 </form>
               )}
             </div>

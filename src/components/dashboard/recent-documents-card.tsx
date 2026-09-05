@@ -5,6 +5,8 @@ import { EmptyState } from "@/components/empty-state";
 import { formatDate, isImage } from "@/lib/format";
 import type { EnrichedDocument } from "@/lib/dashboard-helpers";
 import type { Document } from "@/db/schema";
+import { ts } from "@/lib/i18n";
+import { getServerLang } from "@/lib/server-lang";
 
 interface RecentDocumentsCardProps {
   recent: EnrichedDocument[];
@@ -13,13 +15,13 @@ interface RecentDocumentsCardProps {
 /**
  * Latest accessible documents list (thumbnail, meta, status).
  */
-export function RecentDocumentsCard({ recent }: RecentDocumentsCardProps) {
+export async function RecentDocumentsCard({ recent }: RecentDocumentsCardProps) {
+  const lang = await getServerLang();
   return (
     <Card className="lg:col-span-2">
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
-        <h3 className="text-sm font-bold text-foreground">أحدث المستندات</h3>
-        <Link href="/documents" className="inline-flex items-center gap-1 text-xs font-semibold text-primary transition-colors duration-150 hover:text-primary/80">
-          عرض الكل <ArrowLeft className="h-3.5 w-3.5" />
+        <h3 className="text-sm font-bold text-foreground">{ts(lang, "أحدث المستندات")}</h3>
+        <Link href="/documents" className="inline-flex items-center gap-1 text-xs font-semibold text-primary transition-colors duration-150 hover:text-primary/80">{ts(lang, "عرض الكل")}<ArrowLeft className="h-3.5 w-3.5" />
         </Link>
       </div>
       <div className="divide-y divide-border">
@@ -53,9 +55,9 @@ export function RecentDocumentsCard({ recent }: RecentDocumentsCardProps) {
           <EmptyState
             compact
             icon={FileText}
-            title="لا توجد مستندات متاحة لك حالياً"
-            description="عند إيداع أول مستند سيظهر هنا مباشرة."
-            action={{ label: "رفع مستند", href: "/upload" }}
+            title={ts(lang, "لا توجد مستندات متاحة لك حالياً")}
+            description={ts(lang, "عند إيداع أول مستند سيظهر هنا مباشرة.")}
+            action={{ label: ts(lang, "رفع مستند"), href: "/upload" }}
           />
         )}
       </div>
