@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="public/icon.svg" width="128" alt="شعار نظام الأرشفة الإلكترونية — أرشيف / EDMS Archive Logo">
+<img src="https://files.catbox.moe/pumn0z.svg" width="128" alt="شعار نظام الأرشفة الإلكترونية — أرشيف / EDMS Archive Logo">
 
 # أرشيف — نظام الأرشفة الإلكترونية EDMS
 # Archive — Electronic Document Management System (EDMS)
@@ -103,7 +103,7 @@ for local scan hardware access.
 
 <div align="center">
 
-<img src="public/screenshot-dashboard.png" width="800" alt="لوحة معلومات نظام الأرشفة الإلكترونية">
+<img src="https://files.catbox.moe/3mnzal.png" width="800" alt="لوحة معلومات نظام الأرشفة الإلكترونية">
 
 *لوحة المعلومات: إحصاءات حية، أحدث المستندات، وموجز النشاط*
 
@@ -113,7 +113,7 @@ for local scan hardware access.
 
 <div align="center">
 
-<img src="public/screenshot-dashboard.png" width="800" alt="EDMS Dashboard Screenshot">
+<img src="https://files.catbox.moe/3mnzal.png" width="800" alt="EDMS Dashboard Screenshot">
 
 *Dashboard: live stats, latest documents, and activity summary*
 
