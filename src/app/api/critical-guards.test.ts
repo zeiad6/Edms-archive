@@ -162,9 +162,14 @@ describe("POST /api/restore", () => {
 
   it("returns 400 for a corrupt ZIP payload (admin)", async () => {
     state.user = admin;
-    const form = new FormData();
-    form.append("file", new Blob(["not-a-zip"], { type: "application/zip" }), "backup.zip");
-    const res = await restorePOST(new Request("http://localhost/api/restore", { method: "POST", body: form }));
+    // Use a deterministic formData stub: jsdom's multipart parser can wait
+    // indefinitely on deliberately malformed binary payloads.
+    const request = new Request("http://localhost/api/restore", { method: "POST", body: new FormData() });
+    (request as unknown as { formData: () => Promise<FormData> }).formData = async () => ({
+      get: (key: string) => key === "file" ? { arrayBuffer: async () => new TextEncoder().encode("not-a-zip").buffer } : null,
+      getAll: () => [],
+    } as unknown as FormData);
+    const res = await restorePOST(request);
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.ok).toBe(false);

@@ -108,32 +108,21 @@ function UserPasswordPanel({
 }
 
 /**
- * Click-to-copy for a displayed factory password (same literals as
- * DEFAULT_PASSWORD / ADMIN_DEFAULT_PASSWORD in src/lib/password-defaults.ts
- * — hardcoded here because that module's server twin `src/lib/password.ts`
- * imports node:crypto and cannot be bundled client-side).
+ * Click-to-copy for the displayed default password (same literal as
+ * DEFAULT_PASSWORD in src/lib/password.ts — hardcoded here because that
+ * module imports node:crypto and cannot be bundled client-side).
  */
-function DefaultPasswordCopy({
-  value,
-  copiedMessage,
-  copyLabel,
-  light = false,
-}: {
-  value: string;
-  copiedMessage: string;
-  copyLabel: string;
-  light?: boolean;
-}) {
+function DefaultPasswordCopy() {
   const [copied, setCopied] = useState(false);
   useLang();
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(value);
+      await navigator.clipboard.writeText("12345678");
     } catch {
       // Clipboard API unavailable (permissions) — fallback via selection.
       const ta = document.createElement("textarea");
-        ta.value = value;
+        ta.value = "12345678";
       ta.style.position = "fixed";
       ta.style.opacity = "0";
       document.body.appendChild(ta);
@@ -142,7 +131,7 @@ function DefaultPasswordCopy({
       ta.remove();
     }
     setCopied(true);
-    toast.success(copiedMessage);
+    toast.success(t("تم نسخ كلمة المرور الافتراضية"));
     window.setTimeout(() => setCopied(false), 2000);
   }
 
@@ -151,17 +140,17 @@ function DefaultPasswordCopy({
       type="button"
       onClick={handleCopy}
       title={t("اضغط للنسخ")}
-      aria-label={copyLabel}
-      className={`tnum inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 font-semibold ring-1 ring-inset transition focus-visible:outline-none focus-visible:ring-2 ${light ? "bg-muted text-foreground ring-border hover:bg-accent hover:ring-primary/30 focus-visible:ring-ring" : "bg-white/10 text-white ring-white/15 hover:bg-white/20 hover:ring-white/30 focus-visible:ring-white/60"}`}
+      aria-label={t("نسخ كلمة المرور الافتراضية")}
+      className="tnum inline-flex cursor-pointer items-center gap-1 rounded-md bg-white/10 px-1.5 py-0.5 font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/20 hover:ring-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
     >
-      <span dir="ltr">{value}</span>
-      {copied ? <Check className={`h-3 w-3 ${light ? "text-emerald-600" : "text-emerald-300"}`} /> : <Copy className="h-3 w-3 opacity-70" />}
+      <span dir="ltr">12345678</span>
+      {copied ? <Check className="h-3 w-3 text-emerald-300" /> : <Copy className="h-3 w-3 opacity-70" />}
     </button>
   );
 }
 
 /** Login page tabs: password login (default) + quick user picker (demo). */
-export function LoginTabs({ users, light = false }: { users: LoginUserOption[]; light?: boolean }) {
+export function LoginTabs({ users }: { users: LoginUserOption[] }) {
   const [tab, setTab] = useState<Tab>("password");
   const [selected, setSelected] = useState<LoginUserOption | null>(null);
   useLang(); // re-render when the language toggles
@@ -246,47 +235,32 @@ export function LoginTabs({ users, light = false }: { users: LoginUserOption[]; 
 
       {/* Default-password hint + demo accounts (password tab only). These sit
           below the card on the dark backdrop, so they use white-based alpha
-          tones instead of theme tokens — readable in both appearances.
-          Portable light runtime switches them to theme tokens. */}
+          tones instead of theme tokens — readable in both appearances. */}
       {tab === "password" && (
         <div className="mt-4 space-y-2.5">
-          <p className={`flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-[11px] leading-relaxed ${light ? "text-muted-foreground" : "text-white/65"}`}>
-            {t("كلمة مرور المدير (k.alomari): ")}
-            <DefaultPasswordCopy
-              value="Password@1234"
-              copiedMessage={t("تم نسخ كلمة مرور المدير")}
-              copyLabel={t("نسخ كلمة مرور المدير")}
-              light={light}
-            />
+          <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-[11px] leading-relaxed text-white/65">
+            {t("كلمة المرور الافتراضية لجميع الحسابات: ")}
+            <DefaultPasswordCopy />
           </p>
-          <p className={`flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-[11px] leading-relaxed ${light ? "text-muted-foreground" : "text-white/65"}`}>
-            {t("كلمة مرور باقي الحسابات: ")}
-            <DefaultPasswordCopy
-              value="12345678"
-              copiedMessage={t("تم نسخ كلمة المرور الافتراضية")}
-              copyLabel={t("نسخ كلمة المرور الافتراضية")}
-              light={light}
-            />
-          </p>
-          <details className={`rounded-xl border px-4 py-2.5 text-[11px] shadow-sm backdrop-blur transition-colors duration-150 hover:border-primary/40 ${light ? "border-border bg-card/70 text-muted-foreground open:bg-card" : "border-white/10 bg-white/[0.04] text-white/65 open:bg-white/[0.06]"}`}>
-            <summary className={`cursor-pointer select-none font-semibold ${light ? "text-foreground" : "text-white/80"}`}>
+          <details className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-[11px] text-white/65 shadow-sm backdrop-blur transition-colors duration-150 open:bg-white/[0.06] hover:border-primary/40">
+            <summary className="cursor-pointer select-none font-semibold text-white/80">
               {t("حسابات تجريبية")}
             </summary>
             <ul dir="ltr" className="tnum mt-2 space-y-1 text-left">
-              <li>k.alomari — {t("مدير النظام (admin)")} · Password@1234</li>
-              <li>s.almalki — {t("مشرفة الشؤون المالية")} · 12345678</li>
-              <li>n.alqahtani — {t("أخصائية موارد بشرية")} · 12345678</li>
-              <li>m.alzahrani — {t("سكرتيرة تنفيذية")} · 12345678</li>
+              <li>k.alomari — {t("مدير النظام (admin)")}</li>
+              <li>s.almalki — {t("مشرفة الشؤون المالية")}</li>
+              <li>n.alqahtani — {t("أخصائية موارد بشرية")}</li>
+              <li>m.alzahrani — {t("سكرتيرة تنفيذية")}</li>
             </ul>
           </details>
         </div>
       )}
 
       {/* Footer credits (dev + phone) */}
-      <div className={`mt-6 border-t pt-4 text-center text-[11px] leading-relaxed ${light ? "border-border text-muted-foreground" : "border-white/10 text-white/55"}`}>
+      <div className="mt-6 border-t border-white/10 pt-4 text-center text-[11px] leading-relaxed text-white/55">
         <p className="flex items-center justify-center gap-1.5">
           {t("تم تطوير البرنامج بواسطة")}{" "}
-          <span className={`font-semibold ${light ? "text-foreground" : "text-white/80"}`}>Ziad Al-hammadi</span> ·{" "}
+          <span className="font-semibold text-white/80">Ziad Al-hammadi</span> ·{" "}
           <span dir="ltr" className="tnum">+967 784 908 515</span>
           <a
             href={GITHUB_ACCOUNT_URL}
@@ -294,7 +268,7 @@ export function LoginTabs({ users, light = false }: { users: LoginUserOption[]; 
             rel="noopener noreferrer"
             aria-label={t("حساب المطور على GitHub")}
             title="GitHub"
-            className={`rounded-md p-1 transition focus-visible:outline-none focus-visible:ring-2 ${light ? "text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring" : "text-white/60 hover:bg-white/10 hover:text-white focus-visible:ring-white/60"}`}
+            className="rounded-md p-1 text-white/60 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
           >
             <GithubMark className="h-3.5 w-3.5" />
           </a>
@@ -304,7 +278,7 @@ export function LoginTabs({ users, light = false }: { users: LoginUserOption[]; 
             rel="noopener noreferrer"
             aria-label={t("مراسلة المطور على Signal")}
             title="Signal"
-            className={`rounded-md p-1 transition focus-visible:outline-none focus-visible:ring-2 ${light ? "text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring" : "text-white/60 hover:bg-white/10 hover:text-white focus-visible:ring-white/60"}`}
+            className="rounded-md p-1 text-white/60 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
           >
             <SignalMark className="h-3.5 w-3.5" />
           </a>

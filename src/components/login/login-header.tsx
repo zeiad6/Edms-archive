@@ -17,11 +17,8 @@ import { useLang } from "@/components/lang-provider";
  * Text sits directly on the always-dark gradient backdrop, so it uses
  * white-based alpha tones instead of theme tokens — readable in both the
  * day and dark appearance.
- *
- * Portable runtime (`light`) switches to the light token theme to match the
- * app default background. Defaults to the dark backdrop (Setup/dev unchanged).
  */
-export function LoginHeader({ light = false }: { light?: boolean }) {
+export function LoginHeader() {
   useLang(); // re-render on language toggle
   return (
     <>
@@ -34,17 +31,17 @@ export function LoginHeader({ light = false }: { light?: boolean }) {
           {/* Soft halo behind the logo mark */}
           <div
             aria-hidden="true"
-            className={`pointer-events-none absolute -inset-4 rounded-full blur-2xl ${light ? "bg-primary/15 dark:bg-primary/30" : "bg-primary/30"}`}
+            className="pointer-events-none absolute -inset-4 rounded-full bg-primary/30 blur-2xl"
           />
           <AppLogo
             size={72}
-            className={`relative rounded-2xl shadow-xl ${light ? "shadow-primary/20 ring-1 ring-border" : "shadow-primary/40 ring-1 ring-white/20"}`}
+            className="relative rounded-2xl shadow-xl shadow-primary/40 ring-1 ring-white/20"
           />
         </div>
-        <h1 className={`text-[1.7rem] font-extrabold leading-tight ${light ? "text-foreground" : "text-white"}`}>
+        <h1 className="text-[1.7rem] font-extrabold leading-tight text-white">
           {t("نظام الأرشفة الإلكترونية")}
         </h1>
-        <p className={`mt-1.5 text-sm ${light ? "text-muted-foreground" : "text-white/65"}`}>
+        <p className="mt-1.5 text-sm text-white/65">
           {t("سجّل دخولك للمتابعة إلى الأرشيف")}
         </p>
       </div>

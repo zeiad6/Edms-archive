@@ -3,6 +3,7 @@ import { t } from "@/lib/i18n";
 import { useLang } from "@/components/lang-provider";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { RotateCcw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -23,6 +24,7 @@ export function PageError({
   icon,
 }: PageErrorProps) {
   useLang(); // re-render on language toggle
+  const router = useRouter();
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -39,7 +41,7 @@ export function PageError({
       <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
         <Button onClick={reset}>
           <RotateCcw className="h-4 w-4" />{t("إعادة المحاولة")}</Button>
-        <Button variant="outline" onClick={() => window.location.assign("/")}>{t("العودة للرئيسية")}</Button>
+        <Button variant="outline" onClick={() => router.push("/")}>{t("العودة للرئيسية")}</Button>
       </div>
     </div>
   );

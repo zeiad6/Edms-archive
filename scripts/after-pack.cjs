@@ -80,20 +80,6 @@ exports.default = async function afterPack(context) {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  // Client-only packages are NEVER required by the Next server — verified by
-  // grepping dist/standalone/.next/server for static requires (they ship to
-  // the browser pre-bundled inside .next/static). Skipping the full-copy
-  // overwrite leaves Turbopack's stub in place and saves ~110 MB of
-  // installer/extraction weight. If a future server route statically imports
-  // one of these, add it back here — the symptom would be 500s on that route
-  // only. AFTERPACK_EXTRA_PKGS always wins over this skip list.
-  const CLIENT_ONLY_SKIP = new Set([
-    "mermaid", // dynamic import() inside an effect (mermaid-renderer.tsx)
-    "ag-grid-community", // dynamic(ssr:false) via ag-grid-client.tsx
-    "ag-grid-react", // same — client chunk only
-    "@zxing/library", // browser barcode readers only (barcode-scanner.ts)
-    "dompurify", // dynamic import() inside an effect (mermaid-renderer.tsx)
-  ]);
   const EXTERNAL_PACKAGES = [
     ...TOP_LEVEL_DEPS,
     ...RUNTIME_SUBPATH_ALLOWLIST,
@@ -102,10 +88,6 @@ exports.default = async function afterPack(context) {
   const projectModules = path.resolve(__dirname, "..", "node_modules");
   const stagedModules = path.join(dest, "node_modules");
   for (const pkg of EXTERNAL_PACKAGES) {
-    if (CLIENT_ONLY_SKIP.has(pkg) && !envExtra.includes(pkg)) {
-      console.log(`afterPack: skipping client-only package ${pkg} (stub stays)`);
-      continue;
-    }
     const pkgSrc = path.join(projectModules, pkg);
     const pkgDst = path.join(stagedModules, pkg);
     if (!fs.existsSync(pkgSrc)) {
@@ -120,14 +102,6 @@ exports.default = async function afterPack(context) {
 
   // Prune Next.js SWC binaries for other OS/arch (only win32-x64-msvc can
   // ever load on the target). Saves ~100 MB of installer weight.
-  //
-  // Plus two more never-loaded payloads:
-  //   - *.map source maps (~180 MB): the standalone server has no
-  //     source-map-support, so maps are pure extraction weight.
-  //   - pdfjs-dist/web + pdfjs-dist/types: the full viewer app + TS types.
-  //     The server uses legacy/build only (src/lib/pdf-text.ts) and the
-  //     browser uses pre-bundled static chunks. cmaps/standard_fonts stay
-  //     (Arabic PDF text extraction).
   {
     let freed = 0;
     const kill = (p) => {
@@ -157,33 +131,6 @@ exports.default = async function afterPack(context) {
       }
     };
     walkSwc(stagedModules);
-    // Source maps + pdfjs viewer/types: walk everything under node_modules.
-    {
-      const pdfjsBase = path.join(stagedModules, "pdfjs-dist");
-      for (const sub of ["web", "types"]) {
-        kill(path.join(pdfjsBase, sub));
-      }
-      const walkMaps = (dir) => {
-        let entries = [];
-        try {
-          entries = fs.readdirSync(dir, { withFileTypes: true });
-        } catch { return; }
-        for (const e of entries) {
-          const q = path.join(dir, e.name);
-          if (e.isDirectory()) walkMaps(q);
-          else if (e.name.endsWith(".map")) {
-            try {
-              freed += fs.statSync(q).size;
-              mapCount++;
-              fs.rmSync(q, { force: true });
-            } catch { /* already gone */ }
-          }
-        }
-      };
-      let mapCount = 0;
-      walkMaps(stagedModules);
-      if (mapCount > 0) console.log(`afterPack: pruned ${mapCount} source-map files`);
-    }
     if (freed > 0) console.log(`afterPack: SWC prune freed ${(freed / 1024 / 1024).toFixed(1)} MB`);
   }
 

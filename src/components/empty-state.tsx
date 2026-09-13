@@ -24,7 +24,7 @@ export function EmptyState({ icon: Icon = Inbox, title, description, action, sec
     <div
       className={cn(
         "relative flex flex-col items-center justify-center overflow-hidden text-center shadow-soft",
-        compact ? "gap-1.5 rounded-2xl border border-dashed border-border bg-gradient-to-b from-card to-muted/30 px-4 py-9" : "gap-2.5 rounded-3xl border border-dashed border-border bg-gradient-to-b from-card via-card to-muted/40 px-6 py-14 sm:py-16",
+        compact ? "gap-1.5 rounded-2xl border border-dashed border-border bg-gradient-to-b from-card to-muted/30 px-4 py-8" : "gap-2.5 rounded-3xl border border-dashed border-border bg-gradient-to-b from-card via-card to-muted/40 px-6 py-14 sm:py-16",
         className
       )}
     >

@@ -13,19 +13,6 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
-  // Build-time barrel-import optimization (icon-heavy SSR pages): dedupes
-  // per-icon imports into direct module paths — smaller server chunks and
-  // faster first paint. No runtime behavior change.
-  experimental: {
-    optimizePackageImports: [
-      "lucide-react",
-      "ag-grid-react",
-      "@radix-ui/react-dialog",
-      "@radix-ui/react-tabs",
-      "@radix-ui/react-tooltip",
-      "sonner",
-    ],
-  },
   // Keep the standalone payload lean: runtime data dirs (created at boot via
   // EDMS_* env vars) and packaging artifacts must never be traced into the
   // build output, or dist/ re-includes itself across packaging runs.

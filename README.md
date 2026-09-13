@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://files.catbox.moe/pumn0z.svg" width="128" alt="شعار نظام الأرشفة الإلكترونية — أرشيف / EDMS Archive Logo">
+<img src="./public/icon.svg" width="128" alt="شعار نظام الأرشفة الإلكترونية — أرشيف / EDMS Archive Logo">
 
 # أرشيف — نظام الأرشفة الإلكترونية EDMS
 # Archive — Electronic Document Management System (EDMS)
@@ -51,6 +51,8 @@ for local scan hardware access.
 > ⚠️ **Windows 64-bit only**. On first run SmartScreen may appear
 > because the build is unsigned — choose “More info” then “Run anyway”.
 
+<img src="./public/screenshot-dashboard.png" width="800" alt="لوحة معلومات نظام الأرشفة الإلكترونية / EDMS Dashboard Screenshot">
+
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron)
 ![SQLite](https://img.shields.io/badge/SQLite-libsql-003B57?logo=sqlite)
@@ -60,7 +62,7 @@ for local scan hardware access.
 ![Windows](https://img.shields.io/badge/Windows-x64_Setup-0078D4?logo=windows)
 
 [⬇️ التحميل](#️-تحميل-البرنامج--ويندوز-64-بت-windows-x64) · [التشغيل السريع](#-التشغيل) ·
-[الميزات](#-الميزات) · [لقطات الشاشة](#-لقطات-الشاشة) · [نافذة المسح](#-نافذة-المسح-من-الطابعة) ·
+[الميزات](#-الميزات) · [نافذة المسح](#-نافذة-المسح-من-الطابعة) ·
 [سطح المكتب](#-تطبيق-سطح-المكتب) · [الأمان](#-الأمان) · [الاختبارات](#-الاختبارات)
 
 </div>
@@ -96,28 +98,6 @@ for local scan hardware access.
 | 👥 **Administration** | Departments, users, folders, types, tags, and full activity log |
 
 > **Self-initializing system**: on first run tables and demo data are created automatically with no manual step.
-
----
-
-## 📸 لقطات الشاشة
-
-<div align="center">
-
-<img src="https://files.catbox.moe/3mnzal.png" width="800" alt="لوحة معلومات نظام الأرشفة الإلكترونية">
-
-*لوحة المعلومات: إحصاءات حية، أحدث المستندات، وموجز النشاط*
-
-</div>
-
-## 📸 Screenshots
-
-<div align="center">
-
-<img src="https://files.catbox.moe/3mnzal.png" width="800" alt="EDMS Dashboard Screenshot">
-
-*Dashboard: live stats, latest documents, and activity summary*
-
-</div>
 
 ---
 
@@ -251,23 +231,23 @@ npm start        # production run
 
 ## 👥 الحسابات التجريبية
 
-| المستخدم | الدور | كلمة المرور الافتراضية |
-| --- | --- | --- |
-| `k.alomari` | مدير النظام | `Password@1234` |
-| `s.almalki` / `a.alharbi` | مشرف قسم | `12345678` |
-| `n.alqahtani` / `f.aldosari` / `m.alzahrani` | موظف | `12345678` |
+الحسابات التجريبية (كلمة المرور الافتراضية للجميع: `12345678` — تُطلب عند أول دخول):
 
-> يُفرض تغيير كلمة المرور عند أول تسجيل دخول.
+| المستخدم | الدور |
+| --- | --- |
+| `k.alomari` | مدير النظام |
+| `s.almalki` / `a.alharbi` | مشرف قسم |
+| `n.alqahtani` / `f.aldosari` / `m.alzahrani` | موظف |
 
 ## 👥 Demo Accounts
 
-| User | Role | Default password |
-| --- | --- | --- |
-| `k.alomari` | System admin | `Password@1234` |
-| `s.almalki` / `a.alharbi` | Department managers | `12345678` |
-| `n.alqahtani` / `f.aldosari` / `m.alzahrani` | Staff | `12345678` |
+Demo accounts (default password for all: `12345678` — change enforced on first login):
 
-> Password change is enforced on first login.
+| User | Role |
+| --- | --- |
+| `k.alomari` | System admin |
+| `s.almalki` / `a.alharbi` | Department managers |
+| `n.alqahtani` / `f.aldosari` / `m.alzahrani` | Staff |
 
 ---
 

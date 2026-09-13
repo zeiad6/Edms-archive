@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { setLang } from "@/lib/i18n";
 import { TagsList } from "@/app/tags/tags-list";
 
 // Mock server actions used by TagRow
@@ -18,6 +19,7 @@ const sampleTags = [
 ];
 
 describe("TagsList", () => {
+  beforeEach(() => setLang("ar"));
   it("renders all tags when no search query", () => {
     render(<TagsList tags={sampleTags} />);
     expect(screen.getByText("عقود")).toBeInTheDocument();
@@ -30,7 +32,7 @@ describe("TagsList", () => {
 
   it("displays filtered count correctly when no filter", () => {
     render(<TagsList tags={sampleTags} />);
-    expect(screen.getByText(/6 \/ 6 وسام/)).toBeInTheDocument();
+    expect(screen.getByText(/6 \/ 6 وسم/)).toBeInTheDocument();
   });
 
   it("shows count that matches filtered results", async () => {
@@ -38,7 +40,7 @@ describe("TagsList", () => {
     const input = screen.getByPlaceholderText("بحث في الوسوم...");
     fireEvent.change(input, { target: { value: "عقود" } });
     // Only "عقود" matches
-    expect(screen.getByText(/1 \/ 6 وسام/)).toBeInTheDocument();
+    expect(screen.getByText(/1 \/ 6 وسم/)).toBeInTheDocument();
   });
 
   it("filters tags by name", () => {
@@ -70,11 +72,11 @@ describe("TagsList", () => {
     fireEvent.change(input, { target: { value: "عقود" } });
     expect(screen.getByText("عقود")).toBeInTheDocument();
 
-    const clearButton = screen.getByRole("button", { name: "" });
+    const clearButton = screen.getByRole("button", { name: "مسح" });
     // The X button is the clear button
     fireEvent.click(clearButton);
     expect(screen.getByText("عقود")).toBeInTheDocument(); // all tags back
-    expect(screen.getByText(/6 \/ 6 وسام/)).toBeInTheDocument();
+    expect(screen.getByText(/6 \/ 6 وسم/)).toBeInTheDocument();
   });
 
   it("does not show search bar when 5 or fewer tags", () => {

@@ -13,7 +13,7 @@ import {
 } from "@/db/schema";
 import { ensureStorage, writeKey, genKey } from "@/lib/server";
 import { makeScanSvg } from "@/lib/doc-svg";
-import { hashPassword, verifyPassword, DEFAULT_PASSWORD, ADMIN_DEFAULT_PASSWORD } from "@/lib/password";
+import { hashPassword, verifyPassword, DEFAULT_PASSWORD } from "@/lib/password";
 import { eq, sql } from "drizzle-orm";
 
 let running: Promise<void> | null = null;
@@ -179,54 +179,41 @@ async function ensureSchema(): Promise<void> {
 }
 
 /**
- * Give every user without a stored hash a factory password and force
- * a change on next login. Admins (`role = 'admin'`) receive
- * ADMIN_DEFAULT_PASSWORD (`Password@1234`); everyone else receives the
- * shared DEFAULT_PASSWORD (`12345678`).
- * Runs twice: once for pre-existing databases (before
+ * Give every user without a stored hash the shared DEFAULT_PASSWORD and force
+ * a change on next login. Runs twice: once for pre-existing databases (before
  * the early-return user count check) and once after the fresh-seed user insert
  * — otherwise freshly seeded users would end up with `password_hash = NULL`
  * and no one could authenticate (login and the demo picker both reject NULL).
  */
 async function backfillPasswords(): Promise<void> {
   try {
-    const adminHash = await hashPassword(ADMIN_DEFAULT_PASSWORD);
     const pwHash = await hashPassword(DEFAULT_PASSWORD);
-    await db.run(sql`UPDATE users SET password_hash = ${adminHash}, must_change_password = 1 WHERE password_hash IS NULL AND role = 'admin'`);
     await db.run(sql`UPDATE users SET password_hash = ${pwHash}, must_change_password = 1 WHERE password_hash IS NULL`);
   } catch (e) {
     console.error("[seed] password backfill failed:", e);
   }
-  // Migrate accounts still carrying a previous factory default to the current
-  // ones: admins on `12345678`/`Password@123` move to ADMIN_DEFAULT_PASSWORD,
-  // non-admins on `Password@123` move to DEFAULT_PASSWORD.
-  // Only rows whose stored hash verifies against a known old default are
-  // touched; user-chosen passwords are never reset. The flag is (re-)set so
-  // the holder picks their own password on next login.
+  // Migrate EVERY account still carrying the previous shared default
+  // ("Password@123") to the current easy DEFAULT_PASSWORD — admins included.
+  // Only rows whose stored hash verifies against the old default are touched;
+  // user-chosen passwords are never reset. The flag is (re-)set so the holder
+  // picks their own password on next login.
   try {
     const OLD_DEFAULT = "Password@123";
     const rows = await db
-      .select({ id: users.id, role: users.role, passwordHash: users.passwordHash })
+      .select({ id: users.id, passwordHash: users.passwordHash })
       .from(users);
     const newHash = await hashPassword(DEFAULT_PASSWORD);
-    const newAdminHash = await hashPassword(ADMIN_DEFAULT_PASSWORD);
     let migrated = 0;
     for (const r of rows) {
-      if (!r.passwordHash) continue;
-      const isAdmin = r.role === "admin";
-      if (isAdmin && verifyPassword(ADMIN_DEFAULT_PASSWORD, r.passwordHash)) continue;
-      if (
-        (isAdmin && (verifyPassword(DEFAULT_PASSWORD, r.passwordHash) || verifyPassword(OLD_DEFAULT, r.passwordHash))) ||
-        (!isAdmin && verifyPassword(OLD_DEFAULT, r.passwordHash))
-      ) {
+      if (r.passwordHash && verifyPassword(OLD_DEFAULT, r.passwordHash)) {
         await db
           .update(users)
-          .set({ passwordHash: isAdmin ? newAdminHash : newHash, mustChangePassword: 1 })
+          .set({ passwordHash: newHash, mustChangePassword: 1 })
           .where(eq(users.id, r.id));
         migrated++;
       }
     }
-    if (migrated > 0) console.log(`[seed] migrated ${migrated} account(s) to the current default password(s)`);
+    if (migrated > 0) console.log(`[seed] migrated ${migrated} account(s) to the current default password`);
   } catch (e) {
     console.error("[seed] legacy default-password migration failed:", e);
   }
@@ -248,8 +235,7 @@ async function doSeed(): Promise<void> {
   }
 
   // Backfill password hashes for users created before password auth existed.
-  // Users receiving a hash here got their role's factory default
-  // (admins: ADMIN_DEFAULT_PASSWORD, others: DEFAULT_PASSWORD) — force them
+  // Users receiving a hash here got the shared DEFAULT_PASSWORD — force them
   // to change it on next login to prevent permanent default-password access.
   await backfillPasswords();
 

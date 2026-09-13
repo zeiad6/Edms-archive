@@ -29,7 +29,6 @@ import {
   CheckCircle2,
   Pen,
   Settings,
-  KeyRound,
 } from "lucide-react";
 
 const ACTION_META: Record<string, { label: string; tone: string; icon: React.ReactNode }> = {
@@ -52,31 +51,9 @@ const ACTION_META: Record<string, { label: string; tone: string; icon: React.Rea
   "user.delete": { label: "حذف مستخدم", tone: "bg-rose-500/10 text-rose-700 dark:text-rose-400", icon: <UserMinus className="h-3 w-3" /> },
   "tag.create": { label: "إنشاء وسم", tone: "bg-purple-500/10 text-purple-700 dark:text-purple-400", icon: <Tag className="h-3 w-3" /> },
   "approval.request": { label: "طلب موافقة", tone: "bg-amber-500/10 text-amber-700 dark:text-amber-400", icon: <Clock className="h-3 w-3" /> },
-  "approval.submit": { label: "طلب موافقة", tone: "bg-amber-500/10 text-amber-700 dark:text-amber-400", icon: <Clock className="h-3 w-3" /> },
-  "approval.approve": { label: "اعتماد موافقة", tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400", icon: <CheckCircle2 className="h-3 w-3" /> },
-  "approval.reject": { label: "رفض موافقة", tone: "bg-rose-500/10 text-rose-700 dark:text-rose-400", icon: <X className="h-3 w-3" /> },
   "approval.respond": { label: "رد على موافقة", tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400", icon: <CheckCircle2 className="h-3 w-3" /> },
-  "auth.switch_user": { label: "تبديل مستخدم", tone: "bg-slate-500/10 text-slate-600 dark:text-slate-300", icon: <UserCog className="h-3 w-3" /> },
-  "user.change_password": { label: "تغيير كلمة المرور", tone: "bg-sky-500/10 text-sky-700 dark:text-sky-400", icon: <KeyRound className="h-3 w-3" /> },
   "signature.add": { label: "توقيع إلكتروني", tone: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400", icon: <Pen className="h-3 w-3" /> },
-  "signature.create": { label: "توقيع مستند", tone: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400", icon: <Pen className="h-3 w-3" /> },
   "settings.update": { label: "تحديث إعدادات", tone: "bg-slate-500/10 text-slate-600 dark:text-slate-300", icon: <Settings className="h-3 w-3" /> },
-  // Document lifecycle actions actually written by src/actions + API routes.
-  "document.ocr": { label: "استخراج نص (OCR)", tone: "bg-violet-500/10 text-violet-700 dark:text-violet-400", icon: <ScanLine className="h-3 w-3" /> },
-  "document.soft_delete": { label: "نقل إلى السلة", tone: "bg-amber-500/10 text-amber-700 dark:text-amber-400", icon: <Trash2 className="h-3 w-3" /> },
-  "document.restore": { label: "استعادة مستند", tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400", icon: <RefreshCw className="h-3 w-3" /> },
-  "document.force_delete": { label: "حذف نهائي", tone: "bg-red-500/10 text-red-700 dark:text-red-400", icon: <Trash2 className="h-3 w-3" /> },  "document.bulk_delete": { label: "حذف جماعي", tone: "bg-rose-500/10 text-rose-700 dark:text-rose-400", icon: <Trash2 className="h-3 w-3" /> },
-  "document.bulk_status": { label: "تغيير حالة جماعي", tone: "bg-teal-500/10 text-teal-700 dark:text-teal-400", icon: <RefreshCw className="h-3 w-3" /> },
-  "document.bulk_tag": { label: "وسم جماعي", tone: "bg-purple-500/10 text-purple-700 dark:text-purple-400", icon: <Tag className="h-3 w-3" /> },
-  "document.csv_import": { label: "استيراد CSV", tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400", icon: <Upload className="h-3 w-3" /> },
-  "trash.empty": { label: "تفريغ السلة", tone: "bg-rose-500/10 text-rose-700 dark:text-rose-400", icon: <Trash2 className="h-3 w-3" /> },
-  "department.update": { label: "تحديث قسم", tone: "bg-amber-500/10 text-amber-700 dark:text-amber-400", icon: <Building2 className="h-3 w-3" /> },
-  "department.delete": { label: "حذف قسم", tone: "bg-rose-500/10 text-rose-700 dark:text-rose-400", icon: <Building2 className="h-3 w-3" /> },
-  "tag.update": { label: "تحديث وسم", tone: "bg-amber-500/10 text-amber-700 dark:text-amber-400", icon: <Tag className="h-3 w-3" /> },
-  "tag.delete": { label: "حذف وسم", tone: "bg-rose-500/10 text-rose-700 dark:text-rose-400", icon: <Tag className="h-3 w-3" /> },
-  "doctype.create": { label: "إنشاء تصنيف", tone: "bg-teal-500/10 text-teal-700 dark:text-teal-400", icon: <Layers className="h-3 w-3" /> },
-  "doctype.update": { label: "تحديث تصنيف", tone: "bg-amber-500/10 text-amber-700 dark:text-amber-400", icon: <Layers className="h-3 w-3" /> },
-  "doctype.delete": { label: "حذف تصنيف", tone: "bg-rose-500/10 text-rose-700 dark:text-rose-400", icon: <Layers className="h-3 w-3" /> },
 };
 
 export interface AuditRow {
@@ -127,7 +104,7 @@ function buildColumns(): ColDef<AuditRow>[] {
       headerName: t("المستخدم"),
       field: "user",
       minWidth: 130,
-      filter: "agTextColumnFilter",
+      filter: "agSetColumnFilter",
       cellRenderer: (p: any) =>
         p.value ? (
           <div className="flex items-center gap-2.5">
@@ -147,7 +124,7 @@ function buildColumns(): ColDef<AuditRow>[] {
       headerName: t("العملية"),
       field: "action",
       minWidth: 130,
-      filter: "agTextColumnFilter",
+      filter: "agSetColumnFilter",
       cellRenderer: (p: any) => {
         const m = ACTION_META[p.value];
         return (
@@ -230,7 +207,7 @@ export function AuditGrid({ rows }: { rows: AuditRow[] }) {
     return { total: filtered.length, users: uniqueUsers.size, actions: Object.keys(byAction).length };
   }, [filtered]);
 
-  const columnDefs = useMemo<ColDef<AuditRow>[]>(() => buildColumns(), [lang]);
+  const columnDefs = useMemo<ColDef<AuditRow>[]>(() => buildColumns(), []);
 
   return (
     <div className="page-stack">

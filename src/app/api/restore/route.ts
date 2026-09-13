@@ -97,6 +97,13 @@ export async function POST(request: Request) {
       );
     }
     const buffer = Buffer.from(await file.arrayBuffer());
+    // Reject non-ZIP payloads before handing untrusted bytes to AdmZip. Besides
+    // giving callers a deterministic 400, this avoids expensive parser work on
+    // arbitrary uploads and prevents malformed text payloads from stalling the
+    // restore request.
+    if (buffer.length < 4 || ![0x50, 0x4b, 0x03, 0x04].every((b, i) => buffer[i] === b)) {
+      throw new Error("ملف ZIP غير صالح");
+    }
     zip = new AdmZip(buffer);
     const manifestEntry = zip.getEntry("manifest.json");
     if (!manifestEntry) {

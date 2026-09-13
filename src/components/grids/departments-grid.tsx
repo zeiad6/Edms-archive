@@ -99,8 +99,8 @@ function buildColumns(): ColDef<DeptRow>[] {
 }
 
 export function DepartmentsGrid({ rows }: { rows: DeptRow[] }) {
-  const { lang } = useLang(); // re-render on language toggle
-  const columnDefs = useMemo<ColDef<DeptRow>[]>(() => buildColumns(), [lang]);
+  useLang(); // re-render on language toggle
+  const columnDefs = useMemo<ColDef<DeptRow>[]>(() => buildColumns(), []);
 
   return (
     <DataGrid rows={rows} columnDefs={columnDefs} getRowId={(p) => `dept-${p.data.id}`} exportName="departments" height="max(520px, calc(100vh - 200px))" />

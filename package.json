@@ -1,6 +1,6 @@
 {
   "name": "enterprise-edms",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "نظام الأرشفة الإلكتروني للوزارة — إدارة المستندات والموافقات والمسح الضوئي",
   "author": "EDMS Team",
   "private": true,
@@ -18,7 +18,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:critical": "vitest run src/app/api/critical-guards.test.ts src/lib/__tests__/session-signing.test.ts",
-    "db:seed:check": "node --experimental-strip-types scripts/seed-check.ts",
+    "db:seed:check": "tsx scripts/seed-check.ts",
     "icons": "node scripts/gen-icons.cjs",
     "electron:pack": "node scripts/build-electron.cjs",
     "electron:rebuild": "electron-rebuild -f -w @libsql/client,sharp"
@@ -76,6 +76,11 @@
     "postcss": "8.5.8",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "tsx": "^4.19.3"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=10.0.0"
   }
 }

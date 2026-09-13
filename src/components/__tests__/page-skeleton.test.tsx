@@ -3,38 +3,38 @@ import { render, screen } from "@testing-library/react";
 import { PageSkeleton, TableSkeleton } from "@/components/page-skeleton";
 
 describe("PageSkeleton", () => {
-  it("renders without crashing", () => {
-    const { container } = render(<PageSkeleton />);
+  it("renders without crashing", async () => {
+    const { container } = render(await PageSkeleton());
     expect(container.firstChild).toBeInTheDocument();
   });
 
-  it("has the animate-fadein class", () => {
-    const { container } = render(<PageSkeleton />);
+  it("has the animate-fadein class", async () => {
+    const { container } = render(await PageSkeleton());
     expect(container.firstChild).toHaveClass("animate-fadein");
   });
 
-  it("renders multiple skeleton elements", () => {
-    const { container } = render(<PageSkeleton />);
+  it("renders multiple skeleton elements", async () => {
+    const { container } = render(await PageSkeleton());
     // Skeleton renders divs with animate-pulse class
-    const skeletons = container.querySelectorAll(".animate-pulse");
+    const skeletons = container.querySelectorAll(".skeleton-shimmer");
     expect(skeletons.length).toBeGreaterThan(0);
   });
 });
 
 describe("TableSkeleton", () => {
-  it("renders without crashing", () => {
-    const { container } = render(<TableSkeleton />);
+  it("renders without crashing", async () => {
+    const { container } = render(await TableSkeleton());
     expect(container.firstChild).toBeInTheDocument();
   });
 
-  it("has the animate-fadein class", () => {
-    const { container } = render(<TableSkeleton />);
+  it("has the animate-fadein class", async () => {
+    const { container } = render(await TableSkeleton());
     expect(container.firstChild).toHaveClass("animate-fadein");
   });
 
-  it("renders skeleton elements for table layout", () => {
-    const { container } = render(<TableSkeleton />);
-    const skeletons = container.querySelectorAll(".animate-pulse");
+  it("renders skeleton elements for table layout", async () => {
+    const { container } = render(await TableSkeleton());
+    const skeletons = container.querySelectorAll(".skeleton-shimmer");
     expect(skeletons.length).toBeGreaterThan(0);
   });
 });

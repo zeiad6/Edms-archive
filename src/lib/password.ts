@@ -1,7 +1,4 @@
 import crypto from "crypto";
-import { DEFAULT_PASSWORD, ADMIN_DEFAULT_PASSWORD } from "./password-defaults";
-
-export { DEFAULT_PASSWORD, ADMIN_DEFAULT_PASSWORD };
 
 /**
  * Password hashing (zero-dependency, Node crypto).
@@ -12,10 +9,9 @@ export { DEFAULT_PASSWORD, ADMIN_DEFAULT_PASSWORD };
  * scrypt parameters follow OWASP guidance for interactive logins
  * (N = 2^15, r = 8, p = 1) with an explicit `maxmem` so the derivation
  * never throws on Node's default 32 MiB cap.
- *
- * Default-password literals live in `./password-defaults` (client-safe)
- * and are re-exported above.
  */
+
+export const DEFAULT_PASSWORD = "12345678";
 
 /**
  * Sanitize a pasted/typed password before comparison, verification, or storage.
@@ -74,6 +70,9 @@ export function hashPassword(password: string): string {
 export function verifyPassword(password: string, stored: string | null | undefined): boolean {
   if (!stored) return false;
 
+  // Keep verification consistent with login and password-change flows: copied
+  // RTL text may contain harmless surrounding whitespace/bidi marks.
+  password = sanitizePastedPassword(password);
   const parts = stored.split("$");
   if (parts.length !== 6 || parts[0] !== "scrypt") return false;
 

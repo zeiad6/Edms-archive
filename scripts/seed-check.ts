@@ -1,7 +1,9 @@
-import { db } from "../src/db";
+import { db } from "../src/db/index.ts";
 import { sql } from "drizzle-orm";
+import { ensureSeeded } from "../src/lib/seed.ts";
 
 (async () => {
+  await ensureSeeded();
   const r = await db.all(sql`SELECT
     (SELECT COUNT(*) FROM departments) d,
     (SELECT COUNT(*) FROM users) u,
