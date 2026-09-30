@@ -82,6 +82,12 @@ jobs:
         run: npm ci --include=optional
 
       - name: Build
+        # `next build` sets NODE_ENV=production and prerendering imports
+        # src/lib/env.ts, which hard-fails without a >=32 char AUTH_SECRET.
+        # Build-time placeholder only — the packaged app generates a fresh
+        # per-install secret (electron/main.cjs:ensureAuthSecret).
+        env:
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET || 'build-only-placeholder-not-a-real-secret-0123456789abcdef' }}
         run: npm run build
 
   windows-pack:

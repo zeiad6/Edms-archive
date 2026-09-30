@@ -126,6 +126,22 @@ fs.rmSync(distRoot, { recursive: true, force: true });
 fs.mkdirSync(path.join(root, "data"), { recursive: true });
 fs.mkdirSync(path.join(root, "storage"), { recursive: true });
 
+// `next build` runs with NODE_ENV=production, and src/lib/env.ts is designed
+// to hard-fail there when AUTH_SECRET is missing or shorter than 32 chars.
+// Prerendering imports that module (via /api/health -> ensureSeeded()), so a
+// packaging host with no AUTH_SECRET exported fails with
+// "Failed to collect configuration for /_not-found".
+//
+// The value below is a BUILD-TIME placeholder only. It signs nothing that
+// ships: electron/main.cjs:ensureAuthSecret() generates a fresh 48-byte
+// per-install secret on the operator's machine and writes it to userData with
+// mode 0600, injected into process.env before the Next server starts. No
+// session cookie is ever signed with the constant below.
+process.env.AUTH_SECRET =
+  process.env.AUTH_SECRET && process.env.AUTH_SECRET.length >= 32
+    ? process.env.AUTH_SECRET
+    : require("crypto").randomBytes(32).toString("base64url");
+
 console.log("=== [2/7] next build (standalone) ===");
 sh("npx next build");
 
