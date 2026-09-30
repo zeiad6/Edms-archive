@@ -37,6 +37,12 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    // Runtime utility, not application code. It is executed directly with
+    // `node --experimental-strip-types`, which REQUIRES the explicit `.ts`
+    // import specifiers — the same specifiers `tsc` rejects under the bundler
+    // resolution this project uses. Excluding it here is what lets CI run
+    // `tsc --noEmit` cleanly while `npm run db:seed:check` keeps working.
+    "scripts"
   ]
 }

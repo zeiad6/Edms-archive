@@ -14,6 +14,17 @@ import crypto from "crypto";
 export const DEFAULT_PASSWORD = "12345678";
 
 /**
+ * Password handed to a freshly seeded account: the single administrator
+ * (`admin`) starts on {@link DEFAULT_PASSWORD}. The seed always arms
+ * `must_change_password = 1`, and every login route (form, picker, mobile
+ * pairing) refuses a session until the operator picks a personal password,
+ * so the published constant is only good for that one forced change.
+ */
+export function seedPassword(): { password: string; disclose: boolean } {
+  return { password: DEFAULT_PASSWORD, disclose: false };
+}
+
+/**
  * Sanitize a pasted/typed password before comparison, verification, or storage.
  *
  * Copying a password from an RTL page routinely grabs invisible
@@ -70,9 +81,6 @@ export function hashPassword(password: string): string {
 export function verifyPassword(password: string, stored: string | null | undefined): boolean {
   if (!stored) return false;
 
-  // Keep verification consistent with login and password-change flows: copied
-  // RTL text may contain harmless surrounding whitespace/bidi marks.
-  password = sanitizePastedPassword(password);
   const parts = stored.split("$");
   if (parts.length !== 6 || parts[0] !== "scrypt") return false;
 

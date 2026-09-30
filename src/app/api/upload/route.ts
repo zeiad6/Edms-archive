@@ -88,13 +88,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `حجم الملف يتجاوز الحد الأقصى ${MAX_FILE_SIZE / 1024 / 1024} ميجابايت` }, { status: 413 });
   }
   const key = genKey(ext || "bin");
-  await writeKey(key, bytes);
-  const thumbKey = await createImageThumbnail(key);
 
   // Department/folder verification: a regular user may only upload into their
   // own department, and the folder (when given) must exist and belong to the
   // target department. Admins (documents.update_all) are exempt from the
   // department-ownership rule, but the folder is still verified.
+  //
+  // NOTE: this runs BEFORE `writeKey` on purpose. Validating after the write
+  // meant every rejected upload (bad department id, foreign folder, missing
+  // doc type) still left the bytes plus a thumbnail in storage/documents/,
+  // invisible because no row ever referenced them.
   const canManageAllDepts = can(user, "documents.update_all");
 
   let deptId: number | null = null;
@@ -169,6 +172,14 @@ export async function POST(request: NextRequest) {
   } else {
     docDate = new Date().toISOString().slice(0, 10);
   }
+
+  // Every rejection path above has returned already, so this is the first
+  // moment the request is guaranteed to become a document. Persist the bytes
+  // and derive the thumbnail here, and drop them again if the insert fails —
+  // an orphaned file in storage/ is invisible in the UI but still occupies
+  // disk and still lands in every backup zip.
+  await writeKey(key, bytes);
+  const thumbKey = await createImageThumbnail(key);
 
   const [doc] = await db
     .insert(documents)

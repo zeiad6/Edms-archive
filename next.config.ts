@@ -51,7 +51,10 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-XSS-Protection", value: "1; mode=block" },
+          // X-XSS-Protection was removed: it is deprecated, every current
+          // browser ignores it, and Chrome/Firefox actively warn on it. The
+          // CSP below plus the absence of any reflected-input sink is what
+          // actually prevents XSS here.
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
           // TODO: picks up 'unsafe-inline' only for Next.js inline styles/scripts. Replace with per-request nonce (headers `script-src 'nonce-...'` + generate in middleware) then drop 'unsafe-inline'. Never re-add 'unsafe-eval'.

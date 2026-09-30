@@ -18,6 +18,7 @@ import { ZipArchive } from "archiver";
 import { createClient } from "@libsql/client";
 import { getCurrentUser } from "@/lib/server";
 import { can } from "@/lib/permissions";
+import { APP_VERSION } from "@/lib/version";
 
 export const dynamic = "force-dynamic";
 
@@ -153,7 +154,7 @@ export async function GET() {
 
   const manifest = {
     app: "edms-archive",
-    version: "1.0.0",
+    version: APP_VERSION,
     created: new Date().toISOString(),
     parts: manifestParts,
   };

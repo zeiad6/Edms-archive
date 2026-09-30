@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { documents, documentVersions } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getCurrentUser, logAudit } from "@/lib/server";
+import { getCurrentUser, logAudit, canAccessDocument } from "@/lib/server";
 import { can } from "@/lib/permissions";
 import { createImageThumbnail } from "@/lib/thumbnails";
 
@@ -18,6 +18,14 @@ export async function restoreVersion(formData: FormData) {
 
   const [doc] = await db.select().from(documents).where(eq(documents.id, docId)).limit(1);
   if (!doc) throw new Error("المستند غير موجود");
+
+  // Visibility first, authority second. `documents.restore` is granted to
+  // manager/admin, and a manager assigned no relation to this document must
+  // not be able to roll its current version back — including on a
+  // `confidential` document, which `canAccessDocument` denies to staff and
+  // to any manager outside the owning department. This mirrors
+  // `restoreDocument` in src/actions/documents.ts.
+  if (!canAccessDocument(user, doc)) throw new Error("لا تملك صلاحية الوصول لهذا المستند");
 
   const canWrite = can(user, "documents.restore") || doc.uploadedById === user.id;
   if (!canWrite) throw new Error("لا تملك صلاحية استرجاع الإصدار");

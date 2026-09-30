@@ -120,7 +120,12 @@ export function UsersGrid({
         },
       },
     ],
-    [depts, currentUserId]
+    // `lang` is a deliberate cache-invalidation key: `buildColumns()` calls `t()`
+    // at build time to translate each headerName, and `t` reads a module-level
+    // store that ESLint cannot see as a dependency. Dropping it would leave the
+    // column headers in the previous language after a toggle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [depts, currentUserId, lang]
   );
 
   return (

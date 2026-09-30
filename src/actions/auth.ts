@@ -108,6 +108,18 @@ export async function switchUser(
     return { error: "هذا الحساب معطّل. تواصل مع مدير النظام." };
   }
 
+  // Same forced-change gate as `loginUser` (auth.ts:156). Without it the
+  // picker is a complete bypass of the first-login password change: the
+  // seeded accounts ship with the shared DEFAULT_PASSWORD and
+  // `must_change_password = 1`, so anyone who knows that constant could
+  // take a session over the picker and never be asked to change it.
+  // Send them to the username/password form, which owns the change flow.
+  if (u.mustChangePassword === 1) {
+    return {
+      error: "يجب تغيير كلمة المرور الافتراضية أولاً — استخدم تبويب «تسجيل الدخول» باسم المستخدم.",
+    };
+  }
+
   const store = await cookies();
   store.set(SESSION_COOKIE, signSession(String(u.id)), SESSION_COOKIE_OPTIONS);
   revalidatePath("/", "layout");

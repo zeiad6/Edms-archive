@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { documents, approvalRequests, notifications, users } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { getCurrentUser, logAudit, canAccessDocument } from "@/lib/server";
 import { requirePermission } from "@/lib/permissions";
 
@@ -116,7 +116,16 @@ export async function approveDocument(formData: FormData) {
     throw new Error("هذا الطلب موكَل إلى مستخدم آخر — لا يمكنك اعتماده");
   }
 
-  await db
+  // Guard the write, not just the read.
+  //
+  // The `req.status !== "pending"` check above is a read, so two approvers
+  // assigned to the same request (or one approver double-clicking) both read
+  // `pending`, both pass, and both write `approved` — the requester then sees
+  // two "تمت الموافقة" notifications and the audit trail records two
+  // approvals for one request. Making the status part of the WHERE clause
+  // turns the UPDATE into the compare-and-swap that closes the window: exactly
+  // one caller can move the row, everyone else matches zero rows.
+  const claimed = await db
     .update(approvalRequests)
     .set({
       status: "approved",
@@ -124,7 +133,12 @@ export async function approveDocument(formData: FormData) {
       respondedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     })
-    .where(eq(approvalRequests.id, requestId));
+    .where(and(eq(approvalRequests.id, requestId), eq(approvalRequests.status, "pending")))
+    .returning({ id: approvalRequests.id });
+
+  if (claimed.length === 0) {
+    throw new Error("تمت المعالجة بالفعل");
+  }
 
   // auto-promote document status if it was pending_review
   await db
@@ -179,7 +193,9 @@ export async function rejectDocument(formData: FormData) {
     throw new Error("هذا الطلب موكَل إلى مستخدم آخر — لا يمكنك رفضه");
   }
 
-  await db
+  // Same compare-and-swap as approveDocument: `status` in the WHERE clause is
+  // what makes a double-click produce one rejection, not two.
+  const claimed = await db
     .update(approvalRequests)
     .set({
       status: "rejected",
@@ -187,7 +203,12 @@ export async function rejectDocument(formData: FormData) {
       respondedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     })
-    .where(eq(approvalRequests.id, requestId));
+    .where(and(eq(approvalRequests.id, requestId), eq(approvalRequests.status, "pending")))
+    .returning({ id: approvalRequests.id });
+
+  if (claimed.length === 0) {
+    throw new Error("تمت المعالجة بالفعل");
+  }
 
   await logAudit({
     userId: user.id,

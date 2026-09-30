@@ -229,25 +229,33 @@ npm run build    # production build
 npm start        # production run
 ```
 
-## 👥 الحسابات التجريبية
+## 👥 الحساب الافتراضي
 
-الحسابات التجريبية (كلمة المرور الافتراضية للجميع: `12345678` — تُطلب عند أول دخول):
+عند أول تشغيل يُنشأ **حساب واحد** فقط:
 
-| المستخدم | الدور |
+| الحقل | القيمة |
 | --- | --- |
-| `k.alomari` | مدير النظام |
-| `s.almalki` / `a.alharbi` | مشرف قسم |
-| `n.alqahtani` / `f.aldosari` / `m.alzahrani` | موظف |
+| اسم المستخدم | `admin` |
+| كلمة المرور | `12345678` |
 
-## 👥 Demo Accounts
+> ⚠️ تغيير كلمة المرور **إجباري** عند أول دخول. بعده لا يعمل الثابت الأصلي إطلاقاً.
+> بقية الحسابات تُنشأ من **الإعدادات ← المستخدمون**. لا توجد حسابات تجريبية أخرى،
+> لأن أي حساب يُبذر بكلمة مرور منشورة في المستودع هو باب دخول مفتوح على كل تثبيت.
 
-Demo accounts (default password for all: `12345678` — change enforced on first login):
+## 👥 Default Account
 
-| User | Role |
+A fresh install seeds **one** account:
+
+| Field | Value |
 | --- | --- |
-| `k.alomari` | System admin |
-| `s.almalki` / `a.alharbi` | Department managers |
-| `n.alqahtani` / `f.aldosari` / `m.alzahrani` | Staff |
+| Username | `admin` |
+| Password | `12345678` |
+
+> ⚠️ Changing the password is **enforced** on first sign-in. After that the
+> original constant stops working. Create further accounts under
+> **Settings → Users**. There are no other demo accounts on purpose: a seeded
+> account whose password is published in this repository is an open door on
+> every install.
 
 ---
 

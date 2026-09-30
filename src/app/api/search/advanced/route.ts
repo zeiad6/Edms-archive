@@ -13,11 +13,12 @@ export async function POST(request: NextRequest) {
   try {
     return await handlePost(request);
   } catch (e) {
-    console.error("search/advanced failed", e);
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "خطأ داخلي في البحث" },
-      { status: 500 },
-    );
+    // Log with the stack server-side; never echo `e.message` to the browser —
+    // this handler wraps the whole query, so a libsql error
+    // ("SQLITE_ERROR: no such column: …") or a Drizzle type error would
+    // otherwise reach the client verbatim.
+    console.error("[search/advanced] failed", e);
+    return NextResponse.json({ error: "خطأ داخلي في البحث" }, { status: 500 });
   }
 }
 

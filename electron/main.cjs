@@ -14,7 +14,7 @@
  * a minimal preload exposing only window controls via contextBridge.
  */
 
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, shell } = require("electron");
 
 // Session cookie name — MUST mirror SESSION_COOKIE in src/lib/session.ts.
 const SESSION_COOKIE = "edms_uid";
@@ -24,6 +24,8 @@ const fs = require("fs");
 const path = require("path");
 const net = require("net");
 const crypto = require("crypto");
+const os = require("os");
+const { createMobileGateway } = require("./mobile-gateway.cjs");
 
 // ---------------------------------------------------------------------------
 // Constants & user-data redirection (asar payload is read-only, so all
@@ -36,6 +38,7 @@ const PORT_MIN = 43110; // unlikely to collide; verified free before use
 
 let serverProcess = null;
 let win = null;
+let mobileGateway = null; // created in whenReady (needs baseUserData)
 
 // Portable detection: electron-builder portable sets PORTABLE_EXECUTABLE_DIR.
 // Portable must keep ALL writable state beside the exe (edms-data/), never in
@@ -302,6 +305,49 @@ async function createWindow(url) {
 
   win.once("ready-to-show", () => win.show());
 
+  // Navigation lockdown. The renderer is served from http://127.0.0.1:<port>
+  // and the UI opens several external links with target="_blank" (settings,
+  // shell, login tabs, PDF preview). Without these two guards an unblocked
+  // popup falls back to a same-window navigation, replacing the EDMS content
+  // with an attacker-chosen origin while the app frame, custom title bar and
+  // the window-control preload bridge stay live on top of it.
+  //
+  // `shell.openExternal` hands the URL to the OS browser, which is where an
+  // outbound http(s) link actually belongs; everything else is denied.
+  const isLocalAppUrl = (url) => {
+    try {
+      const parsed = new URL(url);
+      return (
+        (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+        (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost")
+      );
+    } catch {
+      return false;
+    }
+  };
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^(https?:\/\/|mailto:)/i.test(url)) {
+      void shell.openExternal(url).catch(() => {});
+    }
+    return { action: "deny" };
+  });
+
+  win.webContents.on("will-navigate", (event, url) => {
+    if (isLocalAppUrl(url)) return;
+    event.preventDefault();
+    if (/^(https?:\/\/|mailto:)/i.test(url)) {
+      void shell.openExternal(url).catch(() => {});
+    }
+  });
+
+  // Same-origin redirects (the login → "/" hop) are already covered by
+  // will-navigate; block in-page attachment navigations to a remote origin
+  // so a crafted link cannot repurpose the window as a browser.
+  win.webContents.on("will-redirect", (event, url) => {
+    if (!isLocalAppUrl(url)) event.preventDefault();
+  });
+
   // Re-emit maximize/unmaximize so the title bar can swap the ⛶ glyph.
   const sendState = () => {
     if (!win.isDestroyed()) {
@@ -369,6 +415,112 @@ function registerIpc() {
       ? { maximized: win.isMaximized(), fullscreen: win.isFullScreen() }
       : { maximized: false, fullscreen: false }
   );
+
+  registerSecureStoreIpc();
+  registerMobileIpc();
+}
+
+/*
+ * Mobile link (Android app) — see electron/mobile-gateway.cjs for the
+ * security model. Only the local desktop window may drive it: the phone loads
+ * the same pages through the gateway but never gets this preload bridge, and
+ * the sender check below refuses any frame not served from 127.0.0.1.
+ */
+function registerMobileIpc() {
+  const guard = (fn) => (e, ...args) => {
+    const url = e.senderFrame ? e.senderFrame.url : "";
+    if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(url)) throw new Error("forbidden");
+    if (!mobileGateway) throw new Error("not ready");
+    return fn(...args);
+  };
+  ipcMain.handle("mobile:status", guard(() => mobileGateway.status()));
+  ipcMain.handle("mobile:set-enabled", guard((on) => mobileGateway.setEnabled(on)));
+  ipcMain.handle("mobile:set-public-host", guard((h) => mobileGateway.setPublicHost(h)));
+  ipcMain.handle("mobile:new-pairing", guard(() => mobileGateway.newPairing()));
+  ipcMain.handle("mobile:revoke", guard((id) => mobileGateway.revoke(String(id))));
+}
+
+/*
+ * Remembered credentials, encrypted with the OS keychain.
+ *
+ * `safeStorage.encryptString` uses DPAPI (Windows), Keychain (macOS) or
+ * libsecret/kwallet (Linux). The encryption key never enters the renderer, so
+ * the renderer can only ever obtain the ciphertext back. The blob is written
+ * with mode 0600, matching `ensureAuthSecret`, and keys are namespaced so a
+ * future record type cannot collide with an existing one.
+ *
+ * Everything is best-effort by design: if the platform has no keychain
+ * (headless Linux, a locked session), the handlers report failure and the
+ * renderer falls back to its Web Crypto path — see src/lib/credential-store.ts.
+ */
+function registerSecureStoreIpc() {
+  const { safeStorage } = require("electron");
+  const secretsFile = () => path.join(baseUserData(), "secrets.json");
+
+  const readAll = () => {
+    try {
+      if (!fs.existsSync(secretsFile())) return {};
+      return JSON.parse(fs.readFileSync(secretsFile(), "utf8")) || {};
+    } catch {
+      return {};
+    }
+  };
+
+  const writeAll = (all) => {
+    fs.mkdirSync(path.dirname(secretsFile()), { recursive: true });
+    fs.writeFileSync(secretsFile(), JSON.stringify(all), { mode: 0o600 });
+    try {
+      fs.chmodSync(secretsFile(), 0o600);
+    } catch {
+      /* Windows ACL — ignore */
+    }
+  };
+
+  // Keys are renderer-supplied, so they are constrained to a safe shape rather
+  // than trusted: they become JSON keys and (via the renderer) nothing else,
+  // but a key like "../x" should never be storable regardless.
+  const validKey = (k) => typeof k === "string" && /^[a-z0-9_-]{1,64}$/i.test(k);
+
+  ipcMain.handle("secure:set", (_e, key, value) => {
+    try {
+      if (!validKey(key) || typeof value !== "string") return false;
+      if (!safeStorage.isEncryptionAvailable()) return false;
+      const all = readAll();
+      all[key] = safeStorage.encryptString(value).toString("base64");
+      writeAll(all);
+      return true;
+    } catch (err) {
+      console.error("[main] secure:set failed:", err);
+      return false;
+    }
+  });
+
+  ipcMain.handle("secure:get", (_e, key) => {
+    try {
+      if (!validKey(key)) return null;
+      const blob = readAll()[key];
+      if (typeof blob !== "string") return null;
+      if (!safeStorage.isEncryptionAvailable()) return null;
+      return safeStorage.decryptString(Buffer.from(blob, "base64"));
+    } catch (err) {
+      console.error("[main] secure:get failed:", err);
+      return null;
+    }
+  });
+
+  ipcMain.handle("secure:delete", (_e, key) => {
+    try {
+      if (!validKey(key)) return false;
+      const all = readAll();
+      if (!(key in all)) return true;
+      delete all[key];
+      writeAll(all);
+      return true;
+    } catch (err) {
+      console.error("[main] secure:delete failed:", err);
+      return false;
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -393,8 +545,10 @@ if (!gotLock) {
 
   app.whenReady().then(async () => {
     registerIpc();
+    mobileGateway = createMobileGateway({ dir: baseUserData(), serverName: os.hostname() });
     try {
       const url = await bootNext(await getFreePort());
+      mobileGateway.attach(Number(new URL(url).port));
       await createWindow(url);
     } catch (err) {
       console.error("[main] startup failed:", err);
@@ -416,7 +570,7 @@ if (!gotLock) {
   const RELEASES_URL = "https://github.com/zeiad6/Edms-archive/releases/latest";
   function notifyUpdateAvailable(info) {
     if (!win || win.isDestroyed()) return;
-    const { dialog, shell } = require("electron");
+    const { dialog } = require("electron");
     const ver = (info && info.version) || "";
     dialog
       .showMessageBox(win, {
@@ -475,6 +629,7 @@ if (!gotLock) {
   });
 
   app.on("before-quit", () => {
+    if (mobileGateway) mobileGateway.stop();
     if (serverProcess && !serverProcess.killed) {
       serverProcess.kill();
     }

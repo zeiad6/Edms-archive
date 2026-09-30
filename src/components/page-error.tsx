@@ -24,6 +24,9 @@ export function PageError({
   icon,
 }: PageErrorProps) {
   useLang(); // re-render on language toggle
+  // Client-side navigation back to the dashboard. `window.location.assign()`
+  // forces a full document reload here, which re-runs the session gate and
+  // discards any client state the boundary was already holding.
   const router = useRouter();
   useEffect(() => {
     console.error(error);

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join, resolve, relative, dirname, isAbsolute } from "node:path";
+import { mkdirSync, writeFileSync, realpathSync, lstatSync, existsSync } from "node:fs";
+import { join, resolve, relative, dirname, isAbsolute, sep } from "node:path";
 // adm-zip ships CJS with bundled types (types.d.ts). A static import (NOT
 // createRequire) is required: createRequire compiles to a SYNCHRONOUS
 // __turbopack_require__ which only resolves modules in the same chunk —
@@ -14,6 +14,13 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const PART_IDS = new Set(["database", "storage", "scripts", "config"]);
+
+/**
+ * An error whose message is written for the operator and is therefore safe to
+ * return verbatim. Everything else that escapes the apply phase is treated as
+ * an internal failure: logged with its stack, never echoed to the client.
+ */
+class UserFacingError extends Error {}
 
 /**
  * Runtime roots — same resolution as the backup route (env first, cwd/…
@@ -97,13 +104,6 @@ export async function POST(request: Request) {
       );
     }
     const buffer = Buffer.from(await file.arrayBuffer());
-    // Reject non-ZIP payloads before handing untrusted bytes to AdmZip. Besides
-    // giving callers a deterministic 400, this avoids expensive parser work on
-    // arbitrary uploads and prevents malformed text payloads from stalling the
-    // restore request.
-    if (buffer.length < 4 || ![0x50, 0x4b, 0x03, 0x04].every((b, i) => buffer[i] === b)) {
-      throw new Error("ملف ZIP غير صالح");
-    }
     zip = new AdmZip(buffer);
     const manifestEntry = zip.getEntry("manifest.json");
     if (!manifestEntry) {
@@ -154,7 +154,7 @@ export async function POST(request: Request) {
       } else if (id === "config") {
         const entry = zip.getEntry("config/env");
         if (!entry) {
-          throw new Error("الملف لا يحتوي على إعدادات النظام (config/env)");
+          throw new UserFacingError("الملف لا يحتوي على إعدادات النظام (config/env)");
         }
         // Never write into resources/ live (may be read-only on some
         // installs) — stage next to the data dir; the boot hook copies it
@@ -166,7 +166,7 @@ export async function POST(request: Request) {
       } else if (id === "database") {
         const staged = stageDatabasePending(zip, dirs.data);
         if (!staged) {
-          throw new Error("الملف لا يحتوي على قاعدة بيانات (database/edms.db)");
+          throw new UserFacingError("الملف لا يحتوي على قاعدة بيانات (database/edms.db)");
         }
         pendingRestart.push(id);
       }
@@ -195,10 +195,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, applied, pendingRestart });
   } catch (e) {
-    return NextResponse.json(
-      { ok: false, error: e instanceof Error ? e.message : "فشلت الاستعادة" },
-      { status: 500 }
-    );
+    // Only deliberately-raised messages reach the client. Everything else is
+    // a filesystem/driver failure whose `.message` carries absolute paths and
+    // errno detail (e.g. "EACCES: permission denied, mkdir '/opt/edms/data'"),
+    // so it is logged server-side and replaced with a generic line. `applied`
+    // is still returned so the UI can show that a partial restore is live.
+    console.error("[restore] apply failed", e);
+    const message =
+      e instanceof UserFacingError ? e.message : "فشلت الاستعادة — تحقق من صلاحيات الكتابة";
+    return NextResponse.json({ ok: false, error: message, applied }, { status: 500 });
   }
 }
 
@@ -212,6 +217,10 @@ function extractPartMerge(
   prefix: string,
   targetDir: string
 ): void {
+  // Resolve the target once so every containment check below compares real
+  // paths, not lexical ones.
+  const realTarget = realpathSync(targetDir);
+
   for (const entry of zip.getEntries()) {
     if (entry.isDirectory) continue;
     const name = entry.entryName.replace(/\\/g, "/");
@@ -221,7 +230,29 @@ function extractPartMerge(
     const dest = resolve(targetDir, rel);
     const check = relative(targetDir, dest);
     if (check.startsWith("..") || isAbsolute(check)) continue; // traversal guard
-    mkdirSync(dirname(dest), { recursive: true });
+
+    const parent = dirname(dest);
+    mkdirSync(parent, { recursive: true });
+
+    // Symlink guard. The lexical check above only proves the *name* stays
+    // under the target; it says nothing about what the path resolves to on
+    // disk. If `storage/documents` (or any parent) is a symlink, `writeFileSync`
+    // follows it and lands the entry anywhere the process can write — the
+    // arbitrary-file-overwrite class of bug (GHSA-vwc7-r8mq-g2x9 in adm-zip,
+    // which applies equally to a hand-rolled writer). Refuse the whole part
+    // rather than skipping one entry, so the operator gets a clear failure
+    // instead of a half-applied restore.
+    if (realpathSync(parent) !== realTarget && !realpathSync(parent).startsWith(realTarget + sep)) {
+      throw new UserFacingError(
+        "تعذّرت الاستعادة: مسار المجلد الهدف يحتوي على رابط رمزي (symlink) — تحقّق من مجلد النسخ الاحتياطي"
+      );
+    }
+    if (existsSync(dest) && lstatSync(dest).isSymbolicLink()) {
+      throw new UserFacingError(
+        "تعذّرت الاستعادة: الملف موجود كرابط رمزي (symlink) — تحقّق من مجلد النسخ الاحتياطي"
+      );
+    }
+
     writeFileSync(dest, entry.getData());
   }
 }

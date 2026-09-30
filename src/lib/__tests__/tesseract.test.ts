@@ -1,3 +1,7 @@
+// @vitest-environment node
+// Server-side test: touches node:crypto / node:fs / @/db. Under the
+// default jsdom environment Vite externalizes those builtins and the file
+// fails to collect with `No such built-in module: node:`.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { writeFileSync, rmSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";

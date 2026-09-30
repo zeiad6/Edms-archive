@@ -13,7 +13,7 @@ import {
 } from "@/db/schema";
 import { ensureStorage, writeKey, genKey } from "@/lib/server";
 import { makeScanSvg } from "@/lib/doc-svg";
-import { hashPassword, verifyPassword, DEFAULT_PASSWORD } from "@/lib/password";
+import { hashPassword, seedPassword } from "@/lib/password";
 import { eq, sql } from "drizzle-orm";
 
 let running: Promise<void> | null = null;
@@ -179,44 +179,39 @@ async function ensureSchema(): Promise<void> {
 }
 
 /**
- * Give every user without a stored hash the shared DEFAULT_PASSWORD and force
- * a change on next login. Runs twice: once for pre-existing databases (before
- * the early-return user count check) and once after the fresh-seed user insert
- * — otherwise freshly seeded users would end up with `password_hash = NULL`
- * and no one could authenticate (login and the demo picker both reject NULL).
+ * Give every user without a stored hash a password and force a change on next
+ * login. Runs twice: once for pre-existing databases (before the early-return
+ * user count check) and once after the fresh-seed user insert — otherwise
+ * freshly seeded users would end up with `password_hash = NULL` and no one
+ * could authenticate (login and the demo picker both reject NULL).
+ *
+ * The password comes from `seedPassword()`: the documented DEFAULT_PASSWORD,
+ * always paired with `must_change_password = 1`.
  */
 async function backfillPasswords(): Promise<void> {
+  const { password, disclose } = seedPassword();
   try {
-    const pwHash = await hashPassword(DEFAULT_PASSWORD);
+    const pwHash = await hashPassword(password);
     await db.run(sql`UPDATE users SET password_hash = ${pwHash}, must_change_password = 1 WHERE password_hash IS NULL`);
+    if (disclose) {
+      // One-time disclosure: this is the only chance to learn the seeded
+      // credentials. `must_change_password = 1` still forces a change before
+      // the account is usable, and every login route enforces that flag.
+      console.log(
+        `[seed] backfilled accounts with the generated password: ${password} ` +
+          "(change it on first login)"
+      );
+    }
   } catch (e) {
     console.error("[seed] password backfill failed:", e);
   }
-  // Migrate EVERY account still carrying the previous shared default
-  // ("Password@123") to the current easy DEFAULT_PASSWORD — admins included.
-  // Only rows whose stored hash verifies against the old default are touched;
-  // user-chosen passwords are never reset. The flag is (re-)set so the holder
-  // picks their own password on next login.
-  try {
-    const OLD_DEFAULT = "Password@123";
-    const rows = await db
-      .select({ id: users.id, passwordHash: users.passwordHash })
-      .from(users);
-    const newHash = await hashPassword(DEFAULT_PASSWORD);
-    let migrated = 0;
-    for (const r of rows) {
-      if (r.passwordHash && verifyPassword(OLD_DEFAULT, r.passwordHash)) {
-        await db
-          .update(users)
-          .set({ passwordHash: newHash, mustChangePassword: 1 })
-          .where(eq(users.id, r.id));
-        migrated++;
-      }
-    }
-    if (migrated > 0) console.log(`[seed] migrated ${migrated} account(s) to the current default password`);
-  } catch (e) {
-    console.error("[seed] legacy default-password migration failed:", e);
-  }
+  // NOTE: the legacy "Password@123" → DEFAULT_PASSWORD migration that used to
+  // live here was removed. It ran on every boot and only ever *weakened*
+  // accounts — it reset any user still on the old shared default (admins
+  // included) to the 8-digit constant published in src/lib/password.ts, and
+  // re-armed must_change_password. Accounts on a real chosen password were
+  // never touched, so nothing is lost by dropping it; an operator who still
+  // has an account on the old default should reset it from the admin UI.
 }
 
 async function doSeed(): Promise<void> {
@@ -235,8 +230,8 @@ async function doSeed(): Promise<void> {
   }
 
   // Backfill password hashes for users created before password auth existed.
-  // Users receiving a hash here got the shared DEFAULT_PASSWORD — force them
-  // to change it on next login to prevent permanent default-password access.
+  // `backfillPasswords` arms must_change_password on every account it touches,
+  // so nobody keeps access through a seeded password.
   await backfillPasswords();
 
   const [countRes] = await db
@@ -258,17 +253,28 @@ async function doSeed(): Promise<void> {
   const deptIds = deptRows.map(r => r.id);
   const deptId = (i: number) => deptIds[i] ?? deptIds[0];
 
-  // Users
+  // Users — administrator only.
+  //
+  // A fresh install ships exactly ONE account. The earlier seed created six
+  // demo personas (two managers, three staff), all sharing the published
+  // DEFAULT_PASSWORD, which meant every deployment exposed five extra
+  // credentials for roles whose only purpose was to look populated on the
+  // login screen. The demo personas are gone; departments, folders, tags,
+  // document types and templates still seed, so the UI is not empty — the
+  // administrator creates real accounts from Settings → Users.
   await db.insert(users).values([
-    { name: "م. خالد العمري", username: "k.alomari", email: "k.alomari@edms.gov", jobTitle: "المدير العام", role: "admin", departmentId: deptId(0), avatarColor: "#4f46e5" },
-    { name: "أ. سارة المالكي", username: "s.almalki", email: "s.almalki@edms.gov", jobTitle: "مديرة الشؤون المالية", role: "manager", departmentId: deptId(1), avatarColor: "#059669" },
-    { name: "م. عبدالله الحربي", username: "a.alharbi", email: "a.alharbi@edms.gov", jobTitle: "مدير تقنية المعلومات", role: "manager", departmentId: deptId(3), avatarColor: "#0ea5e9" },
-    { name: "أ. نورة القحطاني", username: "n.alqahtani", email: "n.alqahtani@edms.gov", jobTitle: "أخصائي موارد بشرية", role: "staff", departmentId: deptId(2), avatarColor: "#d97706" },
-    { name: "م. فيصل الدوسري", username: "f.aldosari", email: "f.aldosari@edms.gov", jobTitle: "مستشار قانوني", role: "staff", departmentId: deptId(4), avatarColor: "#be123c" },
-    { name: "أ. مها الزهراني", username: "m.alzahrani", email: "m.alzahrani@edms.gov", jobTitle: "سكرتيرة تنفيذية", role: "staff", departmentId: deptId(0), avatarColor: "#6366f1" },
+    { name: "Zidex", username: "admin", email: "z30432981@gmail.com", jobTitle: "المدير العام", role: "admin", departmentId: deptId(0), avatarColor: "#4f46e5" },
   ]);
-  const userRows = await db.select({ id: users.id }).from(users).orderBy(users.id).limit(6);
-  const uid = (i: number) => userRows[i]?.id ?? userRows[0]?.id ?? 1;
+  const userRows = await db.select({ id: users.id, name: users.name }).from(users).orderBy(users.id).limit(1);
+  const adminId = userRows[0]?.id ?? 1;
+  const adminName = userRows[0]?.name ?? "Zidex";
+  /**
+   * Every seeded document is attributed to the single administrator account.
+   * The data set keeps its `uploader` index so the spread of departments and
+   * types stays visible, but the index is not a user id any more — there is
+   * only one user to attribute to.
+   */
+  const uid = (_i: number) => adminId;
 
   // Fresh-seed users were inserted without a hash — apply the default-password
   // backfill now so password login (and the demo picker) work on a new DB.
@@ -612,7 +618,7 @@ async function doSeed(): Promise<void> {
       }
       await logAuditSafe({
         userId: uid(s.uploader),
-        userName: ["م. خالد العمري", "أ. سارة المالكي", "م. عبدالله الحربي", "أ. نورة القحطاني", "م. فيصل الدوسري", "أ. مها الزهراني"][s.uploader],
+        userName: adminName,
         action: "document.upload",
         entityType: "document",
         entityId: docId,

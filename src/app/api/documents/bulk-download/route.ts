@@ -8,7 +8,7 @@ import { ZipArchive } from "archiver";
 import { db } from "@/db";
 import { documents } from "@/db/schema";
 import { inArray } from "drizzle-orm";
-import { getCurrentUser, canAccessDocument, resolveKey, logAudit } from "@/lib/server";
+import { getCurrentUser, loadAccessibleDocs, resolveKey, logAudit } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -41,23 +41,21 @@ export async function POST(request: NextRequest) {
   }
 
   // Fetch all requested documents
-  const allDocs = await db
-    .select()
-    .from(documents)
-    .where(inArray(documents.id, ids));
-
-  if (allDocs.length === 0) {
-    return NextResponse.json({ error: "لا توجد مستندات متطابقة" }, { status: 404 });
-  }
-
-  // Permission gate — skip docs the user cannot access or that are soft-deleted
-  const accessible = allDocs.filter((doc) => canAccessDocument(user, doc) && !doc.deletedAt);
+  // Permission gate — one shared helper so the rule cannot drift between the
+  // export, download and bulk-action routes. Missing ids and forbidden ids are
+  // both counted as `skipped`, so the response never reveals which ids exist.
+  const { accessible, skipped, found } = await loadAccessibleDocs(user, ids, {
+    excludeDeleted: true,
+  });
   if (accessible.length === 0) {
+    // No matching row at all is a 404; a row that exists but is not yours is a
+    // 403. Both are decided from the one query the helper already ran.
+    if (found === 0) {
+      return NextResponse.json({ error: "لا توجد مستندات متطابقة" }, { status: 404 });
+    }
     return NextResponse.json({ error: "ليس لديك صلاحية لتنزيل هذه المستندات" }, { status: 403 });
   }
-
   // Log audit for bulk download
-  const skipped = allDocs.length - accessible.length;
   await logAudit({
     userId: user.id,
     userName: user.name,

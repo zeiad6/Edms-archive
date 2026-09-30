@@ -13,6 +13,9 @@ export const DICT: Record<string, string> = {
   // ---- Login ---------------------------------------------------------------
   "نظام الأرشفة الإلكترونية": "Electronic Archive System",
   "سجّل دخولك للمتابعة إلى الأرشيف": "Sign in to continue to the archive",
+  "كلمة المرور يجب ألا تقل عن {n} أحرف": "The password must be at least {n} characters",
+  "كلمتا المرور غير متطابقتين": "The two passwords do not match",
+  "كلمتا المرور متطابقتان": "The two passwords match",
   "تسجيل الدخول": "Sign in",
   "دخول": "Sign in",
   "اختيار المستخدم": "Choose user",
@@ -50,7 +53,6 @@ export const DICT: Record<string, string> = {
   "فتح في نافذة جديدة": "Open in a new window",
   "تنزيل الملف": "Download file",
   "تم تطوير البرنامج بواسطة": "Developed by",
-  "حساب المطور على GitHub": "Developer's GitHub account",
   "نظام أرشفة إلكترونية مفتوح المصدر": "Open-source electronic archive system",
 
   // ---- Roles (ROLE_META labels) --------------------------------------------
@@ -475,7 +477,7 @@ export const DICT: Record<string, string> = {
   "الواجهة": "Interface",
   "حول البرنامج": "About",
   "نظام إدارة وثائق إلكترونية: حفظ آمن على التخزين المحلي، بحث نصي (سريع وكامل)، صلاحيات متعددة الأدوار، سجل تدقيق، ونسخ احتياطي شامل.": "Electronic document management: secure local storage, full-text search, multi-role permissions, audit trail, and full backup.",
-  "مشروع مفتوح المصدر — الإصدار 1.0.0": "Open-source project — version 1.0.0",
+  "مشروع مفتوح المصدر — الإصدار {v}": "Open-source project — version {v}",
   "نهاري": "Light",
   "ليلي": "Dark",
   "تلقائي": "System",
@@ -573,7 +575,6 @@ export const DICT: Record<string, string> = {
   "تعذّر إجراء البحث": "Search failed",
   "حدث خطأ أثناء محاولة البحث. يرجى المحاولة مرة أخرى.": "An error occurred while searching. Please try again.",
   "تعذّر تحميل الإعدادات": "Could not load settings",
-  "تم تطوير البرنامج بواسطة Ziad Al-hammadi": "Developed by Ziad Al-hammadi",
   "حدث خطأ أثناء تحميل قائمة الوسوم. يرجى المحاولة مرة أخرى.": "An error occurred while loading the tag list. Please try again.",
   "وسم جديد": "New tag",
   "اسم الوسم (مثال: مالية، عقود)": "Tag name (e.g.: finance, contracts)",
@@ -771,7 +772,6 @@ export const DICT: Record<string, string> = {
   "المستندات المحذوفة ستظهر هنا. يمكنك استعادتها أو حذفها نهائياً.": "Deleted documents will appear here. You can restore or permanently delete them.",
   "حاول تغيير مصطلح البحث أو نوع المستند.": "Try changing the search term or document type.",
   "حُذف {d}": "Deleted {d}",
-  "مراسلة المطور على Signal": "Message the developer on Signal",
   // ---- Scanner hardware / pages (agent batch) ----------------------------------
   "{n} عضو": "{n} member(s)",
   "تعذر سرد أجهزة المسح": "Could not list scan devices",
@@ -822,7 +822,7 @@ export const DICT: Record<string, string> = {
   "رفع الملف": "Upload file",
   "معاينة": "Preview",
   "اكتمال": "Done",
-  "{a} / {b} وسم": "{a} / {b} tag(s)",
+  "{a} / {b} وسام": "{a} / {b} tag(s)",
   "حذف الوسم “{n}” نهائياً؟": "Permanently delete tag “{n}”?",
   "لا توجد نتائج للبحث": "No search results",
   "لا توجد قوالب بعد. أنشئ قالباً لتبدأ.": "No templates yet. Create one to get started.",
@@ -1170,6 +1170,48 @@ export const DICT: Record<string, string> = {
   "هل أنت متأكد من حذف “{name}”؟ ستنقل مستنداته وأعضاؤه إلى غير مصنّف.": "Are you sure you want to delete “{name}”? Its documents and members will move to unclassified.",
   "{n} مستند سيصبح بدون قسم.": "{n} document(s) will become department-less.",
   "جارٍ الحفظ…": "Saving…",
+  // ---- Command palette (Cmd/Ctrl+K) ----------------------------------------
+  "لوحة الأوامر": "Command palette",
+  "ابحث عن صفحة أو إجراء…": "Search for a page or action…",
+  "النتائج": "Results",
+  "الحالية": "Current",
+  "تنقّل": "Navigate",
+  "فتح": "Open",
+  // ---- Restore safety ------------------------------------------------------
+  "تعذّرت الاستعادة: مسار المجلد الهدف يحتوي على رابط رمزي (symlink) — تحقّق من مجلد النسخ الاحتياطي": "Restore failed: the target path contains a symbolic link — check the backup folder.",
+  "تعذّرت الاستعادة: الملف موجود كرابط رمزي (symlink) — تحقّق من مجلد النسخ الاحتياطي": "Restore failed: the destination is a symbolic link — check the backup folder.",
+  // ---- Login: password reveal + remembered credentials ---------------------
+  "إظهار كلمة المرور": "Show password",
+  "إخفاء كلمة المرور": "Hide password",
+  "حفظ بيانات الدخول على هذا الجهاز": "Save login details on this device",
+  "مشفّر بمخزن مفاتيح النظام": "Encrypted with the system keychain",
+  "مشفّر محلياً على هذا الجهاز": "Encrypted locally on this device",
+  "لأمان الحساب، عيّن كلمة مرور جديدة قبل المتابعة.": "For your account's safety, set a new password before continuing.",
+  // ---- Login: first-run credentials + capability strip ---------------------
+  "الحساب الافتراضي عند أول تشغيل": "Default account on first run",
+  "كلمة المرور الافتراضية": "Default password",
+  "غيّر كلمة المرور فور الدخول — تُطلب تلقائياً.": "Change the password on first sign-in — it will be required.",
+  "صلاحيات متعددة الأدوار": "Multi-role permissions",
+  "سجل تدقيق كامل": "Full audit trail",
+  "بحث نصي عربي": "Arabic full-text search",
+  // ---- Developer credits ---------------------------------------------------
+
+  "حساب المطور على تيك توك": "Developer TikTok account",
+  "قناة المطور على يوتيوب": "Developer YouTube channel",
+  // ---- Mobile link (Android) ----------------------------------------------
+  "ربط تطبيق الجوال (Android)": "Mobile app link (Android)",
+  "اتصال مشفّر (TLS) مع تثبيت بصمة الشهادة، ورمز جهاز لكل هاتف، ثم تسجيل الدخول المعتاد. الخدمة متوقفة افتراضياً.": "Encrypted TLS with a pinned certificate fingerprint and a per-phone device token, then the usual sign-in. Off by default.",
+  "السماح لتطبيق الجوال بالاتصال بهذا الجهاز": "Allow the mobile app to connect to this computer",
+  "يعمل": "Running",
+  "متوقف": "Stopped",
+  "الشبكة المحلية": "Local network",
+  "عنوان الإنترنت (اختياري) مثل my.ddns.net": "Internet address (optional), e.g. my.ddns.net",
+  "إنشاء رمز اقتران جديد": "New pairing code",
+  "افتح تطبيق «أرشيف» على الهاتف واضغط «مسح رمز الاقتران». الرمز صالح 10 دقائق ولمرة واحدة.": "Open the Archive app on the phone and tap “Scan pairing code”. The code is single-use and valid for 10 minutes.",
+  "الأجهزة المقترنة": "Paired devices",
+  "لا توجد أجهزة": "No devices",
+  "إلغاء الاقتران": "Unpair",
+  "المسح بكاميرا الهاتف": "Scan with phone camera",
 };
 
 let currentLang: Lang = "ar";

@@ -17,3 +17,32 @@ contextBridge.exposeInMainWorld("edmsShell", {
     return () => ipcRenderer.removeListener("window:state", listener);
   },
 });
+
+/*
+ * Remembered-credential bridge.
+ *
+ * The renderer never sees a key and never touches the filesystem: it hands a
+ * value to the main process, which encrypts it with `safeStorage` (the OS
+ * keychain — DPAPI / Keychain / libsecret) and stores the ciphertext in userData
+ * with owner-only permissions. A renderer-side XSS can therefore read only the
+ * encrypted blob, never the password. See src/lib/credential-store.ts for the
+ * browser-side fallback and its (weaker) threat model.
+ */
+contextBridge.exposeInMainWorld("edmsSecure", {
+  setSecret: (key, value) => ipcRenderer.invoke("secure:set", key, value),
+  getSecret: (key) => ipcRenderer.invoke("secure:get", key),
+  deleteSecret: (key) => ipcRenderer.invoke("secure:delete", key),
+});
+
+/*
+ * Mobile-link bridge (Settings → ربط تطبيق الجوال). Main process owns the
+ * gateway, its TLS key and the device tokens; the renderer only gets status
+ * objects and one-time pairing links.
+ */
+contextBridge.exposeInMainWorld("edmsMobile", {
+  status: () => ipcRenderer.invoke("mobile:status"),
+  setEnabled: (on) => ipcRenderer.invoke("mobile:set-enabled", !!on),
+  setPublicHost: (host) => ipcRenderer.invoke("mobile:set-public-host", String(host || "")),
+  newPairing: () => ipcRenderer.invoke("mobile:new-pairing"),
+  revoke: (id) => ipcRenderer.invoke("mobile:revoke", String(id)),
+});

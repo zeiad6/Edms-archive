@@ -207,7 +207,11 @@ export function AuditGrid({ rows }: { rows: AuditRow[] }) {
     return { total: filtered.length, users: uniqueUsers.size, actions: Object.keys(byAction).length };
   }, [filtered]);
 
-  const columnDefs = useMemo<ColDef<AuditRow>[]>(() => buildColumns(), []);
+  // `buildColumns()` calls `t()` to translate each headerName at build time, and
+  // `t` reads a module-level store that ESLint cannot see as a dependency. `lang`
+  // is therefore a deliberate cache-invalidation key, not a redundant dep.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const columnDefs = useMemo<ColDef<AuditRow>[]>(() => buildColumns(), [lang]);
 
   return (
     <div className="page-stack">

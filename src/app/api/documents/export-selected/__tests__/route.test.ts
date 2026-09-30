@@ -1,3 +1,7 @@
+// @vitest-environment node
+// Server-side test: touches node:crypto / node:fs / @/db. Under the
+// default jsdom environment Vite externalizes those builtins and the file
+// fails to collect with `No such built-in module: node:`.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -20,7 +24,21 @@ const state = vi.hoisted(() => ({
 
 vi.mock("@/lib/server", () => ({
   getCurrentUser: async () => state.user,
-  canAccessDocument: () => state.canAccess,
+  // The route now delegates the select→filter→count pipeline to the shared
+  // `loadAccessibleDocs` helper (src/lib/server.ts) so the permission rule
+  // exists once instead of being copied into each route. This mock mirrors that
+  // helper's contract — including the soft-delete filter and the `found` count
+  // the route uses to tell 404 (no such row) from 403 (exists, not yours).
+  loadAccessibleDocs: async (
+    _user: unknown,
+    ids: number[],
+    opts: { excludeDeleted?: boolean } = {}
+  ) => {
+    const accessible = state.docs.filter(
+      (d) => state.canAccess && !(opts.excludeDeleted && (d as { deletedAt?: string }).deletedAt)
+    );
+    return { accessible, skipped: ids.length - accessible.length, found: state.docs.length };
+  },
   // identity resolver (SYNC — the route calls resolveKey without await) —
   // tests use absolute temp paths as storage keys
   resolveKey: (key: string) => key,

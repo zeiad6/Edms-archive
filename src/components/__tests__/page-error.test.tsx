@@ -3,10 +3,24 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PageError } from "@/components/page-error";
 
+// `PageError` navigates home with `useRouter().push("/")` (a full
+// `window.location.assign()` reload is what the
+// `@next/next/no-location-assign-relative-destination` rule rejects). In the
+// App Router that hook is always backed by a mounted router, but this test
+// renders the boundary standalone, so `useRouter()` would throw
+// "invariant expected app router to be mounted". Mock the module and assert
+// the navigation actually happens, rather than stubbing the component back to
+// the API it no longer uses.
+const push = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push }),
+}));
+
 const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 beforeEach(() => {
   consoleSpy.mockClear();
+  push.mockClear();
 });
 
 describe("PageError", () => {
@@ -48,6 +62,12 @@ describe("PageError", () => {
   it("logs the error to console on mount", () => {
     render(<PageError error={err} reset={() => {}} />);
     expect(consoleSpy).toHaveBeenCalledWith(err);
+  });
+
+  it("navigates home through the router (no full page reload)", async () => {
+    render(<PageError error={err} reset={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: /العودة للرئيسية/ }));
+    expect(push).toHaveBeenCalledWith("/");
   });
 
   it("renders a custom icon when provided", () => {

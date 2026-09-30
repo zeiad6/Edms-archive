@@ -1,4 +1,15 @@
-import { describe, it, expect } from "vitest";
+// Stubs the server-action module BEFORE the component is imported. The
+// component imports `@/actions/documents`, which reaches `@/lib/server`
+// (next/headers + node:crypto) — builtins jsdom cannot load. Mocking the
+// action module is the standard seam: it keeps this a real jsdom render test
+// and removes the server dependency from the import graph entirely.
+vi.mock("@/actions/documents", () => ({
+  emptyTrash: vi.fn(async () => {}),
+  restoreDocument: vi.fn(async () => {}),
+  forceDeleteDocument: vi.fn(async () => {}),
+}));
+
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import TrashClient from "@/components/trash-client";

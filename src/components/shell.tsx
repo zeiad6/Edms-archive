@@ -19,13 +19,14 @@ import {
 } from "lucide-react";
 import { switchUser, logoutUser } from "@/actions/auth";
 import { AppLogo } from "@/components/app-logo";
-import { GITHUB_ACCOUNT_URL, GithubMark, SIGNAL_CONTACT_URL, SignalMark } from "@/components/github-mark";
+import { DEV_EMAIL, DEV_NAME, DEV_TIKTOK_URL, DEV_YOUTUBE_URL, MailMark, TikTokMark, YouTubeMark } from "@/components/brand-marks";
 import { Avatar } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/theme-provider";
 import { LanguageToggle, useLang } from "@/components/lang-provider";
 import { SearchBox, type SearchItem } from "@/components/search-box";
+import { CommandPalette, CommandPaletteTrigger } from "@/components/command-palette";
 import { NAV_GROUPS, type NavItem } from "@/lib/navigation";
 import { ROLE_META, cn } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -199,7 +200,20 @@ export function Shell({
         <aside
           className={cn(
             "fixed inset-y-0 start-0 z-50 flex w-[17.5rem] transform flex-col border-e border-border bg-sidebar shadow-card transition-[transform,width,box-shadow] duration-300 ease-in-out lg:static lg:z-40 lg:h-full lg:shrink-0 lg:translate-x-0 lg:shadow-none",
-            open ? "translate-x-0 shadow-pop" : "translate-x-full",
+            // Direction-aware slide-out. The sidebar is `fixed start-0`, so
+            // `start-0` is the LEFT edge in LTR and the RIGHT edge in RTL, and
+            // `translate-x-full` is a physical +100% (always rightward).
+            //
+            //   LTR  left:0  +  +100% (right)  => lands mid-screen  ✗
+            //   RTL  right:0 +  +100% (right)  => off-canvas right ✓
+            //
+            // So "closed" needs -100% in LTR and +100% in RTL: slide the panel
+            // back out through the same edge it entered from. Getting this
+            // backwards parks the sidebar across the middle of the page
+            // instead of hiding it.
+            open
+              ? "translate-x-0 shadow-pop"
+              : "ltr:-translate-x-full rtl:translate-x-full",
             collapsed && "lg:w-[80px]"
           )}
         >
@@ -288,28 +302,34 @@ export function Shell({
             </div>
             <p className="mt-2 flex items-center justify-center gap-1 text-center text-[10px] leading-relaxed text-muted-foreground/60">
               {t("تم تطوير البرنامج بواسطة")}{" "}
-              <span className="font-semibold text-muted-foreground">Ziad Al-hammadi</span>
-              <span className="mx-0.5 text-muted-foreground/40">·</span>
-              <span dir="ltr" className="tnum">+967 784 908 515</span>
+              <span className="font-semibold text-muted-foreground">{DEV_NAME}</span>
               <a
-                href={GITHUB_ACCOUNT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={t("حساب المطور على GitHub")}
-                title="GitHub"
+                href={`mailto:${DEV_EMAIL}`}
+                aria-label={t("بريد المطور")}
+                title={DEV_EMAIL}
                 className="rounded-md p-1 text-muted-foreground/70 transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <GithubMark className="h-3 w-3" />
+                <MailMark className="h-3 w-3" />
               </a>
               <a
-                href={SIGNAL_CONTACT_URL}
+                href={DEV_TIKTOK_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={t("مراسلة المطور على Signal")}
-                title="Signal"
+                aria-label={t("حساب المطور على تيك توك")}
+                title="TikTok"
                 className="rounded-md p-1 text-muted-foreground/70 transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <SignalMark className="h-3 w-3" />
+                <TikTokMark className="h-3 w-3" />
+              </a>
+              <a
+                href={DEV_YOUTUBE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={t("قناة المطور على يوتيوب")}
+                title="YouTube"
+                className="rounded-md p-1 text-muted-foreground/70 transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <YouTubeMark className="h-3 w-3 text-[#FF0000]" />
               </a>
             </p>
           </div>
@@ -341,6 +361,7 @@ export function Shell({
             <SearchBox index={searchIndex} />
 
             <div className="flex items-center gap-2">
+              <CommandPaletteTrigger />
               <ThemeToggle />
               <LanguageToggle />
               <Tooltip>
@@ -425,6 +446,7 @@ export function Shell({
           </main>
         </div>
       </div>
+      <CommandPalette />
     </TooltipProvider>
   );
 }

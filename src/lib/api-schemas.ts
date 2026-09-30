@@ -52,25 +52,36 @@ export const deleteDocTypeSchema = z.object({
 
 // ── Bulk Actions ─────────────────────────────────────────────────
 
+/**
+ * Upper bound on a single bulk request.
+ *
+ * The ids array goes straight into `inArray(documents.id, ids)`, so every
+ * element becomes a bound parameter in one statement. SQLite caps bound
+ * parameters per statement (SQLITE_MAX_VARIABLE_NUMBER — 999 on older builds,
+ * 32766 on newer), so an unbounded array either blows past the cap and
+ * surfaces as a raw driver error, or becomes a memory/latency DoS below it.
+ * The sibling export routes already cap at 50; bulk matches that ceiling.
+ */
+export const MAX_BULK_DOCS = 200;
+
+const bulkIds = z
+  .array(z.number().int().positive())
+  .min(1, "لا توجد مستندات محددة")
+  .max(MAX_BULK_DOCS, `الحد الأقصى ${MAX_BULK_DOCS} مستنداً في العملية الواحدة`);
+
 export const bulkActionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("delete"),
-    ids: z
-      .array(z.number())
-      .min(1, "لا توجد مستندات محددة"),
+    ids: bulkIds,
   }),
   z.object({
     action: z.literal("status"),
-    ids: z
-      .array(z.number())
-      .min(1, "لا توجد مستندات محددة"),
+    ids: bulkIds,
     status: z.enum(["draft", "pending_review", "active", "archived"], "حالة غير صالحة"),
   }),
   z.object({
     action: z.literal("tag"),
-    ids: z
-      .array(z.number())
-      .min(1, "لا توجد مستندات محددة"),
+    ids: bulkIds,
     tagId: z.number({ message: "رقم الوسم مطلوب" }),
   }),
 ]);

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { documents, documentTags } from "@/db/schema";
 import { inArray, eq, and, sql } from "drizzle-orm";
-import { getCurrentUser, logAudit, canAccessDocument } from "@/lib/server";
+import { getCurrentUser, logAudit, loadAccessibleDocs } from "@/lib/server";
 import { can } from "@/lib/permissions";
 import { safeParseJson, bulkActionSchema } from "@/lib/api-schemas";
 
@@ -27,16 +27,14 @@ export async function POST(req: NextRequest) {
   // Re-fetch the requested documents and narrow to the ones this user may
   // actually access (same pattern as bulk-download) — the permission check
   // alone is not enough to prevent cross-department access.
-  const allDocs = await db.select().from(documents).where(inArray(documents.id, ids));
-  if (allDocs.length === 0) {
-    return NextResponse.json({ error: "لا توجد مستندات متطابقة" }, { status: 404 });
-  }
-  const accessible = allDocs.filter((doc) => canAccessDocument(user, doc));
+  const { accessible, skipped, found } = await loadAccessibleDocs(user, ids);
   if (accessible.length === 0) {
+    if (found === 0) {
+      return NextResponse.json({ error: "لا توجد مستندات متطابقة" }, { status: 404 });
+    }
     return NextResponse.json({ error: "ليس لديك صلاحية لهذه العملية" }, { status: 403 });
   }
   const accessibleIds = accessible.map((d) => d.id);
-  const skipped = ids.length - accessibleIds.length;
   const skippedNote = skipped > 0 ? ` (تم تخطي ${skipped} لعدم الصلاحية)` : "";
 
   try {

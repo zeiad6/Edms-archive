@@ -22,6 +22,12 @@ export default async function LoginPage() {
       role: users.role,
       jobTitle: users.jobTitle,
       avatarColor: users.avatarColor,
+      // The picker and the first-run hint key off these two: `username` is the
+      // credential the operator has to type, and `mustChangePassword` decides
+      // whether the first-run credentials block is still relevant (it must not
+      // keep showing after the admin has replaced the default).
+      username: users.username,
+      mustChangePassword: users.mustChangePassword,
     })
     .from(users)
     .orderBy(users.name);

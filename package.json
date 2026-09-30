@@ -2,7 +2,7 @@
   "name": "enterprise-edms",
   "version": "1.0.1",
   "description": "نظام الأرشفة الإلكتروني للوزارة — إدارة المستندات والموافقات والمسح الضوئي",
-  "author": "EDMS Team",
+  "author": "Zidex <z30432981@gmail.com>",
   "private": true,
   "repository": {
     "type": "git",
@@ -18,7 +18,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:critical": "vitest run src/app/api/critical-guards.test.ts src/lib/__tests__/session-signing.test.ts",
-    "db:seed:check": "tsx scripts/seed-check.ts",
+    "db:seed:check": "node --experimental-strip-types scripts/seed-check.ts",
     "icons": "node scripts/gen-icons.cjs",
     "electron:pack": "node scripts/build-electron.cjs",
     "electron:rebuild": "electron-rebuild -f -w @libsql/client,sharp"
@@ -30,7 +30,7 @@
     "@radix-ui/react-tabs": "^1.1.18",
     "@radix-ui/react-tooltip": "^1.2.13",
     "@zxing/library": "^0.23.0",
-    "adm-zip": "^0.6.0",
+    "adm-zip": "^0.6.1",
     "ag-grid-community": "^36.0.2",
     "ag-grid-react": "^36.0.2",
     "archiver": "^8.0.0",
@@ -43,16 +43,17 @@
     "lucide-react": "^1.25.0",
     "mark.js": "^8.11.1",
     "mermaid": "^11.16.0",
-    "next": "^16.3.0",
+    "next": "^16.3.7",
     "pdfjs-dist": "^4.0.379",
     "react": "19.2.6",
     "react-dom": "19.2.6",
-    "sharp": "^0.35.3",
+    "sharp": "^0.35.5",
     "sonner": "^2.0.7",
     "zod": "4.4.3"
   },
   "overrides": {
-    "semver": "^7.8.5"
+    "semver": "^7.8.5",
+    "nanoid": "^3.3.18"
   },
   "_nativeRebuildNote": "ABI mismatch fix: run npm run electron:rebuild after npm ci on the packaging host to recompile @libsql/client+sharp against Electron 43 headers (alternative: electron-builder npmRebuild:true, kept false here for faster deterministic builds).",
   "devDependencies": {
@@ -67,8 +68,8 @@
     "@types/react-dom": "19.2.3",
     "drizzle-kit": "0.31.10",
     "electron": "^43.4.0",
-    "electron-rebuild": "^3.2.9",
     "electron-builder": "^26.15.3",
+    "electron-rebuild": "^3.2.9",
     "eslint": "9.39.4",
     "eslint-config-next": "^16.3.0",
     "javascript-obfuscator": "^5.5.0",
@@ -76,11 +77,6 @@
     "postcss": "8.5.8",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3",
-    "vitest": "^4.1.10",
-    "tsx": "^4.19.3"
-  },
-  "engines": {
-    "node": ">=24.0.0",
-    "npm": ">=10.0.0"
+    "vitest": "^4.1.10"
   }
 }

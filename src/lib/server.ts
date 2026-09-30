@@ -3,8 +3,8 @@ import path from "path";
 import fs from "fs/promises";
 import crypto from "crypto";
 import { db } from "@/db";
-import { users, auditLogs, approvalRequests, notifications } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { users, auditLogs, approvalRequests, notifications, documents } from "@/db/schema";
+import { eq, inArray, sql } from "drizzle-orm";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 import type { User, Document } from "@/db/schema";
 
@@ -133,6 +133,46 @@ export function canAccessDocument(user: User | null, doc: Document): boolean {
   if (user.role === "admin") return true;
   if (doc.confidential && user.role === "staff") return false;
   return doc.departmentId === user.departmentId || doc.uploadedById === user.id;
+}
+
+/**
+ * Load the requested documents and split them into the ones the caller may act
+ * on and the ones they may not.
+ *
+ * Four call sites used to inline this pipeline — select by ids → filter
+ * through {@link canAccessDocument} → report the skipped count — each with a
+ * slightly different error string. The permission gate is the single most
+ * security-relevant block in the codebase, so four hand-maintained copies is
+ * four chances to tighten one and forget another. One helper makes it
+ * testable once and keeps the rule in one place next to its definition.
+ *
+ * Ids that do not exist are indistinguishable from ids the caller may not see
+ * (both land in `skipped`) — reporting them separately would let a caller
+ * probe which ids are real.
+ *
+ * @param user - The authenticated caller.
+ * @param ids - Requested document ids.
+ * @param opts.excludeDeleted - Drop soft-deleted (trashed) rows.
+ * @returns `accessible` documents, how many requested ids did not come back
+ *   accessible, and how many rows actually matched the ids at all. The last
+ *   number is what lets a route keep the distinction between "no such document"
+ *   (404) and "exists but you may not see it" (403) without re-running the
+ *   query it was avoiding.
+ */
+export async function loadAccessibleDocs(
+  user: User | null,
+  ids: number[],
+  opts: { excludeDeleted?: boolean } = {}
+): Promise<{ accessible: Document[]; skipped: number; found: number }> {
+  if (!user || ids.length === 0) return { accessible: [], skipped: ids.length, found: 0 };
+  const rows = await db
+    .select()
+    .from(documents)
+    .where(inArray(documents.id, ids));
+  const accessible = rows.filter(
+    (doc) => canAccessDocument(user, doc) && !(opts.excludeDeleted && doc.deletedAt)
+  );
+  return { accessible, skipped: ids.length - accessible.length, found: rows.length };
 }
 
 // ---------------------------------------------------------------------------
