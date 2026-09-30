@@ -33,16 +33,3 @@ contextBridge.exposeInMainWorld("edmsSecure", {
   getSecret: (key) => ipcRenderer.invoke("secure:get", key),
   deleteSecret: (key) => ipcRenderer.invoke("secure:delete", key),
 });
-
-/*
- * Mobile-link bridge (Settings → ربط تطبيق الجوال). Main process owns the
- * gateway, its TLS key and the device tokens; the renderer only gets status
- * objects and one-time pairing links.
- */
-contextBridge.exposeInMainWorld("edmsMobile", {
-  status: () => ipcRenderer.invoke("mobile:status"),
-  setEnabled: (on) => ipcRenderer.invoke("mobile:set-enabled", !!on),
-  setPublicHost: (host) => ipcRenderer.invoke("mobile:set-public-host", String(host || "")),
-  newPairing: () => ipcRenderer.invoke("mobile:new-pairing"),
-  revoke: (id) => ipcRenderer.invoke("mobile:revoke", String(id)),
-});

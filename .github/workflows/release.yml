@@ -3,33 +3,58 @@ name: Release (Windows x64)
 # Publish a GitHub Release with correct UTF-8 Arabic notes + Latin-only asset names.
 # Usage: git tag v1.0.0; git push origin v1.0.0
 # The release body is read from RELEASE_NOTES.md (must stay UTF-8).
+#
+# Ships the Setup installer only. Nothing is published unless the tests pass
+# AND the upgrade test proves that installing over v1.0.0 keeps user data.
 
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  release-windows:
-    runs-on: windows-latest
+  test:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
-        # See note above: the lockfile is generated on Linux and cannot
-        # list Windows-only optional deps (electron-winstaller). Installing
-        # with optional deps included keeps `npm ci` from rejecting the
-        # lockfile as out of sync; the missing packages are not needed on
-        # the jobs that run here.
+        run: npm ci --include=optional
+
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit
+
+      - name: ESLint
+        run: npx eslint src/ --max-warnings=0
+
+      # Includes src/lib/__tests__/upgrade-safety.test.ts: booting the new
+      # version on an existing database must not change a single row or file.
+      - name: Run tests
+        run: npx vitest run
+
+  release-windows:
+    runs-on: windows-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
         run: npm ci --include=optional
 
       - name: Rebuild native modules for Electron
@@ -38,7 +63,23 @@ jobs:
       - name: Install Tesseract OCR (packaging dependency)
         run: choco install tesseract -y --no-progress
 
-      - name: Pack Electron (NSIS + portable)
+      # `choco install tesseract` ships only eng/osd — the Arabic model is a
+      # separate download, and scripts/build-electron.cjs refuses to package
+      # without ara.traineddata (an installer with no Arabic OCR is useless for
+      # an Arabic-language EDMS). tessdata_fast matches what tesseract.exe
+      # expects and is ~4 MB rather than the ~2 GB legacy model set.
+      - name: Fetch Arabic OCR model
+        shell: pwsh
+        run: |
+          $dst = "C:\Program Files\Tesseract-OCR\tessdata"
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          $base = "https://github.com/tesseract-ocr/tessdata_fast/raw/main"
+          foreach ($f in @("ara.traineddata", "eng.traineddata", "osd.traineddata")) {
+            Invoke-WebRequest -Uri "$base/$f" -OutFile (Join-Path $dst $f)
+            Write-Host "fetched $f"
+          }
+
+      - name: Pack Electron (NSIS Setup)
         env:
           TESSERACT_SRC: 'C:\Program Files\Tesseract-OCR'
         run: npm run electron:pack
@@ -51,15 +92,121 @@ jobs:
           $setup = Get-ChildItem dist/release/EDMS-Archive-*-Setup-x64.exe -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $setup) { Write-Error 'Setup exe with Latin name not found (check artifactName in electron-builder.yml)'; exit 1 }
           if ($setup.Length -lt 10MB) { Write-Error "Installer suspiciously small: $($setup.Length) bytes"; exit 1 }
+          if (-not (Test-Path dist/release/latest.yml)) { Write-Error 'latest.yml missing — v1.0.0 installs would never see this update'; exit 1 }
           Write-Host "OK: $($setup.FullName) ($([math]::Round($setup.Length/1MB,1)) MB)"
 
+      # Real upgrade on a clean runner, exactly what a v1.0.0 user does:
+      #   1. install + run the published v1.0.0 so it creates its database,
+      #      auth secret and seeded documents in %APPDATA%
+      #   2. add a user file, fingerprint every file in that data folder
+      #   3. silently install the new Setup over it
+      #   4. data folder must be byte-identical; the new exe must be in place
+      #   5. start the new version on that data: it must stay up, and every
+      #      pre-existing file must still be intact afterwards
+      - name: Upgrade test (v1.0.0 -> this build keeps user data)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $exeName = 'edms-archive.exe'
+
+          function Find-Install {
+            Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall |
+              Get-ItemProperty |
+              Where-Object { $_.InstallLocation -and (Test-Path (Join-Path $_.InstallLocation $exeName)) } |
+              Select-Object -First 1
+          }
+          function Wait-DataDir {
+            for ($i = 0; $i -lt 60; $i++) {
+              $db = Get-ChildItem $env:APPDATA -Recurse -Depth 3 -Filter edms.db -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($db) { return $db.Directory.Parent.FullName }
+              Start-Sleep -Seconds 3
+            }
+            throw 'app never created its database'
+          }
+          function Stop-App {
+            Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*edms-archive*' } | Stop-Process -Force
+            Start-Sleep -Seconds 5
+          }
+          function Get-Fingerprint($dir) {
+            Get-ChildItem $dir -Recurse -File |
+              Where-Object { $_.FullName -notmatch '\\(Cache|Code Cache|GPUCache|DawnCache|DawnGraphiteCache|DawnWebGPUCache|Session Storage|Local Storage|Network|Shared Dictionary|blob_storage|Crashpad|logs)\\' -and $_.Name -notmatch '(-wal|-shm|\.log|Preferences|Local State|lockfile|LOCK|LOG|LOG\.old)$' } |
+              ForEach-Object { '{0}  {1}' -f (Get-FileHash $_.FullName).Hash, $_.FullName.Substring($dir.Length) } |
+              Sort-Object
+          }
+
+          # 1. v1.0.0
+          $old = Join-Path $env:RUNNER_TEMP 'EDMS-1.0.0-Setup.exe'
+          Invoke-WebRequest 'https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe' -OutFile $old
+          Start-Process $old -ArgumentList '/S' -Wait
+          $inst = Find-Install
+          if (-not $inst) { throw 'v1.0.0 did not install' }
+          $exe = Join-Path $inst.InstallLocation $exeName
+          Write-Host "v1.0.0 installed: $exe ($((Get-Item $exe).VersionInfo.ProductVersion))"
+          Start-Process $exe
+          $data = Wait-DataDir
+          Start-Sleep -Seconds 20   # let the first-boot seed finish writing
+          Stop-App
+          Write-Host "user data dir: $data"
+
+          # 2. user content
+          $marker = Join-Path $data 'storage\documents\user-file-from-1.0.0.txt'
+          New-Item -ItemType Directory -Force -Path (Split-Path $marker) | Out-Null
+          Set-Content -Path $marker -Value 'ملف المستخدم من الإصدار 1.0.0' -Encoding utf8
+          $before = Get-Fingerprint $data
+          Write-Host "fingerprinted $($before.Count) files"
+          if ($before.Count -lt 3) { throw 'v1.0.0 data folder unexpectedly empty' }
+
+          # 3. upgrade
+          $new = (Get-ChildItem dist/release/EDMS-Archive-*-Setup-x64.exe | Select-Object -First 1).FullName
+          Start-Process $new -ArgumentList '/S' -Wait
+
+          # 4. installer must not touch user data
+          $afterInstall = Get-Fingerprint $data
+          $diff = Compare-Object $before $afterInstall
+          if ($diff) { $diff | Format-Table -AutoSize | Out-String | Write-Host; throw 'installer changed user data' }
+          $inst = Find-Install
+          $exe = Join-Path $inst.InstallLocation $exeName
+          $got = (Get-Item $exe).VersionInfo.ProductVersion
+          if ($got -notlike "$version*") { throw "expected $version installed, found $got" }
+          Write-Host "upgraded in place to $got; data untouched"
+
+          # 5. new version boots on the old data. "Process alive" is not
+          # enough (a main-process crash leaves an error dialog open), so wait
+          # for the bundled server and require /api/health to answer ok —
+          # that route opens the migrated DB and runs the seed/migrations.
+          $proc = Start-Process $exe -PassThru
+          $healthy = $false
+          for ($i = 0; $i -lt 40 -and -not $healthy; $i++) {
+            Start-Sleep -Seconds 3
+            if ($proc.HasExited) { throw "new version exited on startup (code $($proc.ExitCode))" }
+            $pids = (Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*edms-archive*' }).Id
+            $ports = Get-NetTCPConnection -State Listen -LocalAddress 127.0.0.1 -ErrorAction SilentlyContinue |
+              Where-Object { $pids -contains $_.OwningProcess } | Select-Object -ExpandProperty LocalPort -Unique
+            foreach ($port in $ports) {
+              try {
+                $r = Invoke-RestMethod "http://127.0.0.1:$port/api/health" -TimeoutSec 10
+                if ($r.ok) { $healthy = $true; Write-Host "health ok on port $port" }
+              } catch { }
+            }
+          }
+          if (-not $healthy) { throw 'new version never reported healthy on the upgraded data' }
+          Stop-App
+          $afterBoot = Get-Fingerprint $data
+          $missing = Compare-Object $before $afterBoot | Where-Object SideIndicator -eq '<=' |
+            Where-Object { $_.InputObject -notmatch '\\data\\edms\.db$' }
+          if ($missing) { $missing | Format-Table -AutoSize | Out-String | Write-Host; throw 'new version altered or removed existing files' }
+          if (-not (Test-Path $marker)) { throw 'user file lost' }
+          Write-Host 'Upgrade test OK'
+
       - name: Create GitHub Release (UTF-8 Arabic body)
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           body_path: RELEASE_NOTES.md
           files: |
             dist/release/EDMS-Archive-*-Setup-x64.exe
-            dist/release/EDMS-Archive-*-Portable-x64.exe
+            dist/release/EDMS-Archive-*-Setup-x64.exe.blockmap
             dist/release/latest.yml
           fail_on_unmatched_files: false
           generate_release_notes: false

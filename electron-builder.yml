@@ -79,18 +79,12 @@ win:
     - target: nsis
       arch:
         - x64
-    - target: portable
-      arch:
-        - x64
   icon: resources/icon/icon.ico
   executableName: edms-archive
   # NOTE: artifact names MUST stay Latin-only. productName is Arabic (أرشيف)
   # and using ${productName} here produced mangled "?????-1.0.0-Setup-x64.exe"
   # filenames that broke GitHub release assets + direct download links.
   artifactName: EDMS-Archive-${version}-${target}-${arch}.${ext}
-
-portable:
-  artifactName: EDMS-Archive-${version}-Portable-${arch}.${ext}
 
 nsis:
   oneClick: false
@@ -103,9 +97,11 @@ nsis:
   installerIcon: resources/icon/icon.ico
   uninstallerIcon: resources/icon/icon.ico
   artifactName: EDMS-Archive-${version}-Setup-${arch}.${ext}
-  # Custom installer logic: detects a previous installation (same version ->
-  # abort; older version -> update in place). See build/installer.nsi.
-  include: build/installer.nsi
+  # No custom `include`: build/ is gitignored, so build/installer.nsi never
+  # reached CI. electron-builder's stock NSIS already upgrades in place — it
+  # finds the previous install via the appId registry key, runs the old
+  # uninstaller in update mode and keeps %APPDATA% (deleteAppDataOnUninstall
+  # is false), so the database and stored documents survive.
 
 # Windows code signing: set CSC_LINK=<path/to/cert.pfx> + CSC_KEY_PASSWORD=<pwd> env vars
 # (or Azure Trusted Signing via CSC_LINK=AzureKeyVault://...); unsigned builds show SmartScreen warning.

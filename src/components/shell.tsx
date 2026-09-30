@@ -211,9 +211,13 @@ export function Shell({
             // back out through the same edge it entered from. Getting this
             // backwards parks the sidebar across the middle of the page
             // instead of hiding it.
+            //
+            // Scoped with `max-lg:` because Tailwind emits `ltr:`/`rtl:` after
+            // the `lg:` breakpoint, so an unscoped `ltr:-translate-x-full`
+            // would beat `lg:translate-x-0` and hide the docked desktop sidebar.
             open
               ? "translate-x-0 shadow-pop"
-              : "ltr:-translate-x-full rtl:translate-x-full",
+              : "max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full",
             collapsed && "lg:w-[80px]"
           )}
         >

@@ -24,8 +24,6 @@ const fs = require("fs");
 const path = require("path");
 const net = require("net");
 const crypto = require("crypto");
-const os = require("os");
-const { createMobileGateway } = require("./mobile-gateway.cjs");
 
 // ---------------------------------------------------------------------------
 // Constants & user-data redirection (asar payload is read-only, so all
@@ -38,7 +36,6 @@ const PORT_MIN = 43110; // unlikely to collide; verified free before use
 
 let serverProcess = null;
 let win = null;
-let mobileGateway = null; // created in whenReady (needs baseUserData)
 
 // Portable detection: electron-builder portable sets PORTABLE_EXECUTABLE_DIR.
 // Portable must keep ALL writable state beside the exe (edms-data/), never in
@@ -417,27 +414,6 @@ function registerIpc() {
   );
 
   registerSecureStoreIpc();
-  registerMobileIpc();
-}
-
-/*
- * Mobile link (Android app) — see electron/mobile-gateway.cjs for the
- * security model. Only the local desktop window may drive it: the phone loads
- * the same pages through the gateway but never gets this preload bridge, and
- * the sender check below refuses any frame not served from 127.0.0.1.
- */
-function registerMobileIpc() {
-  const guard = (fn) => (e, ...args) => {
-    const url = e.senderFrame ? e.senderFrame.url : "";
-    if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(url)) throw new Error("forbidden");
-    if (!mobileGateway) throw new Error("not ready");
-    return fn(...args);
-  };
-  ipcMain.handle("mobile:status", guard(() => mobileGateway.status()));
-  ipcMain.handle("mobile:set-enabled", guard((on) => mobileGateway.setEnabled(on)));
-  ipcMain.handle("mobile:set-public-host", guard((h) => mobileGateway.setPublicHost(h)));
-  ipcMain.handle("mobile:new-pairing", guard(() => mobileGateway.newPairing()));
-  ipcMain.handle("mobile:revoke", guard((id) => mobileGateway.revoke(String(id))));
 }
 
 /*
@@ -545,10 +521,8 @@ if (!gotLock) {
 
   app.whenReady().then(async () => {
     registerIpc();
-    mobileGateway = createMobileGateway({ dir: baseUserData(), serverName: os.hostname() });
     try {
       const url = await bootNext(await getFreePort());
-      mobileGateway.attach(Number(new URL(url).port));
       await createWindow(url);
     } catch (err) {
       console.error("[main] startup failed:", err);
@@ -629,7 +603,6 @@ if (!gotLock) {
   });
 
   app.on("before-quit", () => {
-    if (mobileGateway) mobileGateway.stop();
     if (serverProcess && !serverProcess.killed) {
       serverProcess.kill();
     }

@@ -222,8 +222,10 @@ fs.copyFileSync(
 );
 console.log("main.cjs obfuscated (stringArray + controlFlowFlattening + hex ids).");
 
-console.log("=== [7/7] electron-builder (nsis + portable x64, asar) ===");
+console.log("=== [7/7] electron-builder (nsis x64, asar) ===");
 // --publish never: update-info generation requires a configured publish
 // provider (GitHub repo); local/manual releases ship the exes as-is.
-sh("npx electron-builder --win nsis portable --x64 --publish never");
-console.log("DONE - see dist/release/ (Setup .exe + Portable .exe)");
+// Setup installer only: it upgrades an existing install in place and keeps
+// userData; the portable exe is no longer shipped.
+sh("npx electron-builder --win nsis --x64 --publish never");
+console.log("DONE - see dist/release/ (Setup .exe)");

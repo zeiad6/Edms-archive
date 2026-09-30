@@ -27,13 +27,14 @@ for local scan hardware access.
 
 ## ⬇️ تحميل البرنامج — ويندوز 64-بت
 
-<a href="https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe">
+<a href="https://github.com/zeiad6/Edms-archive/releases/download/v1.0.2/EDMS-Archive-1.0.2-Setup-x64.exe">
 <img src="https://img.shields.io/badge/%D8%AA%D8%AD%D9%85%D9%8A%D9%84_%D8%A7%D9%84%D9%85%D8%AB%D8%A8%D8%AA-Windows_Setup-0078D4?style=for-the-badge&logo=windows" alt="تحميل مثبت ويندوز" />
 </a>
 
-**[⬇️ تحميل مباشر: EDMS-Archive-1.0.0-Setup-x64.exe (المثبت)](https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe)**
+**[⬇️ تحميل مباشر: EDMS-Archive-1.0.2-Setup-x64.exe (المثبت)](https://github.com/zeiad6/Edms-archive/releases/download/v1.0.2/EDMS-Archive-1.0.2-Setup-x64.exe)**
 
-**[💼 تحميل مباشر: EDMS-Archive-1.0.0-Portable-x64.exe (نسخة محمولة)](https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Portable-x64.exe)**
+> 🔄 **لديك الإصدار 1.0.0؟** شغّل المثبّت الجديد مباشرة — يُحدِّث البرنامج في مكانه
+> ويحتفظ بقاعدة البيانات والمستندات كما هي.
 
 · [📦 كل الإصدارات](https://github.com/zeiad6/Edms-archive/releases/latest)
 
@@ -42,9 +43,10 @@ for local scan hardware access.
 
 ## ⬇️ Download — Windows 64-bit (x64)
 
-**[⬇️ Direct download: EDMS-Archive-1.0.0-Setup-x64.exe (Installer)](https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe)**
+**[⬇️ Direct download: EDMS-Archive-1.0.2-Setup-x64.exe (Installer)](https://github.com/zeiad6/Edms-archive/releases/download/v1.0.2/EDMS-Archive-1.0.2-Setup-x64.exe)**
 
-**[💼 Direct download: EDMS-Archive-1.0.0-Portable-x64.exe (Portable)](https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Portable-x64.exe)**
+> 🔄 **On 1.0.0?** Just run the new installer — it upgrades in place and keeps
+> your database and documents untouched.
 
 · [📦 All releases](https://github.com/zeiad6/Edms-archive/releases/latest)
 
