@@ -110,11 +110,21 @@ jobs:
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           $exeName = 'edms-archive.exe'
 
-          function Find-Install {
-            Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall |
-              Get-ItemProperty |
-              Where-Object { $_.InstallLocation -and (Test-Path (Join-Path $_.InstallLocation $exeName)) } |
-              Select-Object -First 1
+          # Locate the installed exe on disk (per-user NSIS -> %LOCALAPPDATA%\Programs).
+          # Polls because the NSIS process can return before files settle.
+          function Find-Exe {
+            for ($i = 0; $i -lt 20; $i++) {
+              foreach ($r in @("$env:LOCALAPPDATA\Programs", $env:ProgramFiles)) {
+                if (-not (Test-Path $r)) { continue }
+                $f = Get-ChildItem $r -Recurse -Depth 2 -Filter $exeName -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($f) { return $f.FullName }
+              }
+              Start-Sleep -Seconds 3
+            }
+            Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall, HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall -ErrorAction SilentlyContinue |
+              Get-ItemProperty | Where-Object { $_.UninstallString -match 'Uninstall' } |
+              Format-List DisplayName, DisplayVersion, InstallLocation, UninstallString | Out-String | Write-Host
+            return $null
           }
           function Wait-DataDir {
             for ($i = 0; $i -lt 60; $i++) {
@@ -139,9 +149,8 @@ jobs:
           $old = Join-Path $env:RUNNER_TEMP 'EDMS-1.0.0-Setup.exe'
           Invoke-WebRequest 'https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe' -OutFile $old
           Start-Process $old -ArgumentList '/S' -Wait
-          $inst = Find-Install
-          if (-not $inst) { throw 'v1.0.0 did not install' }
-          $exe = Join-Path $inst.InstallLocation $exeName
+          $exe = Find-Exe
+          if (-not $exe) { throw 'v1.0.0 did not install' }
           Write-Host "v1.0.0 installed: $exe ($((Get-Item $exe).VersionInfo.ProductVersion))"
           Start-Process $exe
           $data = Wait-DataDir
@@ -165,8 +174,8 @@ jobs:
           $afterInstall = Get-Fingerprint $data
           $diff = Compare-Object $before $afterInstall
           if ($diff) { $diff | Format-Table -AutoSize | Out-String | Write-Host; throw 'installer changed user data' }
-          $inst = Find-Install
-          $exe = Join-Path $inst.InstallLocation $exeName
+          $exe = Find-Exe
+          if (-not $exe) { throw 'new version not found after upgrade' }
           $got = (Get-Item $exe).VersionInfo.ProductVersion
           if ($got -notlike "$version*") { throw "expected $version installed, found $got" }
           Write-Host "upgraded in place to $got; data untouched"
