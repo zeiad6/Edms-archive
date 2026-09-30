@@ -117,6 +117,15 @@ function stageTesseractBundle() {
 console.log("=== [1/7] clean dist/ ===");
 fs.rmSync(distRoot, { recursive: true, force: true });
 
+// `next build` prerenders routes, which runs the /api/health route handler ->
+// ensureSeeded() -> src/db/index.ts opens `file:./data/edms.db` at module scope.
+// Without the directory libsql throws ConnectionFailed(... : 14) and the build
+// dies with "Failed to collect page data for /_not-found" — on a clean CI
+// runner there is no data/ to begin with. Creating it here is the earliest
+// point that is still inside our control; the real DB is created at first run.
+fs.mkdirSync(path.join(root, "data"), { recursive: true });
+fs.mkdirSync(path.join(root, "storage"), { recursive: true });
+
 console.log("=== [2/7] next build (standalone) ===");
 sh("npx next build");
 
