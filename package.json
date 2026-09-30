@@ -52,8 +52,8 @@
     "zod": "4.4.3"
   },
   "overrides": {
-    "semver": "^7.8.5",
-    "nanoid": "^3.3.18"
+    "nanoid": "^3.3.18",
+    "semver": "^7.8.5"
   },
   "_nativeRebuildNote": "ABI mismatch fix: run npm run electron:rebuild after npm ci on the packaging host to recompile @libsql/client+sharp against Electron 43 headers (alternative: electron-builder npmRebuild:true, kept false here for faster deterministic builds).",
   "devDependencies": {

@@ -20,7 +20,12 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        # See note above: the lockfile is generated on Linux and cannot
+        # list Windows-only optional deps (electron-winstaller). Installing
+        # with optional deps included keeps `npm ci` from rejecting the
+        # lockfile as out of sync; the missing packages are not needed on
+        # the jobs that run here.
+        run: npm ci --include=optional
 
       - name: TypeScript typecheck
         run: npx tsc --noEmit
@@ -43,7 +48,12 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        # See note above: the lockfile is generated on Linux and cannot
+        # list Windows-only optional deps (electron-winstaller). Installing
+        # with optional deps included keeps `npm ci` from rejecting the
+        # lockfile as out of sync; the missing packages are not needed on
+        # the jobs that run here.
+        run: npm ci --include=optional
 
       - name: Run security audit
         run: npm audit --omit=dev --audit-level=high
@@ -64,7 +74,12 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        # See note above: the lockfile is generated on Linux and cannot
+        # list Windows-only optional deps (electron-winstaller). Installing
+        # with optional deps included keeps `npm ci` from rejecting the
+        # lockfile as out of sync; the missing packages are not needed on
+        # the jobs that run here.
+        run: npm ci --include=optional
 
       - name: Build
         run: npm run build
@@ -82,7 +97,12 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        # See note above: the lockfile is generated on Linux and cannot
+        # list Windows-only optional deps (electron-winstaller). Installing
+        # with optional deps included keeps `npm ci` from rejecting the
+        # lockfile as out of sync; the missing packages are not needed on
+        # the jobs that run here.
+        run: npm ci --include=optional
 
       - name: Rebuild native modules for Electron
         run: npm run electron:rebuild
