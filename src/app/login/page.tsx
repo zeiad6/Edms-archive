@@ -7,10 +7,16 @@ import { LoginHeader } from "@/components/login/login-header";
 import { LoginTabs } from "@/components/login/login-tabs";
 import { ts } from "@/lib/i18n";
 import { getServerLang } from "@/lib/server-lang";
+import { ensureSeeded } from "@/lib/seed";
 
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
+  // This is the first page a fresh install renders (`/` redirects here), so it
+  // must not assume the schema already exists — `instrumentation.ts` seeds on
+  // boot, but an explicit await keeps the page correct on its own.
+  await ensureSeeded();
+
   const lang = await getServerLang();
   const user = await getCurrentUser();
   if (user) redirect("/");

@@ -329,10 +329,15 @@ jobs:
           # Any leftover edms process would make the new build exit 0 by design
           # (single-instance handover), so the runner is swept first.
           Stop-App
+          # A leftover milestone from a previous attempt (or from the v1.0.0 run
+          # below) must not be able to satisfy this gate — start from a clean
+          # log so the match can only come from this build.
+          Remove-Item (Join-Path $data 'logs\startup.log') -Force -ErrorAction SilentlyContinue
           $proc = Start-App $exe
           $startupLog = Join-Path $data 'logs\startup.log'
           $healthy = $false
-          for ($i = 0; $i -lt 40 -and -not $healthy; $i++) {
+          $up = $false
+          for ($i = 0; $i -lt 40 -and -not $up; $i++) {
             Start-Sleep -Seconds 3
             if ($proc.HasExited) {
               $code = $proc.ExitCode
@@ -361,14 +366,17 @@ jobs:
               } catch { }
             }
             # Same trap as the smoke gate: health is answered by the Next child
-            # and says nothing about the window. Require the milestone too.
-            if (Test-Logged $startupLog 'window: page loaded') {
+            # and says nothing about the window. Require the milestone too, and
+            # keep looping until both are true — breaking out on health alone
+            # would pass a build whose server is fine but whose window is dead.
+            if ($healthy -and (Test-Logged $startupLog 'window: page loaded')) {
+              $up = $true
               Write-Host 'window reported the page loaded'
-              break
             }
           }
-          if (-not $healthy) {
+          if (-not $up) {
             Dump-AppLogs $data
+            if ($healthy) { throw 'upgraded build served /api/health but the window never finished loading' }
             throw 'new version never reported healthy with a loaded window on the upgraded data'
           }
           Stop-App
