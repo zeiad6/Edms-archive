@@ -93,7 +93,85 @@ jobs:
           if (-not $setup) { Write-Error 'Setup exe with Latin name not found (check artifactName in electron-builder.yml)'; exit 1 }
           if ($setup.Length -lt 10MB) { Write-Error "Installer suspiciously small: $($setup.Length) bytes"; exit 1 }
           if (-not (Test-Path dist/release/latest.yml)) { Write-Error 'latest.yml missing — v1.0.0 installs would never see this update'; exit 1 }
+          # The bundled Next server must be inside the app dir, not only in the
+          # tree electron-builder packaged from: it is copied in by the
+          # afterPack hook, and a missing server.js makes the packaged app quit
+          # on launch with nothing but an exit code to show for it.
+          foreach ($p in @(
+            'dist/release/win-unpacked/resources/standalone/server.js',
+            'dist/release/win-unpacked/resources/standalone/.next/BUILD_ID',
+            'dist/release/win-unpacked/resources/tesseract/tesseract.exe')) {
+            if (-not (Test-Path $p)) { Write-Error "packaged runtime file missing: $p"; exit 1 }
+          }
           Write-Host "OK: $($setup.FullName) ($([math]::Round($setup.Length/1MB,1)) MB)"
+
+      # Boot the freshly built, not-yet-installed app BEFORE the upgrade test.
+      # Both tests below need the app to actually start, and this one fails in
+      # seconds with full logs attached. Without it, a boot regression shows up
+      # only as "new version exited on startup" ~9 minutes into the upgrade
+      # test, buried under an install it has nothing to do with.
+      - name: Boot smoke test (fresh build starts and serves /api/health)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = 'dist\release\win-unpacked\edms-archive.exe'
+          if (-not (Test-Path $exe)) { Write-Error "unpacked app missing at $exe"; exit 1 }
+
+          $smoke = Join-Path $env:RUNNER_TEMP 'edms-smoke'
+          Remove-Item $smoke -Recurse -Force -ErrorAction SilentlyContinue
+          $out = Join-Path $env:RUNNER_TEMP 'smoke-stdout.log'
+          $err = Join-Path $env:RUNNER_TEMP 'smoke-stderr.log'
+
+          # Read the logs defensively: when the app is still running (the
+          # "never healthy" path) its redirected handles may deny a read.
+          function Show-File($f) {
+            try { Get-Content $f -Tail 60 -ErrorAction Stop | Out-String | Write-Host } catch { Write-Host "could not read $f : $($_.Exception.Message)" }
+          }
+          function Show-SmokeLogs {
+            foreach ($f in @($out, $err)) {
+              if (Test-Path $f) { Write-Host "----- $(Split-Path $f -Leaf) -----"; Show-File $f }
+            }
+            # Search rather than guess: Electron's --user-data-dir handling of the
+            # app-name subfolder differs between versions, and productName is
+            # Arabic, so the exact path under $smoke is not worth hard-coding.
+            $sl = Get-ChildItem $smoke -Recurse -Filter startup.log -ErrorAction SilentlyContinue |
+              Select-Object -First 1 -ExpandProperty FullName
+            if ($sl) { Write-Host "----- startup.log ($sl) -----"; Show-File $sl }
+            else { Write-Host "no startup.log under $smoke" }
+          }
+
+          # --user-data-dir keeps the smoke run out of %APPDATA%, so the upgrade
+          # test below still starts from a genuine v1.0.0 install.
+          # ELECTRON_ENABLE_LOGGING makes the main process mirror its
+          # console.* calls to stderr, which is what startProcess redirects capture.
+          $env:ELECTRON_ENABLE_LOGGING = '1'
+          $proc = Start-Process $exe -ArgumentList "--user-data-dir=$smoke" -PassThru `
+            -RedirectStandardOutput $out -RedirectStandardError $err
+          $healthy = $false
+          for ($i = 0; $i -lt 40 -and -not $healthy; $i++) {
+            Start-Sleep -Seconds 3
+            if ($proc.HasExited) { Show-SmokeLogs; Write-Error "fresh build exited on startup (code $($proc.ExitCode))"; exit 1 }
+            $pids = (Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*edms-archive*' }).Id
+            $ports = Get-NetTCPConnection -State Listen -LocalAddress 127.0.0.1 -ErrorAction SilentlyContinue |
+              Where-Object { $pids -contains $_.OwningProcess } | Select-Object -ExpandProperty LocalPort -Unique
+            foreach ($port in $ports) {
+              try {
+                $r = Invoke-RestMethod "http://127.0.0.1:$port/api/health" -TimeoutSec 10
+                if ($r.ok) { $healthy = $true; Write-Host "health ok on port $port" }
+              } catch { }
+            }
+          }
+          if (-not $healthy) { Show-SmokeLogs; Write-Error 'fresh build never reported healthy'; exit 1 }
+
+          Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*edms-archive*' } | Stop-Process -Force
+          Start-Sleep -Seconds 5
+
+          # The upgrade test below must start from a genuine first-run v1.0.0
+          # install. Electron versions differ in whether --user-data-dir also
+          # moves app.getPath('userData'), so clear the real path too rather
+          # than assume isolation held.
+          Remove-Item (Join-Path $env:APPDATA 'enterprise-edms') -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Host 'Boot smoke test OK'
 
       # Real upgrade on a clean runner, exactly what a v1.0.0 user does:
       #   1. install + run the published v1.0.0 so it creates its database,
@@ -103,6 +181,11 @@ jobs:
       #   4. data folder must be byte-identical; the new exe must be in place
       #   5. start the new version on that data: it must stay up, and every
       #      pre-existing file must still be intact afterwards
+      #
+      # Every launch captures stdout/stderr and, on failure, prints both those
+      # and the app's own <userData>\logs\startup.log. Without them a failed
+      # boot is just an exit code — the v1.0.2 gate failed three times with
+      # "exited on startup (code 0)" and no explanation anywhere.
       - name: Upgrade test (v1.0.0 -> this build keeps user data)
         shell: pwsh
         run: |
@@ -137,6 +220,33 @@ jobs:
           function Stop-App {
             Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*edms-archive*' } | Stop-Process -Force
             Start-Sleep -Seconds 5
+          }
+          # Launch the app with stdout/stderr captured. A packaged Electron app
+          # that dies during boot has no window to screenshot and no console,
+          # so these files are the only record of WHY.
+          $env:ELECTRON_ENABLE_LOGGING = '1'
+          function Start-App($exe) {
+            $out = Join-Path $env:RUNNER_TEMP 'edms-stdout.log'
+            $err = Join-Path $env:RUNNER_TEMP 'edms-stderr.log'
+            Remove-Item $out, $err -ErrorAction SilentlyContinue
+            return Start-Process $exe -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+          }
+          function Read-Log($f) {
+            try { Get-Content $f -Tail 60 -ErrorAction Stop | Out-String | Write-Host }
+            catch { Write-Host "could not read $f : $($_.Exception.Message)" }
+          }
+          function Dump-AppLogs($data) {
+            foreach ($f in @((Join-Path $env:RUNNER_TEMP 'edms-stdout.log'), (Join-Path $env:RUNNER_TEMP 'edms-stderr.log'))) {
+              if (Test-Path $f) { Write-Host "----- $(Split-Path $f -Leaf) -----"; Read-Log $f }
+            }
+            # Written by electron/main.cjs logStartup() — survives the crash.
+            $sl = if ($data) { Join-Path $data 'logs\startup.log' } else { $null }
+            if ($sl -and (Test-Path $sl)) {
+              Write-Host "----- startup.log ($sl) -----"
+              Read-Log $sl
+            } else {
+              Write-Host "no startup.log at $($sl)"
+            }
           }
           function Get-Fingerprint($dir) {
             Get-ChildItem $dir -Recurse -File |
@@ -184,11 +294,33 @@ jobs:
           # enough (a main-process crash leaves an error dialog open), so wait
           # for the bundled server and require /api/health to answer ok —
           # that route opens the migrated DB and runs the seed/migrations.
-          $proc = Start-Process $exe -PassThru
+          #
+          # Any leftover edms process would make the new build exit 0 by design
+          # (single-instance handover), so the runner is swept first.
+          Stop-App
+          $proc = Start-App $exe
+          $startupLog = Join-Path $data 'logs\startup.log'
           $healthy = $false
           for ($i = 0; $i -lt 40 -and -not $healthy; $i++) {
             Start-Sleep -Seconds 3
-            if ($proc.HasExited) { throw "new version exited on startup (code $($proc.ExitCode))" }
+            if ($proc.HasExited) {
+              $code = $proc.ExitCode
+              # Exit 0 that ends in a "lock DENIED" line is the single-instance
+              # handover, not a crash: a stale process still held the lock even
+              # after the sweep. Retry rather than fail the release on it.
+              $handover = $code -eq 0 -and (Test-Path $startupLog) -and
+                (Select-String -Path $startupLog -Pattern 'lock DENIED' -Quiet)
+              if ($handover -and $i -lt 3) {
+                Write-Host "single-instance handover (exit 0) on attempt $($i + 1) — sweeping and retrying"
+                Dump-AppLogs $data
+                Stop-App
+                Remove-Item $startupLog -Force -ErrorAction SilentlyContinue
+                $proc = Start-App $exe
+                continue
+              }
+              Dump-AppLogs $data
+              throw "new version exited on startup (code $code)"
+            }
             $pids = (Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*edms-archive*' }).Id
             $ports = Get-NetTCPConnection -State Listen -LocalAddress 127.0.0.1 -ErrorAction SilentlyContinue |
               Where-Object { $pids -contains $_.OwningProcess } | Select-Object -ExpandProperty LocalPort -Unique
@@ -199,7 +331,10 @@ jobs:
               } catch { }
             }
           }
-          if (-not $healthy) { throw 'new version never reported healthy on the upgraded data' }
+          if (-not $healthy) {
+            Dump-AppLogs $data
+            throw 'new version never reported healthy on the upgraded data'
+          }
           Stop-App
           $afterBoot = Get-Fingerprint $data
           $missing = Compare-Object $before $afterBoot | Where-Object SideIndicator -eq '<=' |

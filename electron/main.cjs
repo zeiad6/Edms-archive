@@ -67,6 +67,28 @@ function userDataDir() {
 }
 
 // ---------------------------------------------------------------------------
+// Startup diagnostics.
+//
+// A packaged app that dies during boot gives the user a blank window and CI
+// nothing but an exit code, which is why a failed release used to be
+// undiagnosable. Every boot milestone is appended to <userData>/logs/
+// startup.log as well as stdout. Best-effort only — a broken log must never
+// be the reason the app fails to start — and it never records secrets
+// (AUTH_SECRET is never passed to this function).
+// ---------------------------------------------------------------------------
+function logStartup(msg) {
+  const line = `[${new Date().toISOString()}] ${msg}`;
+  try {
+    console.log(line);
+  } catch { /* stdout closed — the file is the durable record */ }
+  try {
+    const dir = path.join(baseUserData(), "logs");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.appendFileSync(path.join(dir, "startup.log"), line + "\n");
+  } catch { /* diagnostics are best-effort */ }
+}
+
+// ---------------------------------------------------------------------------
 // Per-install AUTH_SECRET (first-boot generation). Stored in userData /
 // auth_secret with mode 0600, injected into process.env.AUTH_SECRET before
 // the Next server spawns. Never logged, never bundled in the installer.
@@ -211,6 +233,8 @@ async function bootNext(port) {
 
   const sdir = nextServerDir();
   const serverJs = path.join(sdir, "server.js");
+  logStartup(`boot: dataDir=${dirs.data} userDataBase=${baseUserData()}`);
+  logStartup(`boot: standalone=${serverJs} exists=${fs.existsSync(serverJs)}`);
   if (!fs.existsSync(serverJs)) {
     throw new Error(`standalone server.js not found at ${serverJs}`);
   }
@@ -253,6 +277,7 @@ async function bootNext(port) {
     );
   }
 
+  logStartup(`boot: spawning Next server on port ${port} (cwd=${sdir})`);
   serverProcess = spawn(process.execPath, [serverJs], {
     cwd: sdir,
     env,
@@ -260,12 +285,26 @@ async function bootNext(port) {
     windowsHide: true,
   });
   serverProcess.stdout.on("data", (d) => process.stdout.write(`[next] ${d}`));
-  serverProcess.stderr.on("data", (d) => process.stderr.write(`[next-err] ${d}`));
-  serverProcess.on("exit", (code) => {
+  serverProcess.stderr.on("data", (d) => {
+    process.stderr.write(`[next-err] ${d}`);
+    // The server's own stderr is the only explanation a failed boot ever
+    // gets — without it in the log file the release gate is undebuggable.
+    logStartup(`[next-err] ${String(d).trimEnd()}`);
+  });
+  serverProcess.on("error", (err) => logStartup(`[next] spawn error: ${err.message}`));
+  serverProcess.on("exit", (code, signal) => {
+    logStartup(`[next] server exited code=${code} signal=${signal}`);
     if (code !== 0) console.error(`[next] exited with code ${code}`);
   });
 
-  return waitForServer(port, 45_000);
+  try {
+    const url = await waitForServer(port, 45_000);
+    logStartup(`boot: server responding at ${url}`);
+    return url;
+  } catch (err) {
+    logStartup(`boot: FAILED — ${err.message}`);
+    throw err;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -505,6 +544,10 @@ function registerSecureStoreIpc() {
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
+  // A second launch while the first is still running is NORMAL, not a crash:
+  // it hands focus back to the live window and must exit 0 so launchers and
+  // the release upgrade test do not read it as a startup failure.
+  logStartup("boot: single-instance lock DENIED — another instance is running, handing over and exiting");
   app.quit();
 } else {
   // Portable: redirect Electron userData beside the exe BEFORE ready, so
@@ -520,13 +563,27 @@ if (!gotLock) {
   });
 
   app.whenReady().then(async () => {
-    registerIpc();
     try {
+      logStartup("boot: app ready — starting Next server");
+      registerIpc();
       const url = await bootNext(await getFreePort());
       await createWindow(url);
+      logStartup("boot: window created, app is up");
     } catch (err) {
+      // Record WHY before quitting: a packaged app that dies here shows the
+      // user nothing and CI only an exit code. stack included because the
+      // shipped main.cjs is obfuscated and the message alone is not enough.
+      logStartup(`boot: FAILED — ${(err && err.stack) || err}`);
       console.error("[main] startup failed:", err);
-      app.quit();
+      // Kill the child first: app.exit() skips before-quit, and a stray
+      // ELECTRON_RUN_AS_NODE server would keep holding the SQLite lock and the
+      // port, which is exactly what an operator (or the next launch) hits next.
+      try {
+        if (serverProcess && !serverProcess.killed) serverProcess.kill();
+      } catch { /* nothing to clean up */ }
+      // Non-zero so a failed boot is distinguishable from a clean second-launch
+      // handover in release logs and in the upgrade test.
+      app.exit(1);
     }
 
     app.on("activate", () => {
