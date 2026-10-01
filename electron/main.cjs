@@ -384,6 +384,37 @@ async function createWindow(url) {
     if (!isLocalAppUrl(url)) event.preventDefault();
   });
 
+  // A renderer that dies, hangs or fails to load leaves the user staring at a
+  // blank frameless window with no console. These are the only events that
+  // explain it, so they all go to the durable boot log.
+  win.webContents.on("did-fail-load", (_e, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    logStartup(
+      `render: did-fail-load code=${errorCode} (${errorDescription}) mainFrame=${isMainFrame} url=${validatedURL}`
+    );
+  });
+  win.webContents.on("render-process-gone", (_e, details) => {
+    logStartup(`render: process gone ${JSON.stringify(details)}`);
+  });
+  win.webContents.on("unresponsive", () => logStartup("render: unresponsive"));
+  win.webContents.on("preload-error", (_e, preloadPath, err) => {
+    logStartup(`render: preload-error ${preloadPath}: ${err && err.message}`);
+  });
+  // Electron >=36 passes a single `details` object; older builds pass
+  // positional args. Accept both so a renderer error is never lost, but only
+  // during boot — startup.log lives in userData and is never rotated, so
+  // logging every console error for the life of the install would grow it
+  // without bound for a page the user is using perfectly well.
+  const consoleDeadline = Date.now() + 60_000;
+  win.webContents.on("console-message", (...args) => {
+    if (Date.now() > consoleDeadline) return;
+    const d = args[1];
+    const level = d && typeof d === "object" ? d.level : args[1];
+    const message = d && typeof d === "object" ? d.message : args[2];
+    const where = d && typeof d === "object" ? `${d.sourceId}:${d.lineNumber}` : `${args[4]}:${args[3]}`;
+    if (typeof level !== "number" || level < 2) return;
+    logStartup(`render: console ${where} ${message}`);
+  });
+
   // Re-emit maximize/unmaximize so the title bar can swap the ⛶ glyph.
   const sendState = () => {
     if (!win.isDestroyed()) {
@@ -429,7 +460,47 @@ async function createWindow(url) {
     })();
   });
 
-  await win.loadURL(url);
+  // Wait for the window to actually show a page instead of awaiting loadURL.
+  //
+  // loadURL() rejects with ERR_FAILED (-2) whenever its navigation is
+  // SUPERSEDED — and the app redirects "/" to the login screen, so the first
+  // load is always cancelled by the second. Treating that rejection as fatal
+  // quit a perfectly working app on every launch (it exited 0 before, which is
+  // why the release gate only ever saw "exited on startup (code 0)").
+  //
+  // did-finish-load is the honest signal: it fires for whichever navigation
+  // won. A genuine failure still surfaces via did-fail-load on the main frame.
+  await new Promise((resolve, reject) => {
+    const done = (ok, why) => {
+      clearTimeout(timer);
+      win.webContents.removeListener("did-finish-load", onFinish);
+      win.webContents.removeListener("did-fail-load", onFail);
+      ok ? resolve() : reject(new Error(why));
+    };
+    const onFinish = (_e, isMainFrame) => {
+      if (!isMainFrame) return;
+      logStartup(`window: did-finish-load ${win.webContents.getURL()}`);
+      done(true);
+    };
+    const onFail = (_e, code, description, failedUrl, isMainFrame) => {
+      // ERR_ABORTED (-3) is a superseded navigation, not a failure.
+      if (!isMainFrame || code === -3) return;
+      done(false, `page load failed ${code} (${description}) ${failedUrl}`);
+    };
+    const timer = setTimeout(
+      () => done(false, "window did not finish loading in 45s"),
+      45_000
+    );
+    win.webContents.on("did-finish-load", onFinish);
+    win.webContents.on("did-fail-load", onFail);
+    logStartup(`window: loading ${url}`);
+    win.loadURL(url).catch((err) => {
+      // Supersession lands here as ERR_FAILED; did-finish-load still fires for
+      // the winning navigation, so this is only fatal if nothing loads at all.
+      logStartup(`window: loadURL rejected — ${(err && err.message) || err}`);
+    });
+  });
+  logStartup("window: page loaded");
   return win;
 }
 

@@ -110,7 +110,7 @@ jobs:
       # seconds with full logs attached. Without it, a boot regression shows up
       # only as "new version exited on startup" ~9 minutes into the upgrade
       # test, buried under an install it has nothing to do with.
-      - name: Boot smoke test (fresh build starts and serves /api/health)
+      - name: Boot smoke test (fresh build serves /api/health AND loads the window)
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -126,6 +126,13 @@ jobs:
           # "never healthy" path) its redirected handles may deny a read.
           function Show-File($f) {
             try { Get-Content $f -Tail 60 -ErrorAction Stop | Out-String | Write-Host } catch { Write-Host "could not read $f : $($_.Exception.Message)" }
+          }
+          # The app keeps startup.log open for append, so a read can lose a race with a
+          # write. Never let that abort the run: "not readable yet" means "not yet".
+          function Test-Logged($f, $pattern) {
+            if (-not $f -or -not (Test-Path $f)) { return $false }
+            try { return [bool](Select-String -Path $f -Pattern $pattern -Quiet -ErrorAction Stop) }
+            catch { return $false }
           }
           function Show-SmokeLogs {
             foreach ($f in @($out, $err)) {
@@ -148,7 +155,8 @@ jobs:
           $proc = Start-Process $exe -ArgumentList "--user-data-dir=$smoke" -PassThru `
             -RedirectStandardOutput $out -RedirectStandardError $err
           $healthy = $false
-          for ($i = 0; $i -lt 40 -and -not $healthy; $i++) {
+          $up = $false
+          for ($i = 0; $i -lt 40 -and -not $up; $i++) {
             Start-Sleep -Seconds 3
             if ($proc.HasExited) { Show-SmokeLogs; Write-Error "fresh build exited on startup (code $($proc.ExitCode))"; exit 1 }
             $pids = (Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*edms-archive*' }).Id
@@ -157,11 +165,27 @@ jobs:
             foreach ($port in $ports) {
               try {
                 $r = Invoke-RestMethod "http://127.0.0.1:$port/api/health" -TimeoutSec 10
-                if ($r.ok) { $healthy = $true; Write-Host "health ok on port $port" }
+                if ($r.ok) { if (-not $healthy) { Write-Host "health ok on port $port" }; $healthy = $true }
               } catch { }
+            }
+            # /api/health is answered by the Next child process, which runs fine
+            # even when the Electron window never renders a page. Health alone
+            # cannot tell a working app from a windowless one, so also require
+            # the app's own milestone from startup.log.
+            if ($healthy) {
+              # Resolve the log on each pass: the app creates it lazily, so a
+              # path captured before the first write would stay $null forever.
+              $log = Get-ChildItem $smoke -Recurse -Filter startup.log -ErrorAction SilentlyContinue |
+                Select-Object -First 1 -ExpandProperty FullName
+              if (Test-Logged $log 'window: page loaded') { $up = $true; Write-Host 'window reported the page loaded' }
             }
           }
           if (-not $healthy) { Show-SmokeLogs; Write-Error 'fresh build never reported healthy'; exit 1 }
+          if (-not $up) {
+            Show-SmokeLogs
+            Write-Error 'server healthy but the window never finished loading'
+            exit 1
+          }
 
           Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*edms-archive*' } | Stop-Process -Force
           Start-Sleep -Seconds 5
@@ -234,6 +258,13 @@ jobs:
           function Read-Log($f) {
             try { Get-Content $f -Tail 60 -ErrorAction Stop | Out-String | Write-Host }
             catch { Write-Host "could not read $f : $($_.Exception.Message)" }
+          }
+          # The app keeps startup.log open for append, so a read can lose a race with a
+          # write. Never let that abort the run: "not readable yet" means "not yet".
+          function Test-Logged($f, $pattern) {
+            if (-not $f -or -not (Test-Path $f)) { return $false }
+            try { return [bool](Select-String -Path $f -Pattern $pattern -Quiet -ErrorAction Stop) }
+            catch { return $false }
           }
           function Dump-AppLogs($data) {
             foreach ($f in @((Join-Path $env:RUNNER_TEMP 'edms-stdout.log'), (Join-Path $env:RUNNER_TEMP 'edms-stderr.log'))) {
@@ -308,8 +339,7 @@ jobs:
               # Exit 0 that ends in a "lock DENIED" line is the single-instance
               # handover, not a crash: a stale process still held the lock even
               # after the sweep. Retry rather than fail the release on it.
-              $handover = $code -eq 0 -and (Test-Path $startupLog) -and
-                (Select-String -Path $startupLog -Pattern 'lock DENIED' -Quiet)
+              $handover = $code -eq 0 -and (Test-Logged $startupLog 'lock DENIED')
               if ($handover -and $i -lt 3) {
                 Write-Host "single-instance handover (exit 0) on attempt $($i + 1) — sweeping and retrying"
                 Dump-AppLogs $data
@@ -327,13 +357,19 @@ jobs:
             foreach ($port in $ports) {
               try {
                 $r = Invoke-RestMethod "http://127.0.0.1:$port/api/health" -TimeoutSec 10
-                if ($r.ok) { $healthy = $true; Write-Host "health ok on port $port" }
+                if ($r.ok) { if (-not $healthy) { Write-Host "health ok on port $port" }; $healthy = $true }
               } catch { }
+            }
+            # Same trap as the smoke gate: health is answered by the Next child
+            # and says nothing about the window. Require the milestone too.
+            if (Test-Logged $startupLog 'window: page loaded') {
+              Write-Host 'window reported the page loaded'
+              break
             }
           }
           if (-not $healthy) {
             Dump-AppLogs $data
-            throw 'new version never reported healthy on the upgraded data'
+            throw 'new version never reported healthy with a loaded window on the upgraded data'
           }
           Stop-App
           $afterBoot = Get-Fingerprint $data
