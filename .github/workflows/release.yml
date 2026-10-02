@@ -175,10 +175,11 @@ jobs:
           # Both apply to the test launch only; the shipped app keeps its sandbox
           # and hardware acceleration.
           $env:ELECTRON_ENABLE_LOGGING = '1'
-          # TEMPORARY DIAGNOSTIC: /api/health is served by the same Next server in
-          # the same BrowserWindow, but as JSON — no HTML, no globals.css, no
-          # React. If the renderer survives this, the crash is in the app bundle.
-          $env:EDMS_BOOT_PROBE = '/api/health'
+          # TEMPORARY DIAGNOSTIC cascade. Each target only runs if the previous
+          # one survived, so one run finds the first document that kills the
+          # renderer: a bare in-memory document, then a real 404 from the local
+          # server (app layout + globals.css), then the app page itself.
+          $env:EDMS_BOOT_PROBE = 'data:text/html,<title>p</title>ok,/__probe_missing__,/'
           $proc = Start-Process $exe -ArgumentList "--user-data-dir=$smoke", '--disable-gpu', '--no-sandbox' -PassThru `
             -RedirectStandardOutput $out -RedirectStandardError $err
           $healthy = $false

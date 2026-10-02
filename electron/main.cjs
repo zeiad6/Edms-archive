@@ -470,48 +470,66 @@ async function createWindow(url) {
   //
   // did-finish-load is the honest signal: it fires for whichever navigation
   // won. A genuine failure still surfaces via did-fail-load on the main frame.
-  await new Promise((resolve, reject) => {
-    const done = (ok, why) => {
-      clearTimeout(timer);
-      win.webContents.removeListener("did-finish-load", onFinish);
-      win.webContents.removeListener("did-fail-load", onFail);
-      win.webContents.removeListener("render-process-gone", onGone);
-      ok ? resolve() : reject(new Error(why));
-    };
-    const onFinish = (_e, isMainFrame) => {
-      if (!isMainFrame) return;
-      logStartup(`window: did-finish-load ${win.webContents.getURL()}`);
-      done(true);
-    };
-    const onFail = (_e, code, description, failedUrl, isMainFrame) => {
-      // ERR_ABORTED (-3) is a superseded navigation, not a failure.
-      if (!isMainFrame || code === -3) return;
-      done(false, `page load failed ${code} (${description}) ${failedUrl}`);
-    };
-    // A renderer that dies mid-load never comes back, so the load can no
-    // longer complete. Fail now with the reason instead of leaving the user
-    // staring at an empty window until the timeout expires.
-    const onGone = (_e, details) => {
-      const how = (details && details.reason) || "gone";
-      const code = details && details.exitCode;
-      done(false, `renderer ${how}${code == null ? "" : ` (exit ${code})`}`);
-    };
-    const timer = setTimeout(
-      () => done(false, "window did not finish loading in 45s"),
-      45_000
-    );
-    win.webContents.on("did-finish-load", onFinish);
-    win.webContents.on("did-fail-load", onFail);
-    win.webContents.on("render-process-gone", onGone);
-    const probe = process.env.EDMS_BOOT_PROBE;
-    const target = probe ? (probe === "blank" ? "about:blank" : url.replace(/\/$/, "") + probe) : url;
-    logStartup(`window: loading ${target}`);
-    win.loadURL(target).catch((err) => {
-      // Supersession lands here as ERR_FAILED; did-finish-load still fires for
-      // the winning navigation, so this is only fatal if nothing loads at all.
-      logStartup(`window: loadURL rejected — ${(err && err.message) || err}`);
+  const loadOnce = (target, ms) =>
+    new Promise((resolve, reject) => {
+      const done = (ok, why) => {
+        clearTimeout(timer);
+        win.webContents.removeListener("did-finish-load", onFinish);
+        win.webContents.removeListener("did-fail-load", onFail);
+        win.webContents.removeListener("render-process-gone", onGone);
+        ok ? resolve() : reject(new Error(why));
+      };
+      const onFinish = (_e, isMainFrame) => {
+        if (!isMainFrame) return;
+        logStartup(`window: did-finish-load ${win.webContents.getURL()}`);
+        done(true);
+      };
+      const onFail = (_e, code, description, failedUrl, isMainFrame) => {
+        // ERR_ABORTED (-3) is a superseded navigation, not a failure.
+        if (!isMainFrame || code === -3) return;
+        done(false, `page load failed ${code} (${description}) ${failedUrl}`);
+      };
+      // A renderer that dies mid-load never comes back, so the load can no
+      // longer complete. Fail now with the reason instead of leaving the user
+      // staring at an empty window until the timeout expires.
+      const onGone = (_e, details) => {
+        const how = (details && details.reason) || "gone";
+        const code = details && details.exitCode;
+        done(false, `renderer ${how}${code == null ? "" : ` (exit ${code})`}`);
+      };
+      const timer = setTimeout(() => done(false, `window did not finish loading in ${ms}ms`), ms);
+      win.webContents.on("did-finish-load", onFinish);
+      win.webContents.on("did-fail-load", onFail);
+      win.webContents.on("render-process-gone", onGone);
+      logStartup(`window: loading ${target}`);
+      win.loadURL(target).catch((err) => {
+        // Supersession lands here as ERR_FAILED; did-finish-load still fires for
+        // the winning navigation, so this is only fatal if nothing loads at all.
+        logStartup(`window: loadURL rejected — ${(err && err.message) || err}`);
+      });
     });
-  });
+
+  // TEMPORARY diagnostic. Each entry is loaded in turn and the next one only
+  // runs if this one survived, so a single run narrows the 0xC0000005 down to
+  // the first target that dies.
+  const probe = (process.env.EDMS_BOOT_PROBE || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (probe.length) {
+    for (const entry of probe) {
+      const target = /^(about:|data:|https?:)/i.test(entry) ? entry : url.replace(/\/$/, "") + entry;
+      await loadOnce(target, 20_000).then(
+        () => logStartup(`window: PROBE OK ${target}`),
+        (err) => {
+          logStartup(`window: PROBE FAIL ${target} — ${err.message}`);
+          throw err;
+        }
+      );
+    }
+  } else {
+    await loadOnce(url, 45_000);
+  }
   logStartup("window: page loaded");
   return win;
 }
