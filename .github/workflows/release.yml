@@ -175,6 +175,9 @@ jobs:
           # Both apply to the test launch only; the shipped app keeps its sandbox
           # and hardware acceleration.
           $env:ELECTRON_ENABLE_LOGGING = '1'
+          # TEMPORARY DIAGNOSTIC: if the renderer survives about:blank, the crash
+          # comes from the page/preload/CSS, not from the headless environment.
+          $env:EDMS_BOOT_PROBE = 'about:blank'
           $proc = Start-Process $exe -ArgumentList "--user-data-dir=$smoke", '--disable-gpu', '--no-sandbox' -PassThru `
             -RedirectStandardOutput $out -RedirectStandardError $err
           $healthy = $false
