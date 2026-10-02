@@ -260,8 +260,10 @@ jobs:
         run: |
           $ErrorActionPreference = 'Continue'
 
-          # Returns 'survived' only if a page target actually appeared, which
-          # means a renderer is alive and painted. A dead renderer leaves nothing.
+          # A page target can appear a moment before the renderer dies — the
+          # crash lands ~650ms into the load, so "it showed up once" proves
+          # nothing. Watch the same target for a further 15s and only call it
+          # alive if it is still there at the end.
           function Test-Renderer($exe, $label, $port) {
             $dir = Join-Path $env:RUNNER_TEMP "probe-$label"
             Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue
@@ -271,25 +273,38 @@ jobs:
             $p = Start-Process $exe -WorkingDirectory (Split-Path $exe) `
               -ArgumentList '--disable-gpu', '--no-sandbox', "--remote-debugging-port=$port", "--user-data-dir=$dir" `
               -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
-            $seen = 'never-loaded'
-            for ($i = 0; $i -lt 24; $i++) {
-              Start-Sleep -Seconds 2
+            $url = $null
+            for ($i = 0; $i -lt 30 -and -not $url; $i++) {
+              Start-Sleep -Seconds 1
               try {
-                $targets = Invoke-RestMethod "http://127.0.0.1:$port/json/list" -TimeoutSec 3 -ErrorAction Stop
-                $pages = @($targets | Where-Object { $_.type -eq 'page' })
-                if ($pages.Count -gt 0) {
-                  $seen = ('loaded: ' + (($pages | ForEach-Object { $_.url }) -join ', '))
-                  break
-                }
+                $pages = @(Invoke-RestMethod "http://127.0.0.1:$port/json/list" -TimeoutSec 2 -ErrorAction Stop |
+                  Where-Object { $_.type -eq 'page' -and $_.url -notlike 'about:*' })
+                if ($pages.Count -gt 0) { $url = $pages[0].url }
               } catch { }
+            }
+            # Now watch it. Any sighting resets the clock; a gap means it died.
+            $alive = $false
+            if ($url) {
+              $lastSeen = 0
+              for ($i = 0; $i -lt 15; $i++) {
+                Start-Sleep -Seconds 1
+                try {
+                  $still = @(Invoke-RestMethod "http://127.0.0.1:$port/json/list" -TimeoutSec 2 -ErrorAction Stop |
+                    Where-Object { $_.type -eq 'page' -and $_.url -eq $url })
+                  if ($still.Count -gt 0) { $lastSeen = $i + 1; $alive = $true } else { break }
+                } catch { break }
+              }
+              if ($alive) { Write-Host "[$label] page persisted for ${lastSeen}s after load: $url" }
+              else { Write-Host "[$label] page VANISHED ${lastSeen}s after load: $url" }
+            } else {
+              Write-Host "[$label] no page target ever appeared"
             }
             Get-Process -Id $p.Id -ErrorAction SilentlyContinue | Stop-Process -Force
             Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*edms-archive*' } | Stop-Process -Force
             Start-Sleep -Seconds 5
-            Write-Host "[$label] renderer => $seen"
-            if (Test-Path $out) { Write-Host "----- $label stdout tail -----"; Get-Content $out -Tail 12 | Out-String | Write-Host }
-            if (Test-Path $err) { Write-Host "----- $label stderr tail -----"; Get-Content $err -Tail 12 | Out-String | Write-Host }
-            return ($seen -ne 'never-loaded')
+            if (Test-Path $out) { Write-Host "----- $label stdout tail -----"; Get-Content $out -Tail 10 | Out-String | Write-Host }
+            if (Test-Path $err) { Write-Host "----- $label stderr tail -----"; Get-Content $err -Tail 10 | Out-String | Write-Host }
+            return $alive
           }
 
           $old = Join-Path $env:RUNNER_TEMP 'EDMS-1.0.0-diag-Setup.exe'
