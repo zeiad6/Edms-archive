@@ -503,7 +503,8 @@ async function createWindow(url) {
     win.webContents.on("did-finish-load", onFinish);
     win.webContents.on("did-fail-load", onFail);
     win.webContents.on("render-process-gone", onGone);
-    const target = process.env.EDMS_BOOT_PROBE || url;
+    const probe = process.env.EDMS_BOOT_PROBE;
+    const target = probe ? (probe === "blank" ? "about:blank" : url.replace(/\/$/, "") + probe) : url;
     logStartup(`window: loading ${target}`);
     win.loadURL(target).catch((err) => {
       // Supersession lands here as ERR_FAILED; did-finish-load still fires for
