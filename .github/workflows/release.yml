@@ -134,6 +134,23 @@ jobs:
             try { return [bool](Select-String -Path $f -Pattern $pattern -Quiet -ErrorAction Stop) }
             catch { return $false }
           }
+                    # A renderer that dies with 0xC0000005 (STATUS_ACCESS_VIOLATION) gives
+          # Electron no reason at all — the app only ever sees an exit code. The
+          # Windows Application log records the faulting module, which is the
+          # difference between "some native DLL" and an actual fix, so always
+          # print it whenever the app dies.
+          function Show-CrashDiagnostics {
+            try {
+              $since = (Get-Date).AddMinutes(-15)
+              $evts = Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = $since } -ErrorAction Stop |
+                Where-Object { $_.Id -in 1000, 1001, 1026 } | Select-Object -First 8
+              if (-not $evts) { Write-Host 'no Application Error events in the last 15 minutes'; return }
+              foreach ($e in $evts) {
+                $first = ($e.Message -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 4) -join ' | '
+                Write-Host "event $($e.Id): $first"
+              }
+            } catch { Write-Host "could not read the Application event log: $($_.Exception.Message)" }
+          }
           function Show-SmokeLogs {
             foreach ($f in @($out, $err)) {
               if (Test-Path $f) { Write-Host "----- $(Split-Path $f -Leaf) -----"; Show-File $f }
@@ -145,19 +162,20 @@ jobs:
               Select-Object -First 1 -ExpandProperty FullName
             if ($sl) { Write-Host "----- startup.log ($sl) -----"; Show-File $sl }
             else { Write-Host "no startup.log under $smoke" }
+            Show-CrashDiagnostics
           }
 
           # --user-data-dir keeps the smoke run out of %APPDATA%, so the upgrade
           # test below still starts from a genuine v1.0.0 install.
-          # --disable-gpu: GitHub's Windows runners have no GPU, and Chromium's
-          # GPU process dies there with an access violation (0xC0000005) the
-          # moment the page starts painting — which kills the renderer and looks
-          # exactly like a broken app. This switch applies to the test launch
-          # only; the shipped app keeps hardware acceleration on real machines.
-          # ELECTRON_ENABLE_LOGGING makes the main process mirror its
-          # console.* calls to stderr, which is what startProcess redirects capture.
+          # --disable-gpu: the runner has no GPU.
+          # --no-sandbox: the Windows runner's sandboxed renderer cannot initialise,
+          # which kills it with an access violation (0xC0000005) a few hundred ms
+          # into the first load. Together these are the standard way to run a real
+          # Electron build on a headless Windows agent.
+          # Both apply to the test launch only; the shipped app keeps its sandbox
+          # and hardware acceleration.
           $env:ELECTRON_ENABLE_LOGGING = '1'
-          $proc = Start-Process $exe -ArgumentList "--user-data-dir=$smoke", '--disable-gpu' -PassThru `
+          $proc = Start-Process $exe -ArgumentList "--user-data-dir=$smoke", '--disable-gpu', '--no-sandbox' -PassThru `
             -RedirectStandardOutput $out -RedirectStandardError $err
           $healthy = $false
           $up = $false
@@ -266,14 +284,13 @@ jobs:
           # so these files are the only record of WHY.
           $env:ELECTRON_ENABLE_LOGGING = '1'
           function Start-App($exe) {
-            # --disable-gpu: the runner has no GPU, and Chromium's GPU process
-            # dies there with an access violation (0xC0000005) as soon as the
-            # page paints, killing the renderer. Test launch only; the shipped
-            # app keeps hardware acceleration.
+            # --disable-gpu / --no-sandbox: the runner has no GPU and its sandboxed
+            # renderer cannot initialise, which kills it with an access
+            # violation. Test launch only; the shipped app keeps both.
             $out = Join-Path $env:RUNNER_TEMP 'edms-stdout.log'
             $err = Join-Path $env:RUNNER_TEMP 'edms-stderr.log'
             Remove-Item $out, $err -ErrorAction SilentlyContinue
-            return Start-Process $exe -ArgumentList '--disable-gpu' -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+            return Start-Process $exe -ArgumentList '--disable-gpu', '--no-sandbox' -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
           }
           function Read-Log($f) {
             try { Get-Content $f -Tail 60 -ErrorAction Stop | Out-String | Write-Host }
@@ -298,6 +315,17 @@ jobs:
             } else {
               Write-Host "no startup.log at $($sl)"
             }
+            # A 0xC0000005 renderer death carries no reason in Electron's own
+            # output; the faulting module only exists in the Windows event log.
+            try {
+              $evts = Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-15) } -ErrorAction Stop |
+                Where-Object { $_.Id -in 1000, 1001, 1026 } | Select-Object -First 8
+              if (-not $evts) { Write-Host 'no Application Error events in the last 15 minutes' }
+              foreach ($e in $evts) {
+                $first = ($e.Message -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 4) -join ' | '
+                Write-Host "event $($e.Id): $first"
+              }
+            } catch { Write-Host "could not read the Application event log: $($_.Exception.Message)" }
           }
           function Get-Fingerprint($dir) {
             Get-ChildItem $dir -Recurse -File |
