@@ -244,58 +244,80 @@ jobs:
       # and the app's own <userData>\logs\startup.log. Without them a failed
       # boot is just an exit code — the v1.0.2 gate failed three times with
       # "exited on startup (code 0)" and no explanation anywhere.
-      # Is the 0xC0000005 renderer crash this agent's fault or our build's?
-      # v1.0.0 is a published release that real users run, so installing it here
-      # and watching its own window is the only honest control: if v1.0.0 dies
-      # the same way, the headless runner cannot host a renderer that loads an
-      # http document and no amount of Chromium flags in our build will help.
-      # Never fails the job — it only reports, so the verdict survives the rest.
-      - name: DIAGNOSTIC does the published v1.0.0 window load on this runner
+      # A/B control for the 0xC0000005 renderer crash, on one runner, in one
+      # step, so nothing environmental can differ between the two runs.
+      #
+      # Both builds are launched with --remote-debugging-port and judged the same
+      # way: a renderer that survives and loads its page shows up in /json/list.
+      # v1.0.0 has no startup.log of its own, so log-grepping cannot judge it —
+      # the debug protocol can, and it works against an unmodified release.
+      #
+      # Never fails the job; it only reports.
+      - name: DIAGNOSTIC A/B v1.0.0 vs this build, renderer alive?
         if: always()
         continue-on-error: true
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
-          function Stop-App {
+
+          # Returns 'survived' only if a page target actually appeared, which
+          # means a renderer is alive and painted. A dead renderer leaves nothing.
+          function Test-Renderer($exe, $label, $port) {
+            $dir = Join-Path $env:RUNNER_TEMP "probe-$label"
+            Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue
+            $out = Join-Path $env:RUNNER_TEMP "$label-out.log"
+            $err = Join-Path $env:RUNNER_TEMP "$label-err.log"
+            $env:ELECTRON_ENABLE_LOGGING = '1'
+            $p = Start-Process $exe -WorkingDirectory (Split-Path $exe) `
+              -ArgumentList '--disable-gpu', '--no-sandbox', "--remote-debugging-port=$port", "--user-data-dir=$dir" `
+              -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+            $seen = 'never-loaded'
+            for ($i = 0; $i -lt 24; $i++) {
+              Start-Sleep -Seconds 2
+              try {
+                $targets = Invoke-RestMethod "http://127.0.0.1:$port/json/list" -TimeoutSec 3 -ErrorAction Stop
+                $pages = @($targets | Where-Object { $_.type -eq 'page' })
+                if ($pages.Count -gt 0) {
+                  $seen = ('loaded: ' + (($pages | ForEach-Object { $_.url }) -join ', '))
+                  break
+                }
+              } catch { }
+            }
+            Get-Process -Id $p.Id -ErrorAction SilentlyContinue | Stop-Process -Force
             Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*edms-archive*' } | Stop-Process -Force
             Start-Sleep -Seconds 5
+            Write-Host "[$label] renderer => $seen"
+            if (Test-Path $out) { Write-Host "----- $label stdout tail -----"; Get-Content $out -Tail 12 | Out-String | Write-Host }
+            if (Test-Path $err) { Write-Host "----- $label stderr tail -----"; Get-Content $err -Tail 12 | Out-String | Write-Host }
+            return ($seen -ne 'never-loaded')
           }
+
           $old = Join-Path $env:RUNNER_TEMP 'EDMS-1.0.0-diag-Setup.exe'
           Invoke-WebRequest 'https://github.com/zeiad6/Edms-archive/releases/download/v1.0.0/EDMS-Archive-1.0.0-Setup-x64.exe' -OutFile $old
           Start-Process $old -ArgumentList '/S' -Wait
-          $exe = $null
-          for ($i = 0; $i -lt 20 -and -not $exe; $i++) {
+          $v100 = $null
+          for ($i = 0; $i -lt 20 -and -not $v100; $i++) {
             foreach ($r in @("$env:LOCALAPPDATA\Programs", $env:ProgramFiles)) {
               if (-not (Test-Path $r)) { continue }
               $f = Get-ChildItem $r -Recurse -Depth 2 -Filter 'edms-archive.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
-              if ($f) { $exe = $f.FullName; break }
+              if ($f) { $v100 = $f.FullName; break }
             }
-            if (-not $exe) { Start-Sleep -Seconds 3 }
+            if (-not $v100) { Start-Sleep -Seconds 3 }
           }
-          if (-not $exe) { Write-Host 'VERDICT: v1.0.0 did not install, control inconclusive'; exit 0 }
-          Write-Host "control build: $exe ($((Get-Item $exe).VersionInfo.ProductVersion))"
 
-          Remove-Item (Join-Path $env:APPDATA 'enterprise-edms') -Recurse -Force -ErrorAction SilentlyContinue
-          $env:ELECTRON_ENABLE_LOGGING = '1'
-          $out = Join-Path $env:RUNNER_TEMP 'v100-stdout.log'
-          $err = Join-Path $env:RUNNER_TEMP 'v100-stderr.log'
-          $p = Start-Process $exe -ArgumentList '--disable-gpu', '--no-sandbox' -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
-          Start-Sleep -Seconds 40
-          Stop-App
+          $ours = (Resolve-Path 'dist\release\win-unpacked\edms-archive.exe').Path
+          Write-Host "control : $v100 ($((Get-Item $v100).VersionInfo.ProductVersion))"
+          Write-Host "candidate: $ours"
 
-          $dataDir = Get-ChildItem $env:APPDATA -Recurse -Depth 3 -Filter edms.db -ErrorAction SilentlyContinue | Select-Object -First 1
-          $sl = if ($dataDir) { Join-Path $dataDir.Directory.Parent.FullName 'logs\startup.log' } else { $null }
-          if ($sl -and (Test-Path $sl)) {
-            Write-Host '----- v1.0.0 startup.log -----'
-            Get-Content $sl -Tail 40 | Out-String | Write-Host
-          } else { Write-Host "no v1.0.0 startup.log at $sl" }
-          foreach ($f in @($out, $err)) {
-            if (Test-Path $f) { Write-Host "----- v1.0.0 $(Split-Path $f -Leaf) -----"; Get-Content $f -Tail 25 | Out-String | Write-Host }
-          }
-          $gone = $false
-          if ($sl -and (Test-Path $sl)) { $gone = [bool](Select-String -Path $sl -Pattern 'process gone' -Quiet) }
-          if ($gone) { Write-Host 'VERDICT: v1.0.0 renderer DIED on this runner -> the crash is the agent, not our build' }
-          else { Write-Host 'VERDICT: v1.0.0 renderer SURVIVED -> the crash is ours' }
+          $ok100 = $false
+          if ($v100) { $ok100 = Test-Renderer $v100 'v100' 9222 }
+          $okOurs = Test-Renderer $ours 'ours' 9223
+
+          Write-Host ''
+          if ($ok100 -and -not $okOurs) { Write-Host 'VERDICT: v1.0.0 loads its window here, this build does not => the regression is OURS' }
+          elseif (-not $ok100 -and -not $okOurs) { Write-Host 'VERDICT: neither build paints a window here => the headless agent is the constraint' }
+          elseif ($ok100 -and $okOurs) { Write-Host 'VERDICT: both load => the crash is not about a painted window at all' }
+          else { Write-Host 'VERDICT: only this build loads (unexpected) - re-read the logs above' }
 
       - name: Upgrade test (v1.0.0 -> this build keeps user data)
         shell: pwsh
