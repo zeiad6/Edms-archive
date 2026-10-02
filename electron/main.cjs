@@ -475,6 +475,7 @@ async function createWindow(url) {
       clearTimeout(timer);
       win.webContents.removeListener("did-finish-load", onFinish);
       win.webContents.removeListener("did-fail-load", onFail);
+      win.webContents.removeListener("render-process-gone", onGone);
       ok ? resolve() : reject(new Error(why));
     };
     const onFinish = (_e, isMainFrame) => {
@@ -487,12 +488,21 @@ async function createWindow(url) {
       if (!isMainFrame || code === -3) return;
       done(false, `page load failed ${code} (${description}) ${failedUrl}`);
     };
+    // A renderer that dies mid-load never comes back, so the load can no
+    // longer complete. Fail now with the reason instead of leaving the user
+    // staring at an empty window until the timeout expires.
+    const onGone = (_e, details) => {
+      const how = (details && details.reason) || "gone";
+      const code = details && details.exitCode;
+      done(false, `renderer ${how}${code == null ? "" : ` (exit ${code})`}`);
+    };
     const timer = setTimeout(
       () => done(false, "window did not finish loading in 45s"),
       45_000
     );
     win.webContents.on("did-finish-load", onFinish);
     win.webContents.on("did-fail-load", onFail);
+    win.webContents.on("render-process-gone", onGone);
     logStartup(`window: loading ${url}`);
     win.loadURL(url).catch((err) => {
       // Supersession lands here as ERR_FAILED; did-finish-load still fires for

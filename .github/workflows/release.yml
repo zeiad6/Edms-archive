@@ -149,10 +149,15 @@ jobs:
 
           # --user-data-dir keeps the smoke run out of %APPDATA%, so the upgrade
           # test below still starts from a genuine v1.0.0 install.
+          # --disable-gpu: GitHub's Windows runners have no GPU, and Chromium's
+          # GPU process dies there with an access violation (0xC0000005) the
+          # moment the page starts painting — which kills the renderer and looks
+          # exactly like a broken app. This switch applies to the test launch
+          # only; the shipped app keeps hardware acceleration on real machines.
           # ELECTRON_ENABLE_LOGGING makes the main process mirror its
           # console.* calls to stderr, which is what startProcess redirects capture.
           $env:ELECTRON_ENABLE_LOGGING = '1'
-          $proc = Start-Process $exe -ArgumentList "--user-data-dir=$smoke" -PassThru `
+          $proc = Start-Process $exe -ArgumentList "--user-data-dir=$smoke", '--disable-gpu' -PassThru `
             -RedirectStandardOutput $out -RedirectStandardError $err
           $healthy = $false
           $up = $false
@@ -168,16 +173,27 @@ jobs:
                 if ($r.ok) { if (-not $healthy) { Write-Host "health ok on port $port" }; $healthy = $true }
               } catch { }
             }
+            # Resolve the log on each pass: the app creates it lazily, so a
+            # path captured before the first write would stay $null forever.
+            $log = Get-ChildItem $smoke -Recurse -Filter startup.log -ErrorAction SilentlyContinue |
+              Select-Object -First 1 -ExpandProperty FullName
+            # A dead renderer never recovers, so there is nothing left to wait
+            # for. Bail out now with the reason instead of burning the full
+            # 45s app-side timeout and then reporting the generic symptom.
+            foreach ($fatal in @('render: process gone', 'boot: FAILED')) {
+              if (Test-Logged $log $fatal) {
+                Show-SmokeLogs
+                Write-Error "fresh build reported '$fatal' during startup"
+                exit 1
+              }
+            }
             # /api/health is answered by the Next child process, which runs fine
             # even when the Electron window never renders a page. Health alone
             # cannot tell a working app from a windowless one, so also require
             # the app's own milestone from startup.log.
-            if ($healthy) {
-              # Resolve the log on each pass: the app creates it lazily, so a
-              # path captured before the first write would stay $null forever.
-              $log = Get-ChildItem $smoke -Recurse -Filter startup.log -ErrorAction SilentlyContinue |
-                Select-Object -First 1 -ExpandProperty FullName
-              if (Test-Logged $log 'window: page loaded') { $up = $true; Write-Host 'window reported the page loaded' }
+            if ($healthy -and (Test-Logged $log 'window: page loaded')) {
+              $up = $true
+              Write-Host 'window reported the page loaded'
             }
           }
           if (-not $healthy) { Show-SmokeLogs; Write-Error 'fresh build never reported healthy'; exit 1 }
@@ -250,10 +266,14 @@ jobs:
           # so these files are the only record of WHY.
           $env:ELECTRON_ENABLE_LOGGING = '1'
           function Start-App($exe) {
+            # --disable-gpu: the runner has no GPU, and Chromium's GPU process
+            # dies there with an access violation (0xC0000005) as soon as the
+            # page paints, killing the renderer. Test launch only; the shipped
+            # app keeps hardware acceleration.
             $out = Join-Path $env:RUNNER_TEMP 'edms-stdout.log'
             $err = Join-Path $env:RUNNER_TEMP 'edms-stderr.log'
             Remove-Item $out, $err -ErrorAction SilentlyContinue
-            return Start-Process $exe -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+            return Start-Process $exe -ArgumentList '--disable-gpu' -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
           }
           function Read-Log($f) {
             try { Get-Content $f -Tail 60 -ErrorAction Stop | Out-String | Write-Host }
@@ -364,6 +384,14 @@ jobs:
                 $r = Invoke-RestMethod "http://127.0.0.1:$port/api/health" -TimeoutSec 10
                 if ($r.ok) { if (-not $healthy) { Write-Host "health ok on port $port" }; $healthy = $true }
               } catch { }
+            }
+            # A dead renderer never recovers, so fail with the reason instead of
+            # waiting out the 45s app-side timeout.
+            foreach ($fatal in @('render: process gone', 'boot: FAILED')) {
+              if (Test-Logged $startupLog $fatal) {
+                Dump-AppLogs $data
+                throw "upgraded build reported '$fatal' during startup"
+              }
             }
             # Same trap as the smoke gate: health is answered by the Next child
             # and says nothing about the window. Require the milestone too, and
