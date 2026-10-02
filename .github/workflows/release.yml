@@ -179,7 +179,7 @@ jobs:
           # one survived, so one run finds the first document that kills the
           # renderer: a bare in-memory document, then a real 404 from the local
           # server (app layout + globals.css), then the app page itself.
-          $env:EDMS_BOOT_PROBE = 'data:text/html,<title>p</title>ok,/__probe_missing__,/'
+          $env:EDMS_BOOT_PROBE = 'data:text/html,%3Ctitle%3Ep%3C/title%3Eok|/__probe_missing__|/'
           $proc = Start-Process $exe -ArgumentList "--user-data-dir=$smoke", '--disable-gpu', '--no-sandbox' -PassThru `
             -RedirectStandardOutput $out -RedirectStandardError $err
           $healthy = $false

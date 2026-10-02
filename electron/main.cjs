@@ -512,8 +512,9 @@ async function createWindow(url) {
   // TEMPORARY diagnostic. Each entry is loaded in turn and the next one only
   // runs if this one survived, so a single run narrows the 0xC0000005 down to
   // the first target that dies.
+  // "|" separates entries: a data: URL needs its own comma, so "," cannot.
   const probe = (process.env.EDMS_BOOT_PROBE || "")
-    .split(",")
+    .split("|")
     .map((entry) => entry.trim())
     .filter(Boolean);
   if (probe.length) {
