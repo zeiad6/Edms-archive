@@ -260,10 +260,10 @@ jobs:
         run: |
           $ErrorActionPreference = 'Continue'
 
-          # A page target can appear a moment before the renderer dies — the
-          # crash lands ~650ms into the load, so "it showed up once" proves
-          # nothing. Watch the same target for a further 15s and only call it
-          # alive if it is still there at the end.
+          # Track a target by its debugger id, never by URL: the app redirects
+          # "/" to "/login", so a URL match reports a healthy redirect as a dead
+          # renderer. And "appeared once" is not alive either — the crash lands
+          # ~650ms in — so the same id has to still be there 15s later.
           function Test-Renderer($exe, $label, $port) {
             $dir = Join-Path $env:RUNNER_TEMP "probe-$label"
             Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue
@@ -273,38 +273,39 @@ jobs:
             $p = Start-Process $exe -WorkingDirectory (Split-Path $exe) `
               -ArgumentList '--disable-gpu', '--no-sandbox', "--remote-debugging-port=$port", "--user-data-dir=$dir" `
               -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
-            $url = $null
-            for ($i = 0; $i -lt 30 -and -not $url; $i++) {
+            $id = $null
+            $seen = New-Object System.Collections.ArrayList
+            for ($i = 0; $i -lt 40 -and -not $id; $i++) {
               Start-Sleep -Seconds 1
               try {
                 $pages = @(Invoke-RestMethod "http://127.0.0.1:$port/json/list" -TimeoutSec 2 -ErrorAction Stop |
                   Where-Object { $_.type -eq 'page' -and $_.url -notlike 'about:*' })
-                if ($pages.Count -gt 0) { $url = $pages[0].url }
+                if ($pages.Count -gt 0) {
+                  $id = $pages[0].id
+                  [void]$seen.Add($pages[0].url)
+                }
               } catch { }
             }
-            # Now watch it. Any sighting resets the clock; a gap means it died.
-            $alive = $false
-            if ($url) {
-              $lastSeen = 0
+            $held = 0
+            if ($id) {
               for ($i = 0; $i -lt 15; $i++) {
                 Start-Sleep -Seconds 1
                 try {
                   $still = @(Invoke-RestMethod "http://127.0.0.1:$port/json/list" -TimeoutSec 2 -ErrorAction Stop |
-                    Where-Object { $_.type -eq 'page' -and $_.url -eq $url })
-                  if ($still.Count -gt 0) { $lastSeen = $i + 1; $alive = $true } else { break }
+                    Where-Object { $_.id -eq $id })
+                  if ($still.Count -eq 0) { break }
+                  $held = $i + 1
+                  if ($seen[$seen.Count - 1] -ne $still[0].url) { [void]$seen.Add($still[0].url) }
                 } catch { break }
               }
-              if ($alive) { Write-Host "[$label] page persisted for ${lastSeen}s after load: $url" }
-              else { Write-Host "[$label] page VANISHED ${lastSeen}s after load: $url" }
-            } else {
-              Write-Host "[$label] no page target ever appeared"
             }
+            Write-Host "[$label] target=$id held=${held}s/15 urls seen: $($seen -join '  ->  ')"
             Get-Process -Id $p.Id -ErrorAction SilentlyContinue | Stop-Process -Force
             Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*edms-archive*' } | Stop-Process -Force
             Start-Sleep -Seconds 5
-            if (Test-Path $out) { Write-Host "----- $label stdout tail -----"; Get-Content $out -Tail 10 | Out-String | Write-Host }
-            if (Test-Path $err) { Write-Host "----- $label stderr tail -----"; Get-Content $err -Tail 10 | Out-String | Write-Host }
-            return $alive
+            if (Test-Path $out) { Write-Host "----- $label stdout tail -----"; Get-Content $out -Tail 8 | Out-String | Write-Host }
+            if (Test-Path $err) { Write-Host "----- $label stderr tail -----"; Get-Content $err -Tail 8 | Out-String | Write-Host }
+            return ($held -ge 15)
           }
 
           $old = Join-Path $env:RUNNER_TEMP 'EDMS-1.0.0-diag-Setup.exe'
