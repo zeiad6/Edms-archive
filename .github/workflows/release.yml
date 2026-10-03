@@ -535,8 +535,11 @@ jobs:
           }
           Stop-App
           $afterBoot = Get-Fingerprint $data
+          # edms.db is migrated in place. scripts\scan-wia.ps1 is app-managed:
+          # electron/main.cjs copies it from resources on every boot, so it is
+          # not user data and is allowed to change between versions.
           $missing = Compare-Object $before $afterBoot | Where-Object SideIndicator -eq '<=' |
-            Where-Object { $_.InputObject -notmatch '\\data\\edms\.db$' }
+            Where-Object { $_.InputObject -notmatch '\\data\\edms\.db$' -and $_.InputObject -notmatch '\\scripts\\scan-wia\.ps1$' }
           if ($missing) { $missing | Format-Table -AutoSize | Out-String | Write-Host; throw 'new version altered or removed existing files' }
           if (-not (Test-Path $marker)) { throw 'user file lost' }
           Write-Host 'Upgrade test OK'
