@@ -334,7 +334,7 @@ async function createWindow(url) {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: !app.commandLine.hasSwitch("no-sandbox"),
       spellcheck: false,
     },
   });
@@ -645,6 +645,8 @@ function registerSecureStoreIpc() {
 // ---------------------------------------------------------------------------
 
 app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('disable-software-rasterizer');
+app.commandLine.appendSwitch('disable-gpu-compositing');
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   // A second launch while the first is still running is NORMAL, not a crash:
