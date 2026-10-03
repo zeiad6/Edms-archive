@@ -473,6 +473,33 @@ async function createWindow(url) {
   //
   // did-finish-load is the honest signal: it fires for whichever navigation
   // won. A genuine failure still surfaces via did-fail-load on the main frame.
+  // TEMPORARY boot diagnostic: on a load timeout, log what the page was still
+  // waiting for (requests that never completed, DOM readiness). Removed once
+  // the headless-runner stall is understood.
+  const pendingReqs = new Map();
+  const reqs = win.webContents.session.webRequest;
+  reqs.onBeforeRequest((d, cb) => {
+    pendingReqs.set(d.id, `${d.method} ${d.url}`);
+    cb({});
+  });
+  reqs.onCompleted((d) => pendingReqs.delete(d.id));
+  reqs.onErrorOccurred((d) => {
+    pendingReqs.delete(d.id);
+    logStartup(`req: error ${d.error} ${d.url}`);
+  });
+  win.webContents.on("did-start-loading", () => logStartup("render: did-start-loading"));
+  win.webContents.on("dom-ready", () => logStartup("render: dom-ready"));
+  win.webContents.on("did-stop-loading", () => logStartup("render: did-stop-loading"));
+  const bootDiagnostics = async () => {
+    const wc = win.webContents;
+    const page = await Promise.race([
+      wc.executeJavaScript("document.readyState + ' ' + location.href").catch((e) => `js error: ${e.message}`),
+      new Promise((r) => setTimeout(() => r("js timeout"), 3_000)),
+    ]);
+    logStartup(`diag: isLoading=${wc.isLoading()} page=${page} pending=${pendingReqs.size}`);
+    for (const v of [...pendingReqs.values()].slice(0, 20)) logStartup(`diag: pending ${v}`);
+  };
+
   const loadOnce = (target, ms) =>
     new Promise((resolve, reject) => {
       const done = (ok, why) => {
@@ -500,7 +527,11 @@ async function createWindow(url) {
         const code = details && details.exitCode;
         done(false, `renderer ${how}${code == null ? "" : ` (exit ${code})`}`);
       };
-      const timer = setTimeout(() => done(false, `window did not finish loading in ${ms}ms`), ms);
+      const timer = setTimeout(() => {
+        void bootDiagnostics()
+          .catch((e) => logStartup(`diag: failed ${e.message}`))
+          .finally(() => done(false, `window did not finish loading in ${ms}ms`));
+      }, ms);
       win.webContents.on("did-finish-load", onFinish);
       win.webContents.on("did-fail-load", onFail);
       win.webContents.on("render-process-gone", onGone);
