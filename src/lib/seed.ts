@@ -263,11 +263,11 @@ async function doSeed(): Promise<void> {
   // document types and templates still seed, so the UI is not empty — the
   // administrator creates real accounts from Settings → Users.
   await db.insert(users).values([
-    { name: "Zidex", username: "admin", email: "z30432981@gmail.com", jobTitle: "المدير العام", role: "admin", departmentId: deptId(0), avatarColor: "#4f46e5" },
+    { name: "Zeidex", username: "admin", email: "z30432981@gmail.com", jobTitle: "المدير العام", role: "admin", departmentId: deptId(0), avatarColor: "#4f46e5" },
   ]);
   const userRows = await db.select({ id: users.id, name: users.name }).from(users).orderBy(users.id).limit(1);
   const adminId = userRows[0]?.id ?? 1;
-  const adminName = userRows[0]?.name ?? "Zidex";
+  const adminName = userRows[0]?.name ?? "Zeidex";
   /**
    * Every seeded document is attributed to the single administrator account.
    * The data set keeps its `uploader` index so the spread of departments and

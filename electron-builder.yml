@@ -97,7 +97,7 @@ nsis:
   deleteAppDataOnUninstall: false
   installerIcon: resources/icon/icon.ico
   uninstallerIcon: resources/icon/icon.ico
-  # Zidex branding on the installer pages (150x57 header, 164x314 sidebar, 24-bit BMP).
+  # Zeidex branding on the installer pages (150x57 header, 164x314 sidebar, 24-bit BMP).
   installerHeader: resources/installer/header.bmp
   installerSidebar: resources/installer/sidebar.bmp
   uninstallerSidebar: resources/installer/sidebar.bmp

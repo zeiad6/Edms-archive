@@ -221,7 +221,7 @@ function DevCredits() {
     <div className="mt-5 border-t border-border pt-4">
       <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-[11px] leading-relaxed text-muted-foreground">
         {t("تم تطوير البرنامج بواسطة")}
-        <span className="font-semibold text-foreground">Zidex</span>
+        <span className="font-semibold text-foreground">Zeidex</span>
         <span aria-hidden className="text-muted-foreground/40">
           ·
         </span>
