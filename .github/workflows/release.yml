@@ -80,7 +80,7 @@ jobs:
           }
           $configs = Join-Path $dst "configs"
           New-Item -ItemType Directory -Force -Path $configs | Out-Null
-          $confBase = "https://raw.githubusercontent.com/tesseract-ocr/tessdata/main/configs"
+          $confBase = "https://raw.githubusercontent.com/tesseract-ocr/tesseract/main/tessdata/configs"
           foreach ($c in @("pdf", "hocr", "tsv", "txt")) {
             Invoke-WebRequest -Uri "$confBase/$c" -OutFile (Join-Path $configs $c)
             Write-Host "fetched config $c"
