@@ -36,7 +36,7 @@ for local scan hardware access.
 > 🔄 **لديك الإصدار 1.0.0؟** شغّل المثبّت الجديد مباشرة — يُحدِّث البرنامج في مكانه
 > ويحتفظ بقاعدة البيانات والمستندات كما هي.
 
-· [📦 كل الإصدارات](https://github.com/zeiad6/Edms-archive/releases/latest)
+· [📦 كل الإصدارات](https://github.com/zeiad6/Edms-archive/releases/latest) · [🌐 الموقع](https://zeidex.netlify.app/)
 
 > ⚠️ الحزمة **لنظام ويندوز 64-بت فقط**. عند أول تشغيل قد تظهر شاشة SmartScreen
 > لأن البناء غير موقّع — اختر «المزيد من المعلومات» ثم «تشغيل على أي حال».
