@@ -9,6 +9,7 @@ import {
   Eye,
   EyeOff,
   Fingerprint,
+  Globe,
   KeyRound,
   Loader2,
   Lock,
@@ -18,7 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, ROLE_META } from "@/lib/format";
-import { DEV_EMAIL, DEV_NAME, DEV_TIKTOK_URL, DEV_YOUTUBE_URL, MailMark, TikTokMark, YouTubeMark } from "@/components/brand-marks";
+import { DEV_EMAIL, DEV_NAME, DEV_TIKTOK_URL, DEV_WEBSITE_URL, DEV_YOUTUBE_URL, MailMark, TikTokMark, YouTubeMark } from "@/components/brand-marks";
 import { LoginForm } from "./login-form";
 import { Avatar } from "@/components/ui";
 import { switchUser } from "@/actions/auth";
@@ -221,7 +222,7 @@ function DevCredits() {
     <div className="mt-5 border-t border-border pt-4">
       <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-[11px] leading-relaxed text-muted-foreground">
         {t("تم تطوير البرنامج بواسطة")}
-        <span className="font-semibold text-foreground">Zidex</span>
+        <span className="font-semibold text-foreground">Zeidex</span>
         <span aria-hidden className="text-muted-foreground/40">
           ·
         </span>
@@ -234,6 +235,16 @@ function DevCredits() {
         </a>
       </p>
       <p className="mt-1.5 flex items-center justify-center gap-1">
+        <a
+          href={DEV_WEBSITE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={t("موقع المطور")}
+          title={DEV_WEBSITE_URL}
+          className={linkClass}
+        >
+          <Globe className="h-3.5 w-3.5" aria-hidden />
+        </a>
         <a
           href={DEV_TIKTOK_URL}
           target="_blank"

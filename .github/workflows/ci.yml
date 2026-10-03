@@ -7,9 +7,19 @@ on:
   pull_request:
     branches: [main, master]
 
+# Least privilege: jobs here only read the repo. Release writes live in release.yml.
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the superseded run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -38,6 +48,7 @@ jobs:
 
   security-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -66,6 +77,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [lint-and-test, security-scan]
     steps:
       - uses: actions/checkout@v4

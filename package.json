@@ -1,8 +1,8 @@
 {
   "name": "enterprise-edms",
-  "version": "1.0.2",
+  "version": "1.0.6",
   "description": "نظام الأرشفة الإلكتروني للوزارة — إدارة المستندات والموافقات والمسح الضوئي",
-  "author": "Zidex <z30432981@gmail.com>",
+  "author": "Zeidex <z30432981@gmail.com>",
   "private": true,
   "repository": {
     "type": "git",

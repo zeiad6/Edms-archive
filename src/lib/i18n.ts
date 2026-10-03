@@ -1196,6 +1196,7 @@ export const DICT: Record<string, string> = {
   "بحث نصي عربي": "Arabic full-text search",
   // ---- Developer credits ---------------------------------------------------
 
+  "موقع المطور": "Developer website",
   "حساب المطور على تيك توك": "Developer TikTok account",
   "قناة المطور على يوتيوب": "Developer YouTube channel",
   // ---- Mobile link (Android) ----------------------------------------------

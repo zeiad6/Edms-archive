@@ -9,10 +9,11 @@
  */
 
 /** Developer contact — single source for every credits block (login, sidebar, settings). */
-export const DEV_NAME = "Zidex";
+export const DEV_NAME = "Zeidex";
 export const DEV_EMAIL = "z30432981@gmail.com";
 export const DEV_TIKTOK_URL = "https://www.tiktok.com/@ghost.7784";
 export const DEV_YOUTUBE_URL = "https://youtube.com/@idea-784-w7d";
+export const DEV_WEBSITE_URL = "https://zeidex.netlify.app/";
 
 export function TikTokMark({ className }: { className?: string }) {
   return (

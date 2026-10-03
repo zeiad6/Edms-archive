@@ -31,6 +31,9 @@ const crypto = require("crypto");
 // ---------------------------------------------------------------------------
 
 const IS_DEV = !app.isPackaged;
+// 127.0.0.1, not "localhost": on the Windows CI runner the Next server did not
+// answer on 127.0.0.1 when bound via "localhost" (release.yml health probe never
+// succeeded, window never finished loading).
 const HOST = "127.0.0.1";
 const PORT_MIN = 43110; // unlikely to collide; verified free before use
 
@@ -334,7 +337,7 @@ async function createWindow(url) {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: !app.commandLine.hasSwitch("no-sandbox"),
       spellcheck: false,
     },
   });
@@ -479,8 +482,9 @@ async function createWindow(url) {
         win.webContents.removeListener("render-process-gone", onGone);
         ok ? resolve() : reject(new Error(why));
       };
-      const onFinish = (_e, isMainFrame) => {
-        if (!isMainFrame) return;
+      // did-finish-load is main-frame only and carries no isMainFrame argument
+      // (Electron types it as () => void). Checking one made this never resolve.
+      const onFinish = () => {
         logStartup(`window: did-finish-load ${win.webContents.getURL()}`);
         done(true);
       };
@@ -644,6 +648,9 @@ function registerSecureStoreIpc() {
 // Lifecycle.
 // ---------------------------------------------------------------------------
 
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('disable-software-rasterizer');
+app.commandLine.appendSwitch('disable-gpu-compositing');
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   // A second launch while the first is still running is NORMAL, not a crash:
