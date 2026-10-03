@@ -2,15 +2,15 @@
      (Windows-1256 / ANSI turns Arabic into question marks on the GitHub release page).
      This file is used as body_path by .github/workflows/release.yml -->
 
-## أرشيف — الإصدار 1.0.1
+## أرشيف — الإصدار 1.0.6
 
-تحديث أمني وإصلاحات للإصدار 1.0.0.
+تحديث أمني وإصلاحات للإصدار 1.0.0. يتضمّن كل تغييرات 1.0.1 التي لم تُنشر كإصدار مستقل.
 
 ### ⬇️ التحميل (ويندوز 64-بت فقط)
 
 | الملف | الرابط |
 | --- | --- |
-| `EDMS-Archive-1.0.1-Setup-x64.exe` | [تحميل مباشر](https://github.com/zeiad6/Edms-archive/releases/download/v1.0.1/EDMS-Archive-1.0.1-Setup-x64.exe) |
+| `EDMS-Archive-1.0.6-Setup-x64.exe` | [تحميل مباشر](https://github.com/zeiad6/Edms-archive/releases/download/v1.0.6/EDMS-Archive-1.0.6-Setup-x64.exe) |
 
 > لم تعد النسخة المحمولة (Portable) تُنشر. يُنشر المثبّت فقط.
 
