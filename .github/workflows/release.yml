@@ -68,7 +68,7 @@ jobs:
       # without ara.traineddata (an installer with no Arabic OCR is useless for
       # an Arabic-language EDMS). tessdata_fast matches what tesseract.exe
       # expects and is ~4 MB rather than the ~2 GB legacy model set.
-      - name: Fetch Arabic OCR model
+      - name: Fetch Arabic OCR model and configs
         shell: pwsh
         run: |
           $dst = "C:\Program Files\Tesseract-OCR\tessdata"
@@ -77,6 +77,13 @@ jobs:
           foreach ($f in @("ara.traineddata", "eng.traineddata", "osd.traineddata")) {
             Invoke-WebRequest -Uri "$base/$f" -OutFile (Join-Path $dst $f)
             Write-Host "fetched $f"
+          }
+          $configs = Join-Path $dst "configs"
+          New-Item -ItemType Directory -Force -Path $configs | Out-Null
+          $confBase = "https://raw.githubusercontent.com/tesseract-ocr/tessdata/main/configs"
+          foreach ($c in @("pdf", "hocr", "tsv", "txt")) {
+            Invoke-WebRequest -Uri "$confBase/$c" -OutFile (Join-Path $configs $c)
+            Write-Host "fetched config $c"
           }
 
       - name: Pack Electron (NSIS Setup)
