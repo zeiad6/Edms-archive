@@ -31,7 +31,7 @@ const crypto = require("crypto");
 // ---------------------------------------------------------------------------
 
 const IS_DEV = !app.isPackaged;
-const HOST = "127.0.0.1";
+const HOST = "localhost";
 const PORT_MIN = 43110; // unlikely to collide; verified free before use
 
 let serverProcess = null;
@@ -644,6 +644,7 @@ function registerSecureStoreIpc() {
 // Lifecycle.
 // ---------------------------------------------------------------------------
 
+app.disableHardwareAcceleration();
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   // A second launch while the first is still running is NORMAL, not a crash:

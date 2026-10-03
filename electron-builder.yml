@@ -63,6 +63,7 @@ asar: true
 # .pak files is pure dead weight for this app.
 electronLanguages:
   - ar
+  - en-US
   - en
 # Auto-update channel — GitHub releases of zeiad6/Edms-archive.
 # electron-updater reads the latest release (latest.yml + Setup exe attached
