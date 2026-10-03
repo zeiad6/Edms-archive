@@ -31,7 +31,10 @@ const crypto = require("crypto");
 // ---------------------------------------------------------------------------
 
 const IS_DEV = !app.isPackaged;
-const HOST = "localhost";
+// 127.0.0.1, not "localhost": on the Windows CI runner the Next server did not
+// answer on 127.0.0.1 when bound via "localhost" (release.yml health probe never
+// succeeded, window never finished loading).
+const HOST = "127.0.0.1";
 const PORT_MIN = 43110; // unlikely to collide; verified free before use
 
 let serverProcess = null;
