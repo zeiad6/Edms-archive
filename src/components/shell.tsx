@@ -15,11 +15,14 @@ import {
   UploadCloud,
   LogOut,
   LogIn,
+  Globe,
+  Heart,
   Loader2,
 } from "lucide-react";
 import { switchUser, logoutUser } from "@/actions/auth";
 import { AppLogo } from "@/components/app-logo";
-import { DEV_EMAIL, DEV_NAME, DEV_TIKTOK_URL, DEV_YOUTUBE_URL, MailMark, TikTokMark, YouTubeMark } from "@/components/brand-marks";
+import { DEV_EMAIL, DEV_GITHUB_URL, DEV_NAME, DEV_TIKTOK_URL, DEV_WEBSITE_URL, DEV_YOUTUBE_URL, DONATE_URL, MailMark, TikTokMark, YouTubeMark } from "@/components/brand-marks";
+import { GithubMark } from "@/components/github-mark";
 import { Avatar } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -308,6 +311,26 @@ export function Shell({
               {t("تم تطوير البرنامج بواسطة")}{" "}
               <span className="font-semibold text-muted-foreground">{DEV_NAME}</span>
               <a
+                href={DEV_WEBSITE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={t("موقع المطور")}
+                title={DEV_WEBSITE_URL}
+                className="rounded-md p-1 text-muted-foreground/70 transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Globe className="h-3 w-3" aria-hidden />
+              </a>
+              <a
+                href={DEV_GITHUB_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={t("مستودع المشروع على GitHub")}
+                title="GitHub"
+                className="rounded-md p-1 text-muted-foreground/70 transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <GithubMark className="h-3 w-3" />
+              </a>
+              <a
                 href={`mailto:${DEV_EMAIL}`}
                 aria-label={t("بريد المطور")}
                 title={DEV_EMAIL}
@@ -336,6 +359,17 @@ export function Shell({
                 <YouTubeMark className="h-3 w-3 text-[#FF0000]" />
               </a>
             </p>
+            <a
+              href={DONATE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t("تبرّع لدعم المشروع")}
+              title={t("تبرّع لدعم المشروع")}
+              className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-indigo-100 transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-indigo-950"
+            >
+              <Heart className="h-3 w-3 text-rose-400" aria-hidden />
+              {t("تبرّع لدعم المشروع")}
+            </a>
           </div>
         </aside>
 

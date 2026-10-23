@@ -10,6 +10,7 @@ import {
   EyeOff,
   Fingerprint,
   Globe,
+  Heart,
   KeyRound,
   Loader2,
   Lock,
@@ -19,7 +20,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, ROLE_META } from "@/lib/format";
-import { DEV_EMAIL, DEV_NAME, DEV_TIKTOK_URL, DEV_WEBSITE_URL, DEV_YOUTUBE_URL, MailMark, TikTokMark, YouTubeMark } from "@/components/brand-marks";
+import { DEV_EMAIL, DEV_GITHUB_URL, DEV_NAME, DEV_TIKTOK_URL, DEV_WEBSITE_URL, DEV_YOUTUBE_URL, DONATE_URL, MailMark, TikTokMark, YouTubeMark } from "@/components/brand-marks";
+import { GithubMark } from "@/components/github-mark";
 import { LoginForm } from "./login-form";
 import { Avatar } from "@/components/ui";
 import { switchUser } from "@/actions/auth";
@@ -222,19 +224,19 @@ function DevCredits() {
     <div className="mt-5 border-t border-border pt-4">
       <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-[11px] leading-relaxed text-muted-foreground">
         {t("تم تطوير البرنامج بواسطة")}
-        <span className="font-semibold text-foreground">Zeidex</span>
+        <span className="font-semibold text-foreground">{DEV_NAME}</span>
         <span aria-hidden className="text-muted-foreground/40">
           ·
         </span>
         <a
-          href="mailto:z30432981@gmail.com"
+          href={`mailto:${DEV_EMAIL}`}
           dir="ltr"
           className="transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          z30432981@gmail.com
+          {DEV_EMAIL}
         </a>
       </p>
-      <p className="mt-1.5 flex items-center justify-center gap-1">
+      <p className="mt-1.5 flex items-center justify-center gap-2">
         <a
           href={DEV_WEBSITE_URL}
           target="_blank"
@@ -244,6 +246,16 @@ function DevCredits() {
           className={linkClass}
         >
           <Globe className="h-3.5 w-3.5" aria-hidden />
+        </a>
+        <a
+          href={DEV_GITHUB_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={t("مستودع المشروع على GitHub")}
+          title="GitHub"
+          className={linkClass}
+        >
+          <GithubMark className="h-3.5 w-3.5" />
         </a>
         <a
           href={DEV_TIKTOK_URL}
@@ -274,6 +286,17 @@ function DevCredits() {
           <MailMark className="h-3.5 w-3.5" />
         </a>
       </p>
+      <a
+        href={DONATE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={t("تبرّع لدعم المشروع")}
+        title={t("تبرّع لدعم المشروع")}
+        className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary/25 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Heart className="h-3.5 w-3.5" aria-hidden />
+        {t("تبرّع لدعم المشروع")}
+      </a>
     </div>
   );
 }

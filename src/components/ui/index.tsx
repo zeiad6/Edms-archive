@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import {
   FileText,
   FileSpreadsheet,
@@ -136,6 +137,7 @@ export function StatCard({
   hint,
   delta,
   accent = "indigo",
+  href,
 }: {
   icon: ReactNode;
   label: string;
@@ -143,6 +145,7 @@ export function StatCard({
   hint?: string;
   delta?: { value: string; up?: boolean };
   accent?: "indigo" | "emerald" | "amber" | "sky" | "rose" | "violet";
+  href?: string;
 }) {
   const accents: Record<string, string> = {
     indigo: "bg-primary/10 text-primary ring-1 ring-inset ring-primary/20",
@@ -152,8 +155,8 @@ export function StatCard({
     rose: "bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-1 ring-inset ring-rose-500/20",
     violet: "bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-1 ring-inset ring-violet-500/20",
   };
-  return (
-    <Card interactive className="group relative min-h-[9.5rem] overflow-hidden p-5 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-ring/30">
+  const card = (
+    <Card interactive className="group relative min-h-[9.5rem] overflow-hidden p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-ring/30">
       <div aria-hidden className="pointer-events-none absolute -end-10 -top-10 h-28 w-28 rounded-full bg-primary/[0.07] blur-2xl transition-all duration-300 group-hover:scale-125 group-hover:opacity-100" />
       <div aria-hidden className="pointer-events-none absolute -bottom-12 -start-12 h-24 w-24 rounded-full bg-primary/[0.04] blur-2xl" />
       <div className="relative flex items-center justify-between gap-3">
@@ -170,6 +173,14 @@ export function StatCard({
       </div>
       {hint && <div className="relative mt-2 truncate text-xs leading-relaxed text-muted-foreground">{t(hint)}</div>}
     </Card>
+  );
+
+  return href ? (
+    <Link href={href} className="block transition-transform focus:outline-none">
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }
 

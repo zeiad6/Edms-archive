@@ -26,6 +26,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "حجم التوقيع يتجاوز الحد الأقصى 2 ميجابايت" }, { status: 400 });
   }
 
+  // Validate that dataUrl is a legitimate base64 image (PNG, JPEG, WebP)
+  const isImageBase64 =
+    (dataUrl.startsWith("data:image/png;base64,") ||
+     dataUrl.startsWith("data:image/jpeg;base64,") ||
+     dataUrl.startsWith("data:image/webp;base64,")) &&
+    /^[A-Za-z0-9+/=_\-\r\n]+$/.test(dataUrl.slice(dataUrl.indexOf(",") + 1));
+  if (!isImageBase64) {
+    return NextResponse.json({ error: "صيغة التوقيع غير صالحة — يُشترط صورة صالحة" }, { status: 400 });
+  }
+
   // Verify the user has access to the document before signing
   const [doc] = await db.select().from(documents).where(eq(documents.id, documentId)).limit(1);
   if (!doc) return NextResponse.json({ error: "المستند غير موجود" }, { status: 404 });

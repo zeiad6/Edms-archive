@@ -5,10 +5,12 @@ import {
   Building2,
   HardDrive,
   Database,
+  Heart,
   ShieldCheck,
   Layers,
   Code2,
 } from "lucide-react";
+import { DONATE_URL } from "@/components/brand-marks";
 import { db } from "@/db";
 import { documents, users, departments, folders } from "@/db/schema";
 import { count, sql } from "drizzle-orm";
@@ -126,7 +128,7 @@ export default async function SettingsPage() {
             <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
               <HardDrive className="h-4 w-4 text-primary" />{ts(lang, "معلومات النظام")}</h3>
             <dl className="grid gap-2.5 text-sm sm:grid-cols-2 lg:gap-3">
-              <Info k="إصدار النظام" v="EDMS 1.0" />
+              <Info k="إصدار النظام" v="EDMS 1.0.7 (ZeidexSoft)" />
               <Info k="المحرك" v="Next.js App Router + API Routes" />
               <Info k="قاعدة البيانات" v="libSQL (SQLite) — ملف محلي" />
               <Info k="البحث" v="Fuse.js · SQL LIKE (بحث نصي)" />
@@ -146,20 +148,40 @@ export default async function SettingsPage() {
                 <Code2 className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-foreground">{ts(lang, "تم تطوير البرنامج بواسطة Ziad Al-hammadi")}</div>
+                <div className="text-sm font-semibold text-foreground">{ts(lang, "تم تطوير البرنامج بواسطة ZeidexSoft")}</div>
                 <div className="text-xs text-muted-foreground">
-                  <span dir="ltr" className="tnum">+967 784 908 515</span>
+                  <a href="https://zeidexlink.zeidexsoft.com/zeidex" target="_blank" rel="noopener noreferrer" dir="ltr" className="transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    zeidexlink.zeidexsoft.com/zeidex
+                  </a>
                 </div>
               </div>
               <a
-                href="https://github.com/zeiad6"
+                href="https://github.com/zeiad6/Edms-archive"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={ts(lang, "حساب المطور على GitHub")}
-                title="GitHub"
+                aria-label={ts(lang, "مستودع المشروع على GitHub")}
+                title="GitHub — zeiad6/Edms-archive"
                 className="shrink-0 rounded-xl border border-border bg-card p-2.5 text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <GithubMark className="h-5 w-5" />
+              </a>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <a
+                href="https://github.com/zeiad6/Edms-archive"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <GithubMark className="h-3.5 w-3.5" />{ts(lang, "مستودع المشروع")}
+              </a>
+              <a
+                href={DONATE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Heart className="h-3.5 w-3.5" aria-hidden />{ts(lang, "تبرّع لدعم المشروع")}
               </a>
             </div>
           </Card>

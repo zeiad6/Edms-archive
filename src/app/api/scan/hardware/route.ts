@@ -39,6 +39,13 @@ export async function GET(request: NextRequest) {
   const colorEntry = SCAN_COLORS.find((c) => c.id === colorRaw) ?? SCAN_COLORS[0];
   const colorMode = colorEntry.wia;
 
+  if (process.platform !== "win32") {
+    return NextResponse.json(
+      { error: "خدمة المسح الضوئي عبر العتاد (WIA) متاحة على نظام Windows فقط" },
+      { status: 503 },
+    );
+  }
+
   const out = path.join(tmpdir(), `edms-wia-${Date.now()}.jpg`);
   // The Electron shell sets EDMS_SCRIPTS_DIR (the packaged script lives in
   // resources next to the app; inside an asar it is not directly executable).

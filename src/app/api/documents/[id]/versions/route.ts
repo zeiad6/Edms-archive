@@ -47,13 +47,14 @@ export async function POST(
     return NextResponse.json({ error: `حجم الملف يتجاوز الحد الأقصى ${MAX_FILE_SIZE / 1024 / 1024} ميجابايت` }, { status: 413 });
   }
 
-  // File extension validation — same whitelist as the upload route
+  // File extension validation — extension is required (no extensionless files)
   const ext = extFromName(file.name);
-  if (ext && !ALLOWED_EXTENSIONS.has(ext.toLowerCase())) {
-    return NextResponse.json({ error: "نوع الملف غير مدعوم" }, { status: 400 });
+  if (!ext || !ALLOWED_EXTENSIONS.has(ext.toLowerCase())) {
+    return NextResponse.json({ error: "نوع الملف غير مدعوم أو الامتداد مفقود" }, { status: 400 });
   }
 
-  const mime = file.type || mimeFromExt(ext);
+  // Derive MIME securely from extension, never trusting client-supplied file.type alone
+  const mime = mimeFromExt(ext) || "application/octet-stream";
   const bytes = Buffer.from(await file.arrayBuffer());
   const key = genKey(ext || "bin");
   await writeKey(key, bytes);

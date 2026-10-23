@@ -11,4 +11,17 @@ const client = createClient({
   url: databaseUrl,
 });
 
+// Enforce foreign key constraints before any query executes (SQLite defaults
+// to OFF). The PRAGMA is awaited inside the async init; failures are logged
+// without crashing boot, so the connection never runs queries with FKs off.
+async function enableForeignKeys(): Promise<void> {
+  try {
+    await client.execute("PRAGMA foreign_keys = ON;");
+  } catch (err) {
+    console.error("[db] PRAGMA foreign_keys failed:", err);
+  }
+}
+
+void enableForeignKeys();
+
 export const db = drizzle(client);

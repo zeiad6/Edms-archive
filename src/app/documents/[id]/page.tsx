@@ -19,6 +19,7 @@ import { DocumentPreviewCard } from "@/components/documents/document-preview-car
 import { DocumentDescriptionCard } from "@/components/documents/document-description-card";
 import { OcrCard } from "@/components/documents/ocr-card";
 import { DocumentTagsCard } from "@/components/documents/document-tags-card";
+import { DocumentQuickActions } from "@/components/documents/document-quick-actions";
 import { ts } from "@/lib/i18n";
 import { getServerLang } from "@/lib/server-lang";
 
@@ -95,6 +96,18 @@ export default async function DocumentDetail({
 
         {/* Sidebar */}
         <div className="space-y-5 lg:space-y-6">
+          <DocumentQuickActions
+            id={doc.id}
+            title={doc.title}
+            docNumber={doc.docNumber}
+            docDate={doc.docDate}
+            deptName={meta.deptName}
+            docType={doc.docType}
+            status={doc.status}
+            version={doc.version}
+            uploaderName={meta.uploaderName}
+          />
+
           <DocumentSidebar doc={doc} meta={meta} />
 
           <Card className="p-5 shadow-card">

@@ -1199,6 +1199,9 @@ export const DICT: Record<string, string> = {
   "موقع المطور": "Developer website",
   "حساب المطور على تيك توك": "Developer TikTok account",
   "قناة المطور على يوتيوب": "Developer YouTube channel",
+  "مستودع المشروع على GitHub": "Project repository on GitHub",
+  "مستودع المشروع": "GitHub repository",
+  "تبرّع لدعم المشروع": "Donate to support the project",
   // ---- Mobile link (Android) ----------------------------------------------
   "ربط تطبيق الجوال (Android)": "Mobile app link (Android)",
   "اتصال مشفّر (TLS) مع تثبيت بصمة الشهادة، ورمز جهاز لكل هاتف، ثم تسجيل الدخول المعتاد. الخدمة متوقفة افتراضياً.": "Encrypted TLS with a pinned certificate fingerprint and a per-phone device token, then the usual sign-in. Off by default.",

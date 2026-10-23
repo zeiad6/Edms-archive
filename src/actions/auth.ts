@@ -2,20 +2,37 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { hashPassword, sanitizePastedPassword, verifyPassword } from "@/lib/password";
-import { clearLoginFailures, loginThrottled, recordLoginFailure } from "@/lib/login-throttle";
+import { clearLoginFailures, loginThrottleKey, loginThrottled, recordLoginFailure } from "@/lib/login-throttle";
 import { getCurrentUser, logAudit } from "@/lib/server";
 import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS, signSession } from "@/lib/session";
 
 /**
- * In-memory login brute-force guard: 8 failed attempts per account per
- * 10 minutes, then a generic cool-down error. Keyed by account (not IP —
- * server actions have no reliable client IP), counted ONLY on failure so
- * legitimate users are never throttled.
+ * Best-effort client IP for login throttling. Server Actions do not expose a
+ * reliable client IP on the action context itself, so read the standard proxy
+ * headers forwarded by the reverse proxy / Next proxy.
+ */
+async function getClientIp(): Promise<string> {
+  const h = await headers();
+  const forwarded = h.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const realIp = h.get("x-real-ip");
+  if (realIp && realIp.trim()) return realIp.trim();
+  return "unknown";
+}
+
+/**
+ * In-memory login brute-force guard: 8 failed attempts per account+IP pair
+ * per 10 minutes, then a generic cool-down error. Keys are built with
+ * {@link loginThrottleKey} so failures bind both the account and the client
+ * IP, counted ONLY on failure so legitimate users are never throttled.
  *
  * Single-process scope: the packaged/Electron and standalone deployments run
  * exactly one Node process, so a Map is sufficient. A multi-process
@@ -64,7 +81,8 @@ export async function switchUser(
     return { error: "كلمة المرور غير صحيحة" };
   }
 
-  const throttleKey = `uid:${Number.isInteger(id) && id > 0 ? id : "?"}`;
+  const requesterIp = await getClientIp();
+  const throttleKey = loginThrottleKey(`uid:${Number.isInteger(id) && id > 0 ? id : "?"}`, requesterIp);
   if (loginThrottled(throttleKey)) {
     return { error: "محاولات كثيرة — حاول مجدداً بعد 10 دقائق" };
   }
@@ -145,7 +163,8 @@ export async function loginUser(
   const username = String(formData.get("username") || "").trim().toLowerCase();
   const password = sanitizePastedPassword(String(formData.get("password") || ""));
 
-  const throttleKey = `user:${username || "?"}`;
+  const ip = await getClientIp();
+  const throttleKey = loginThrottleKey(username || "?", ip);
   if (loginThrottled(throttleKey)) {
     return { error: "محاولات كثيرة — حاول مجدداً بعد 10 دقائق" };
   }

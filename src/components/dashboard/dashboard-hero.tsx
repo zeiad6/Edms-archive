@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Files, ScanLine, Sparkles, UploadCloud } from "lucide-react";
+import { Files, ScanLine, Sparkles, UploadCloud, Search } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/components/lang-provider";
+import { openCommandPalette } from "@/components/command-palette";
 
 interface DashboardHeroProps {
   greeting: string;
@@ -46,6 +47,15 @@ export function DashboardHero({ greeting, name, today, total, active, week }: Da
             <Link href="/documents" className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-inset ring-white/25 backdrop-blur transition-all duration-150 hover:bg-white/20 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-indigo-800">
               <Files className="h-4 w-4" /> {t("تصفّح الأرشيف")}
             </Link>
+            <button
+              type="button"
+              onClick={openCommandPalette}
+              className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-inset ring-white/25 backdrop-blur transition-all duration-150 hover:bg-white/20 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-indigo-800"
+            >
+              <Search className="h-4 w-4" />
+              <span>{t("البحث الذكي")}</span>
+              <kbd className="ms-1 rounded bg-white/20 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-tight">⌘K</kbd>
+            </button>
           </div>
         </div>
         <div className="hidden shrink-0 gap-3 min-[960px]:flex sm:flex" role="list" aria-label={t("إحصاءات سريعة")}>

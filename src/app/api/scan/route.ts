@@ -34,25 +34,27 @@ export async function GET() {
   const script = process.env.EDMS_SCRIPTS_DIR
     ? path.join(process.env.EDMS_SCRIPTS_DIR, "scan-wia.ps1")
     : path.join(process.cwd(), "scripts", "scan-wia.ps1");
-  try {
-    const { stdout } = await execFileAsync(
-      "powershell.exe",
-      ["-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File", script, out],
-      { timeout: 90_000, windowsHide: true, maxBuffer: 8 * 1024 * 1024 },
-    );
-    if (!stdout.includes("NO_SCANNER")) {
-      const buf = await readFile(out);
+  if (process.platform === "win32") {
+    try {
+      const { stdout } = await execFileAsync(
+        "powershell.exe",
+        ["-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File", script, out],
+        { timeout: 90_000, windowsHide: true, maxBuffer: 8 * 1024 * 1024 },
+      );
+      if (!stdout.includes("NO_SCANNER")) {
+        const buf = await readFile(out);
+        await unlink(out).catch(() => {});
+        return NextResponse.json({
+          image: `data:image/jpeg;base64,${buf.toString("base64")}`,
+          docNumber: "",
+          simulated: false,
+        });
+      }
       await unlink(out).catch(() => {});
-      return NextResponse.json({
-        image: `data:image/jpeg;base64,${buf.toString("base64")}`,
-        docNumber: "",
-        simulated: false,
-      });
+    } catch {
+      await unlink(out).catch(() => {});
+      // Hardware unavailable — fall through to the generated sample below.
     }
-    await unlink(out).catch(() => {});
-  } catch {
-    await unlink(out).catch(() => {});
-    // Hardware unavailable — fall through to the generated sample below.
   }
 
   // Fallback: generated sample page (offline, no hardware needed).

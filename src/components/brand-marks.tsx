@@ -9,11 +9,26 @@
  */
 
 /** Developer contact — single source for every credits block (login, sidebar, settings). */
-export const DEV_NAME = "Zeidex";
+export const DEV_NAME = "ZeidexSoft";
 export const DEV_EMAIL = "z30432981@gmail.com";
 export const DEV_TIKTOK_URL = "https://www.tiktok.com/@ghost.7784";
 export const DEV_YOUTUBE_URL = "https://youtube.com/@idea-784-w7d";
-export const DEV_WEBSITE_URL = "https://zeidex.netlify.app/";
+export const DEV_WEBSITE_URL = "https://zeidexlink.zeidexsoft.com/zeidex";
+
+/** This project's GitHub repository (linked from credits / about card). */
+export const DEV_GITHUB_URL = "https://github.com/zeiad6/Edms-archive";
+
+/**
+ * Donation link (Donate button). NEVER hardcode bank/card numbers or
+ * any financial secret here — the URL comes from the environment at build
+ * time and points at a hosted payment page (e.g. a Stripe Payment Link or
+ * PayPal), which never has to live inside the code.
+ *
+ * `NEXT_PUBLIC_DONATE_URL` (set in .env) wins when present; the fallback is
+ * the developer page where donation/contact options are published.
+ */
+export const DONATE_URL =
+  (process.env.NEXT_PUBLIC_DONATE_URL?.trim() || DEV_WEBSITE_URL);
 
 export function TikTokMark({ className }: { className?: string }) {
   return (

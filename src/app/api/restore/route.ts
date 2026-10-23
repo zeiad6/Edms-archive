@@ -103,6 +103,15 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    const MAX_BACKUP_SIZE = 500 * 1024 * 1024; // 500 MB
+    if ("size" in file && typeof (file as { size?: unknown }).size === "number") {
+      if ((file as { size: number }).size > MAX_BACKUP_SIZE) {
+        return NextResponse.json(
+          { ok: false, error: "حجم ملف النسخة الاحتياطية يتجاوز الحد المسموح (500 ميجابايت)" },
+          { status: 413 }
+        );
+      }
+    }
     const buffer = Buffer.from(await file.arrayBuffer());
     zip = new AdmZip(buffer);
     const manifestEntry = zip.getEntry("manifest.json");

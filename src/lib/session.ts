@@ -16,17 +16,19 @@ import "./env";
 
 export const SESSION_COOKIE = "edms_uid" as const;
 
+const isProduction = process.env.NODE_ENV === "production";
+
 export const SESSION_COOKIE_OPTIONS = {
   path: "/",
   httpOnly: true,
   sameSite: "strict" as const,
-  // The demo is served over plain HTTP, so `secure: true` would make browsers
-  // silently reject the cookie (Secure cookies are refused from insecure
-  // origins) — switchUser/logoutUser would appear to do nothing. `secure:
-  // false` works on both HTTP and HTTPS.
-  secure: false,
+  // Secure cookies are only accepted over HTTPS — browsers silently drop
+  // Secure cookies from insecure origins, which would make switchUser/
+  // logoutUser appear to do nothing. Dev/test keep `secure: false` so the
+  // plain-HTTP demo keeps working; production must serve over HTTPS.
+  secure: isProduction,
   maxAge: 60 * 60 * 24 * 30, // 30 days
-} as const;
+};
 
 /**
  * Fail-fast secret resolution. AUTH_SECRET MUST be set in production.

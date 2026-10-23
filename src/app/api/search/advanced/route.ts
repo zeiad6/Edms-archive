@@ -4,6 +4,7 @@ import { documents, departments, users, tags, documentTags, docTypes } from "@/d
 import { eq, and, desc, sql, inArray, or } from "drizzle-orm";
 import { getCurrentUser, canAccessDocument } from "@/lib/server";
 import { sanitizeLikeQuery } from "@/lib/format";
+import { clampPagination } from "@/lib/services/pagination";
 import { tokenizeArabicQuery, normalizeArabicTerm } from "@/lib/arabic";
 
 export const dynamic = "force-dynamic";
@@ -42,10 +43,10 @@ async function handlePost(request: NextRequest) {
     pageSize = 50,
   } = body;
 
-  // Clamp pagination: SQLite treats negative LIMIT as "no limit", so a
-  // client-supplied pageSize of -1 or 1e9 bypasses pagination (light DoS).
-  const safePage = Math.max(1, Math.floor(Number(page) || 1));
-  const safePageSize = Math.min(100, Math.max(1, Math.floor(Number(pageSize) || 50)));
+  // Clamp pagination via the pagination service: SQLite treats negative
+  // LIMIT as "no limit", so a client-supplied pageSize of -1 or 1e9 bypasses
+  // pagination (light DoS).
+  const { page: safePage, pageSize: safePageSize, offset } = clampPagination({ page, pageSize });
 
   // Build conditions
   const conditions: ReturnType<typeof sql>[] = [sql`${documents.deletedAt} IS NULL`];
@@ -195,7 +196,7 @@ async function handlePost(request: NextRequest) {
     .where(whereClause)
     .orderBy(desc(documents.createdAt))
     .limit(safePageSize)
-    .offset((safePage - 1) * safePageSize);
+    .offset(offset);
 
   const rows = await query_;
 

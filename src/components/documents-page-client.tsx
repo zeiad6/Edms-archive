@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Download,
   FileSpreadsheet,
@@ -9,6 +9,9 @@ import {
   Trash2,
   CheckCircle2,
   ListChecks,
+  Search,
+  X,
+  Lock,
 } from "lucide-react";
 import { DocumentsGrid, type DocRow } from "@/components/grids/documents-grid";
 import { toast } from "sonner";
@@ -54,6 +57,45 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
   }, []);
 
   const ids = selected.map((r) => r.id);
+  const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [clientSearch, setClientSearch] = useState<string>("");
+
+  const counts = useMemo(() => {
+    let active = 0;
+    let pending = 0;
+    let archived = 0;
+    let draft = 0;
+    let confidential = 0;
+    for (const r of rows) {
+      if (r.status === "active") active++;
+      else if (r.status === "pending_review") pending++;
+      else if (r.status === "archived") archived++;
+      else if (r.status === "draft") draft++;
+      if (r.confidential) confidential++;
+    }
+    return { all: rows.length, active, pending, archived, draft, confidential };
+  }, [rows]);
+
+  const filteredRows = useMemo(() => {
+    return rows.filter((r) => {
+      if (activeFilter === "confidential") {
+        if (!r.confidential) return false;
+      } else if (activeFilter !== "all") {
+        if (r.status !== activeFilter) return false;
+      }
+
+      if (clientSearch.trim()) {
+        const q = clientSearch.toLowerCase().trim();
+        const titleMatch = r.title.toLowerCase().includes(q);
+        const docNumMatch = r.docNumber?.toLowerCase().includes(q) ?? false;
+        const typeMatch = r.docType?.toLowerCase().includes(q) ?? false;
+        const deptMatch = r.departmentName?.toLowerCase().includes(q) ?? false;
+        if (!titleMatch && !docNumMatch && !typeMatch && !deptMatch) return false;
+      }
+
+      return true;
+    });
+  }, [rows, activeFilter, clientSearch]);
 
   async function handleBulkDownload() {
     if (selected.length === 0) {
@@ -346,8 +388,134 @@ export function DocumentsPageClient({ rows }: { rows: DocRow[] }) {
         </div>
       </div>
 
+      {/* Quick interactive filter chips and real-time live search */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label={t("تصفية سريعة")}>
+          <button
+            type="button"
+            onClick={() => setActiveFilter("all")}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+              activeFilter === "all"
+                ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                : "border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <span>{t("الكل")}</span>
+            <span className="tnum rounded-full bg-black/10 px-1.5 py-0.2 text-[10px] dark:bg-white/10">
+              {counts.all}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter("active")}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+              activeFilter === "active"
+                ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/25"
+                : "border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span>{t("سارية")}</span>
+            <span className="tnum rounded-full bg-black/10 px-1.5 py-0.2 text-[10px] dark:bg-white/10">
+              {counts.active}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter("pending_review")}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+              activeFilter === "pending_review"
+                ? "bg-amber-600 text-white shadow-sm shadow-amber-600/25"
+                : "border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            <span>{t("قيد المراجعة")}</span>
+            <span className="tnum rounded-full bg-black/10 px-1.5 py-0.2 text-[10px] dark:bg-white/10">
+              {counts.pending}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter("archived")}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+              activeFilter === "archived"
+                ? "bg-sky-600 text-white shadow-sm shadow-sky-600/25"
+                : "border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+            <span>{t("مؤرشفة")}</span>
+            <span className="tnum rounded-full bg-black/10 px-1.5 py-0.2 text-[10px] dark:bg-white/10">
+              {counts.archived}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter("draft")}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+              activeFilter === "draft"
+                ? "bg-slate-700 text-white shadow-sm shadow-slate-700/25 dark:bg-slate-600"
+                : "border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+            <span>{t("مسودة")}</span>
+            <span className="tnum rounded-full bg-black/10 px-1.5 py-0.2 text-[10px] dark:bg-white/10">
+              {counts.draft}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter("confidential")}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+              activeFilter === "confidential"
+                ? "bg-rose-600 text-white shadow-sm shadow-rose-600/25"
+                : "border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <Lock className="h-3 w-3" />
+            <span>{t("سرية")}</span>
+            <span className="tnum rounded-full bg-black/10 px-1.5 py-0.2 text-[10px] dark:bg-white/10">
+              {counts.confidential}
+            </span>
+          </button>
+        </div>
+
+        {/* Live instant search box */}
+        <div className="flex items-center gap-2">
+          <div className="relative w-56 sm:w-64">
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={clientSearch}
+              onChange={(e) => setClientSearch(e.target.value)}
+              placeholder={t("فلترة سريعة بالاسم أو الرقم...")}
+              className="h-8.5 w-full rounded-xl border border-border bg-card ps-8 pe-7 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            {clientSearch && (
+              <button
+                type="button"
+                onClick={() => setClientSearch("")}
+                className="absolute end-2 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="tnum text-[11px] font-medium text-muted-foreground whitespace-nowrap">
+            {t("عرض {shown} من {all}", { shown: filteredRows.length, all: rows.length })}
+          </div>
+        </div>
+      </div>
+
       <div className="documents-grid-area relative min-h-[200px]">
-        <DocumentsGrid rows={rows} onSelectionChange={setSelected} />
+        <DocumentsGrid rows={filteredRows} onSelectionChange={setSelected} />
       </div>
     </div>
   );
