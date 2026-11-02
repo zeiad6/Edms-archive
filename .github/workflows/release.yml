@@ -89,6 +89,12 @@ jobs:
       - name: Pack Electron (NSIS Setup)
         env:
           TESSERACT_SRC: 'C:\Program Files\Tesseract-OCR'
+          # Code signing (removes the SmartScreen warning) when the repo has the
+          # secrets: base64 .pfx (or a path/URL) + its password. Without them
+          # both are empty strings and electron-builder builds unsigned
+          # (WindowsSignToolManager returns null for cscLink === "").
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
         run: npm run electron:pack
 
       - name: Verify artifacts (Latin names, sane size)
@@ -111,6 +117,18 @@ jobs:
             if (-not (Test-Path $p)) { Write-Error "packaged runtime file missing: $p"; exit 1 }
           }
           Write-Host "OK: $($setup.FullName) ($([math]::Round($setup.Length/1MB,1)) MB)"
+
+      # Computed after packing (and signing) so users can verify the download:
+      # `sha256sum -c SHA256SUMS.txt` or `Get-FileHash`. LF line endings so
+      # GNU sha256sum on Linux/macOS accepts the file as-is.
+      - name: Generate SHA256SUMS.txt
+        shell: pwsh
+        run: |
+          $lines = Get-ChildItem dist/release/EDMS-Archive-*-Setup-x64.exe | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+          }
+          [IO.File]::WriteAllText("$PWD/dist/release/SHA256SUMS.txt", ($lines -join "`n") + "`n")
+          Get-Content dist/release/SHA256SUMS.txt
 
       # Boot the freshly built, not-yet-installed app BEFORE the upgrade test.
       # Both tests below need the app to actually start, and this one fails in
@@ -553,5 +571,6 @@ jobs:
             dist/release/EDMS-Archive-*-Setup-x64.exe
             dist/release/EDMS-Archive-*-Setup-x64.exe.blockmap
             dist/release/latest.yml
+            dist/release/SHA256SUMS.txt
           fail_on_unmatched_files: false
           generate_release_notes: false
