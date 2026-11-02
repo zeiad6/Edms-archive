@@ -10,6 +10,7 @@ import { getCurrentUser, logAudit, genKey, writeKey, resolveKey, canAccessDocume
 import { can, requirePermission } from "@/lib/permissions";
 import { extractDocumentText } from "@/lib/document-text";
 import { createImageThumbnail } from "@/lib/thumbnails";
+import { insertDocumentWithFirstVersion } from "@/lib/document-create";
 
 export async function updateDocument(formData: FormData) {
   const user = await getCurrentUser();
@@ -352,9 +353,8 @@ export async function saveScannedDocument(input: {
     .limit(1);
   docTypeId = typeRow?.id ?? null;
 
-  const [doc] = await db
-    .insert(documents)
-    .values({
+  const id = await insertDocumentWithFirstVersion({
+    doc: {
       title: input.title || "مستند ممسوح ضوئياً",
       description: input.description || null,
       docNumber: input.docNumber || null,
@@ -374,30 +374,18 @@ export async function saveScannedDocument(input: {
       folderId: target.folderId,
       uploadedById: user.id,
       docDate: new Date().toISOString().slice(0, 10),
-    })
-    .returning({ id: documents.id });
-
-  if (doc?.id) {
-    await db.insert(documentVersions).values({
-      documentId: doc.id,
-      version: 1,
-      storageKey: key,
-      originalName: `${input.title || "scan"}.${ext}`,
-      fileSize: buf.length,
-      note: "مسح ضوئي عبر جسر الماسحة",
-      uploadedById: user.id,
-    });
-    await logAudit({
-      userId: user?.id,
-      userName: user?.name,
+    },
+    versionNote: "مسح ضوئي عبر جسر الماسحة",
+    audit: {
+      userId: user.id,
+      userName: user.name,
       action: "document.scan",
-      entityType: "document",
-      entityId: doc.id,
       details: `إيداع مستند ممسوح: ${input.title}`,
-    });
-  }
+    },
+    writtenKeys: [key, thumbKey],
+  });
   revalidatePath("/documents");
-  return { id: doc?.id };
+  return { id };
 }
 
 /**
@@ -447,9 +435,8 @@ export async function saveScannedPdfDocument(input: {
     .limit(1);
   docTypeId = typeRow?.id ?? null;
 
-  const [doc] = await db
-    .insert(documents)
-    .values({
+  const id = await insertDocumentWithFirstVersion({
+    doc: {
       title: input.title || "مستند ممسوح ضوئياً",
       description: input.description || null,
       docNumber: input.docNumber || null,
@@ -470,28 +457,16 @@ export async function saveScannedPdfDocument(input: {
       folderId: target.folderId,
       uploadedById: user.id,
       docDate: new Date().toISOString().slice(0, 10),
-    })
-    .returning({ id: documents.id });
-
-  if (doc?.id) {
-    await db.insert(documentVersions).values({
-      documentId: doc.id,
-      version: 1,
-      storageKey: key,
-      originalName: `${input.title || "scan"}.pdf`,
-      fileSize: buf.length,
-      note: `مسح ضوئي متعدد (${input.pageCount} صفحات) عبر نافذة الماسحة`,
-      uploadedById: user.id,
-    });
-    await logAudit({
-      userId: user?.id,
-      userName: user?.name,
+    },
+    versionNote: `مسح ضوئي متعدد (${input.pageCount} صفحات) عبر نافذة الماسحة`,
+    audit: {
+      userId: user.id,
+      userName: user.name,
       action: "document.scan",
-      entityType: "document",
-      entityId: doc.id,
       details: `إيداع مستند ممسوح PDF (${input.pageCount} صفحات): ${input.title}`,
-    });
-  }
+    },
+    writtenKeys: [key],
+  });
   revalidatePath("/documents");
-  return { id: doc?.id };
+  return { id };
 }

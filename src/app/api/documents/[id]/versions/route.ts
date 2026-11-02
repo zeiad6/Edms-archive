@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { documents, documentVersions } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { getCurrentUser, canAccessDocument, logAudit, writeKey, genKey, resolveKey } from "@/lib/server";
+import { auditLogs, documents, documentVersions } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
+import { getCurrentUser, canAccessDocument, writeKey, genKey } from "@/lib/server";
 import { can } from "@/lib/permissions";
 import { extFromName, mimeFromExt } from "@/lib/format";
 import { createImageThumbnail } from "@/lib/thumbnails";
-import { unlink } from "node:fs/promises";
+import { removeStoredKeys } from "@/lib/document-create";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -59,45 +59,59 @@ export async function POST(
   const key = genKey(ext || "bin");
   await writeKey(key, bytes);
 
-  const next = doc.version + 1;
+  const isImage = mime.startsWith("image/");
+  const newThumbKey = isImage ? await createImageThumbnail(key) : null;
 
+  // Version row, audit entry and document pointer commit together, so a failed
+  // write can no longer leave a version row whose file was just unlinked.
+  // The number comes from the row as it is INSIDE the batch, not from `doc`:
+  // that read happened several awaits ago, and concurrent uploads to one
+  // document all got the same number from it. The batch runs synchronously on
+  // the shared connection, so nothing interleaves. The audit row precedes the
+  // update so both reads still see the old `documents.version`.
+  const nextVersion = sql<number>`(SELECT version + 1 FROM documents WHERE id = ${docId})`;
+  let next: number;
   try {
-    await db.insert(documentVersions).values({
-      documentId: docId,
-      version: next,
-      storageKey: key,
-      originalName: file.name,
-      fileSize: bytes.length,
-      note: note || `الإصدار ${next}`,
-      uploadedById: user.id,
-    });
-
-    await db
-      .update(documents)
-      .set({
-        storageKey: key,
-        originalName: file.name,
-        fileName: key.split("/").pop()!,
-        mimeType: mime,
-        fileExt: ext || null,
-        fileSize: bytes.length,
-        version: next,
-        thumbKey: mime.startsWith("image/") ? (await createImageThumbnail(key)) ?? key : doc.thumbKey,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(documents.id, docId));
-
-    await logAudit({
-      userId: user.id,
-      userName: user.name,
-      action: "document.version",
-      entityType: "document",
-      entityId: docId,
-      details: `إضافة الإصدار ${next}: ${file.name}`,
-    });
+    const [[inserted]] = await db.batch([
+      db
+        .insert(documentVersions)
+        .values({
+          documentId: docId,
+          version: nextVersion,
+          storageKey: key,
+          originalName: file.name,
+          fileSize: bytes.length,
+          note: note ?? sql`${"الإصدار "} || ${nextVersion}`,
+          uploadedById: user.id,
+        })
+        .returning({ version: documentVersions.version }),
+      db.insert(auditLogs).values({
+        userId: user.id,
+        userName: user.name,
+        action: "document.version",
+        entityType: "document",
+        entityId: docId,
+        details: sql`${"إضافة الإصدار "} || ${nextVersion} || ${`: ${file.name}`}`,
+      }),
+      db
+        .update(documents)
+        .set({
+          storageKey: key,
+          originalName: file.name,
+          fileName: key.split("/").pop()!,
+          mimeType: mime,
+          fileExt: ext || null,
+          fileSize: bytes.length,
+          version: sql`${documents.version} + 1`,
+          thumbKey: isImage ? newThumbKey ?? key : doc.thumbKey,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(documents.id, docId)),
+    ]);
+    next = inserted.version;
   } catch (err) {
-    // Remove the orphaned file so a failed DB write doesn't leak storage.
-    await unlink(resolveKey(key)).catch(() => {});
+    // Remove the orphaned files so a failed DB write doesn't leak storage.
+    await removeStoredKeys([key, newThumbKey]);
     console.error("Failed to create document version", err);
     return NextResponse.json({ error: "فشل حفظ الإصدار" }, { status: 500 });
   }

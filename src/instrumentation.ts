@@ -16,4 +16,8 @@ export async function register(): Promise<void> {
 
   const { ensureSeeded } = await import("@/lib/seed");
   await ensureSeeded();
+
+  // Not awaited: catching up on interrupted upload OCR must not delay boot.
+  const { resumePendingOcr } = await import("@/lib/ocr-jobs");
+  void resumePendingOcr().catch((err) => console.error("[boot] OCR resume failed:", err));
 }

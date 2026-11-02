@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { departments, documents, documentVersions, documentTags, folders, docTypes } from "@/db/schema";
+import { departments, folders, docTypes } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getCurrentUser, logAudit, writeKey, genKey, resolveKey } from "@/lib/server";
+import { getCurrentUser, writeKey, genKey } from "@/lib/server";
 import { can } from "@/lib/permissions";
 import { extFromName, mimeFromExt } from "@/lib/format";
 import { runTesseractOcr } from "@/lib/tesseract";
-import { extractDocumentText } from "@/lib/document-text";
+import { insertDocumentWithFirstVersion } from "@/lib/document-create";
+import { runUploadOcr } from "@/lib/ocr-jobs";
 import { createImageThumbnail } from "@/lib/thumbnails";
 
 export const dynamic = "force-dynamic";
@@ -174,96 +175,64 @@ export async function POST(request: NextRequest) {
   }
 
   // Every rejection path above has returned already, so this is the first
-  // moment the request is guaranteed to become a document. Persist the bytes
-  // and derive the thumbnail here, and drop them again if the insert fails —
-  // an orphaned file in storage/ is invisible in the UI but still occupies
-  // disk and still lands in every backup zip.
+  // moment the request is guaranteed to become a document. The document,
+  // its version-1 row, tags and audit entry are written as one atomic batch;
+  // if it fails, the stored bytes and thumbnail are removed again — an
+  // orphaned file in storage/ is invisible in the UI but still occupies disk
+  // and still lands in every backup zip.
   await writeKey(key, bytes);
   const thumbKey = await createImageThumbnail(key);
 
-  const [doc] = await db
-    .insert(documents)
-    .values({
-      title,
-      description: (form.get("description") as string) || null,
-      docNumber: (form.get("docNumber") as string) || null,
-      docType: docTypeVal,
-      docTypeId,
-      status: "pending_review",
-      confidential: form.get("confidential") === "on" ? 1 : 0,
-      storageKey: key,
-      thumbKey,
-      originalName: file.name,
-      fileName: key.split("/").pop()!,
-      mimeType: mime,
-      fileExt: ext || null,
-      fileSize: bytes.length,
-      contentText: (form.get("description") as string) || null,
-      ocrProcessed: 0,
-      departmentId: deptId,
-      folderId,
-      uploadedById: user.id,
-      docDate,
-      keywords: (form.get("keywords") as string)?.trim() || null,
-      source: (form.get("source") as string)?.trim() || null,
-      notes: (form.get("notes") as string)?.trim() || null,
-    })
-    .returning({ id: documents.id });
+  const tagIds = String(form.get("tags") || "")
+    .split(",")
+    .map(Number)
+    .filter((n) => Number.isInteger(n) && n > 0);
 
-  if (doc?.id) {
-    await db.insert(documentVersions).values({
-      documentId: doc.id,
-      version: 1,
-      storageKey: key,
-      originalName: file.name,
-      fileSize: bytes.length,
-      note: "النسخة الأولى المرفوعة",
-      uploadedById: user.id,
+  let docId: number;
+  try {
+    docId = await insertDocumentWithFirstVersion({
+      doc: {
+        title,
+        description: (form.get("description") as string) || null,
+        docNumber: (form.get("docNumber") as string) || null,
+        docType: docTypeVal,
+        docTypeId,
+        status: "pending_review",
+        confidential: form.get("confidential") === "on" ? 1 : 0,
+        storageKey: key,
+        thumbKey,
+        originalName: file.name,
+        fileName: key.split("/").pop()!,
+        mimeType: mime,
+        fileExt: ext || null,
+        fileSize: bytes.length,
+        contentText: (form.get("description") as string) || null,
+        ocrProcessed: 0,
+        departmentId: deptId,
+        folderId,
+        uploadedById: user.id,
+        docDate,
+        keywords: (form.get("keywords") as string)?.trim() || null,
+        source: (form.get("source") as string)?.trim() || null,
+        notes: (form.get("notes") as string)?.trim() || null,
+      },
+      versionNote: "النسخة الأولى المرفوعة",
+      tagIds,
+      audit: {
+        userId: user.id,
+        userName: user.name,
+        action: "document.upload",
+        details: `رفع مستند جديد: ${title} (${file.name})`,
+      },
+      writtenKeys: [key, thumbKey],
     });
-    await logAudit({
-      userId: user.id,
-      userName: user.name,
-      action: "document.upload",
-      entityType: "document",
-      entityId: doc.id,
-      details: `رفع مستند جديد: ${title} (${file.name})`,
-    });
-
-    // Attach tags if provided
-    const tagsStr = form.get("tags") as string | null;
-    if (tagsStr && tagsStr.trim()) {
-      const tagIds = tagsStr
-        .split(",")
-        .map(Number)
-        .filter((n) => !isNaN(n) && n > 0);
-      if (tagIds.length > 0) {
-        await db.insert(documentTags).values(tagIds.map((tagId) => ({ documentId: doc.id, tagId })));
-      }
-    }
-
-    // OCR async — لا ننتظرها حتى لا تؤخر الاستجابة
-    runOcr(doc.id, key, user).catch((e) => console.error("Background OCR failed", e));
+  } catch (err) {
+    console.error("[upload] failed to save document", err);
+    return NextResponse.json({ error: "فشل حفظ المستند" }, { status: 500 });
   }
 
-  return NextResponse.json({ id: doc?.id });
-}
+  // OCR async — لا ننتظرها حتى لا تؤخر الاستجابة
+  runUploadOcr(docId, key, { id: user.id, name: user.name }).catch((e) => console.error("Background OCR failed", e));
 
-/** تنفيذ استخراج النص في الخلفية بعد الرفع — PDF نصي مباشر أو OCR محلي */
-async function runOcr(docId: number, storageKey: string, user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>) {
-  const filePath = resolveKey(storageKey);
-  const text = await extractDocumentText(filePath);
-
-  await db
-    .update(documents)
-    .set({ contentText: text || null, ocrProcessed: text ? 1 : 0 })
-    .where(eq(documents.id, docId));
-
-  await logAudit({
-    userId: user.id,
-    userName: user.name,
-    action: "document.ocr",
-    entityType: "document",
-    entityId: docId,
-    details: "استخراج النص تلقائياً بعد الرفع",
-  });
+  return NextResponse.json({ id: docId });
 }

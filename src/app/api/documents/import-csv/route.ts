@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import {
-  documents,
-  documentVersions,
   documentTags,
   departments,
   folders,
@@ -10,8 +8,9 @@ import {
   docTypes,
 } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { getCurrentUser, logAudit, genKey, writeKey } from "@/lib/server";
+import { getCurrentUser, genKey, writeKey } from "@/lib/server";
 import { can } from "@/lib/permissions";
+import { insertDocumentWithFirstVersion } from "@/lib/document-create";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -189,22 +188,21 @@ docTypeVal,
 
 /* ──────────── Document insertion ─────────────── */
 
-/** Insert a document + initial version + audit log. Returns the new document ID. */
+/** Insert a document + initial version + audit log atomically. Returns the new document ID. */
 async function insertDocumentRow(
   resolved: ResolvedRow,
   userId: number,
   userName: string,
   now: string,
-): Promise<{ id: number } | null> {
+): Promise<number> {
   const placeholderKey = genKey("txt");
   const placeholderBuf = Buffer.from(
     `مستند مستورد عبر CSV\nالعنوان: ${resolved.title}\nالتاريخ: ${resolved.docDate}\nالوصف: ${resolved.description || ""}`,
   );
   await writeKey(placeholderKey, placeholderBuf);
 
-  const [doc] = await db
-    .insert(documents)
-    .values({
+  return insertDocumentWithFirstVersion({
+    doc: {
       title: resolved.title,
       description: resolved.description,
       docNumber: resolved.docNumber,
@@ -228,32 +226,17 @@ async function insertDocumentRow(
       docDate: resolved.docDate,
       createdAt: now,
       updatedAt: now,
-    })
-    .returning({ id: documents.id });
-
-  if (!doc) return null;
-
-  await db.insert(documentVersions).values({
-    documentId: doc.id,
-    version: 1,
-    storageKey: placeholderKey,
-    originalName: `${resolved.title}.txt`,
-    fileSize: placeholderBuf.length,
-    note: "مستند مستورد عبر CSV",
-    uploadedById: userId,
-    createdAt: now,
+    },
+    versionNote: "مستند مستورد عبر CSV",
+    versionCreatedAt: now,
+    audit: {
+      userId,
+      userName,
+      action: "document.csv_import",
+      details: `استيراد مستند عبر CSV: ${resolved.title}`,
+    },
+    writtenKeys: [placeholderKey],
   });
-
-  await logAudit({
-    userId,
-    userName,
-    action: "document.csv_import",
-    entityType: "document",
-    entityId: doc.id,
-    details: `استيراد مستند عبر CSV: ${resolved.title}`,
-  });
-
-  return doc;
 }
 
 /* ─────────────── Tag attachment ──────────────── */
@@ -362,13 +345,8 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      const doc = await insertDocumentRow(resolved, user.id, user.name, now);
-      if (!doc) {
-        results.push({ row: i + 1, success: false, title: resolved.title, error: "فشل إنشاء المستند" });
-        continue;
-      }
-
-      await attachTagsToDoc(doc.id, resolved.tagsRaw, lookups.tagIdCache, canCreateTags);
+      const docId = await insertDocumentRow(resolved, user.id, user.name, now);
+      await attachTagsToDoc(docId, resolved.tagsRaw, lookups.tagIdCache, canCreateTags);
 
       importedCount++;
       results.push({ row: i + 1, success: true, title: resolved.title });
