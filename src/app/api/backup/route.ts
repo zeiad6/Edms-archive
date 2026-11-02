@@ -15,9 +15,9 @@ import { join, relative, basename, sep, resolve } from "node:path";
 // another chunk, so packaged builds throw "p is not a function" (HTTP 500 on
 // /api/backup). Static imports become async chunk loads and work everywhere.
 import { ZipArchive } from "archiver";
-import { createClient } from "@libsql/client";
 import { getCurrentUser } from "@/lib/server";
 import { can } from "@/lib/permissions";
+import { checkpointWal } from "@/lib/db-maintenance";
 import { APP_VERSION } from "@/lib/version";
 
 export const dynamic = "force-dynamic";
@@ -63,26 +63,14 @@ function configFileSource(): string | null {
 }
 
 /**
- * Best-effort WAL checkpoint before zipping the data dir. Runs on a throwaway
- * connection (same URL resolution as src/db/index.ts) so the .db file is as
- * complete as possible; -wal/-shm are still included when the checkpoint is
- * busy or fails. Never throws.
+ * Best-effort WAL checkpoint before zipping the data dir, so the .db file is
+ * as complete as possible; -wal/-shm are still included when the checkpoint
+ * is busy or fails. Never throws.
  */
 async function tryCheckpoint(): Promise<void> {
-  try {
-    const url =
-      process.env.DATABASE_URL ||
-      (process.env.EDMS_DATA_DIR
-        ? `file:${process.env.EDMS_DATA_DIR.replace(/\\/g, "/")}/edms.db`
-        : "file:./data/edms.db");
-    const client = createClient({ url });
-    try {
-      await client.execute({ sql: "PRAGMA wal_checkpoint(TRUNCATE)" });
-    } finally {
-      client.close();
-    }
-  } catch (e) {
-    console.error("[backup] WAL checkpoint skipped:", e);
+  const result = await checkpointWal("TRUNCATE");
+  if (result?.busy) {
+    console.warn("[backup] WAL checkpoint busy — the -wal file is kept in the archive");
   }
 }
 

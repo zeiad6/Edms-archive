@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { db, dbReady } from "@/db";
 import {
   departments,
   users,
@@ -109,8 +109,10 @@ const DDL = [
 ];
 
 async function ensureSchema(): Promise<void> {
-  try { await db.run(sql.raw("PRAGMA journal_mode=WAL")); } catch (e) { console.error("[seed] PRAGMA journal_mode failed:", e); }
-  try { await db.run(sql.raw("PRAGMA foreign_keys=ON")); } catch (e) { console.error("[seed] PRAGMA foreign_keys failed:", e); }
+  // Connection settings (foreign_keys, busy_timeout, journal_mode) live in
+  // src/db/index.ts. This used to set two of them again here, which made the
+  // DDL path look like the owner of settings it never applied to new
+  // connections.
   for (const stmt of DDL) {
     try {
       await db.run(sql.raw(stmt));
@@ -215,6 +217,9 @@ async function backfillPasswords(): Promise<void> {
 }
 
 async function doSeed(): Promise<void> {
+  // The DDL and the migrations below rely on foreign-key enforcement, so the
+  // connection must be configured before the first statement.
+  await dbReady;
   await ensureSchema();
   await ensureStorage();
 
