@@ -69,3 +69,6 @@ tsconfig.tsbuildinfo
 !public/**/*.png
 !public/**/*.svg
 !resources/icon/*
+brag-output/
+jobs.json
+logs.zip
