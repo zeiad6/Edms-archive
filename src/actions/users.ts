@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { users, documents } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser, logAudit } from "@/lib/server";
-import { requirePermission } from "@/lib/permissions";
+import { checkPermission } from "@/lib/permissions";
 import { hashPassword, sanitizePastedPassword, verifyPassword } from "@/lib/password";
 
 /** Minimum accepted password length (mirrors `changePassword`). */
@@ -35,9 +35,11 @@ function throwUserError(err: unknown): never {
   throw err;
 }
 
-export async function updateUser(formData: FormData) {
-  const user = await getCurrentUser();
-  requirePermission(user, "users.manage");
+export async function updateUser(formData: FormData): Promise<any> {
+  const rawUser = await getCurrentUser();
+  const perm = checkPermission(rawUser, "users.manage");
+  if (!perm.ok) return perm;
+  const user = perm.user;
   const id = Number(formData.get("id"));
   if (!id) throw new Error("معرّف المستخدم مطلوب");
   const name = String(formData.get("name") || "").trim();
@@ -87,9 +89,11 @@ export async function updateUser(formData: FormData) {
   revalidatePath("/users");
 }
 
-export async function deleteUser(formData: FormData) {
-  const user = await getCurrentUser();
-  requirePermission(user, "users.manage");
+export async function deleteUser(formData: FormData): Promise<any> {
+  const rawUser = await getCurrentUser();
+  const perm = checkPermission(rawUser, "users.manage");
+  if (!perm.ok) return perm;
+  const user = perm.user;
   const id = Number(formData.get("id"));
   if (!id) return;
   // Guard: an admin must not delete their own account (would orphan the session).
@@ -108,9 +112,11 @@ export async function deleteUser(formData: FormData) {
   revalidatePath("/users");
 }
 
-export async function createUser(formData: FormData) {
-  const user = await getCurrentUser();
-  requirePermission(user, "users.manage");
+export async function createUser(formData: FormData): Promise<any> {
+  const rawUser = await getCurrentUser();
+  const perm = checkPermission(rawUser, "users.manage");
+  if (!perm.ok) return perm;
+  const user = perm.user;
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const username = String(formData.get("username") || "").trim().toLowerCase();

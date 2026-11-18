@@ -6,16 +6,15 @@ import {
   openSync,
   closeSync,
   existsSync,
+  rmSync,
 } from "node:fs";
 import { join, relative, basename, sep, resolve } from "node:path";
-// archiver v8 is ESM with named class exports (ZipArchive/TarArchive/
-// JsonArchive). A static named import (NOT createRequire) is required:
-// createRequire compiles to a SYNCHRONOUS __turbopack_require__ call which
-// only resolves modules registered in the same chunk — archiver lives in
-// another chunk, so packaged builds throw "p is not a function" (HTTP 500 on
-// /api/backup). Static imports become async chunk loads and work everywhere.
+import { tmpdir } from "node:os";
+import { randomBytes } from "node:crypto";
+import { PassThrough, Readable } from "node:stream";
 import { ZipArchive } from "archiver";
-import { getCurrentUser } from "@/lib/server";
+import { client } from "@/db";
+import { getCurrentUser, logAudit } from "@/lib/server";
 import { can } from "@/lib/permissions";
 import { checkpointWal } from "@/lib/db-maintenance";
 import { APP_VERSION } from "@/lib/version";
@@ -44,34 +43,37 @@ function runtimeDirs() {
 
 /**
  * Config source file (non-secret only). Packaged: resources/env holds only
- * non-secret values (UPDATE_URL etc. — never AUTH_SECRET since per-install
- * secret lives in userData/auth_secret); dev: project .env. Returns null when
- * neither exists — the config part is then skipped.
+ * non-secret values (UPDATE_URL etc. — never AUTH_SECRET). `.env` is strictly
+ * excluded from backups so development secrets are never exported.
  */
 function configFileSource(): string | null {
-  const candidates: string[] = [];
-  // process.resourcesPath is Electron-only (not in @types/node) — safe cast.
   const resourcesPath = (process as { resourcesPath?: string }).resourcesPath;
   if (typeof resourcesPath === "string") {
-    candidates.push(join(resourcesPath, "env"));
-  }
-  candidates.push(join(process.cwd(), ".env"));
-  for (const p of candidates) {
-    if (existsSync(p)) return p;
+    const candidate = join(resourcesPath, "env");
+    if (existsSync(candidate)) return candidate;
   }
   return null;
 }
 
 /**
- * Best-effort WAL checkpoint before zipping the data dir, so the .db file is
- * as complete as possible; -wal/-shm are still included when the checkpoint
- * is busy or fails. Never throws.
+ * Create a clean atomic snapshot of the live SQLite database into a temporary
+ * file via `VACUUM INTO`. Falls back to `checkpointWal("TRUNCATE")` if
+ * `VACUUM INTO` cannot run (e.g. in unit-test mocks without a real DB file).
  */
-async function tryCheckpoint(): Promise<void> {
-  const result = await checkpointWal("TRUNCATE");
-  if (result?.busy) {
-    console.warn("[backup] WAL checkpoint busy — the -wal file is kept in the archive");
+async function createCleanDbBackupTemp(liveDbPath: string): Promise<string | null> {
+  if (!existsSync(liveDbPath)) return null;
+  const tempPath = join(
+    tmpdir(),
+    `edms-backup-${Date.now()}-${randomBytes(6).toString("hex")}.db`,
+  );
+  try {
+    const escaped = tempPath.replace(/\\/g, "/").replace(/'/g, "''");
+    await client.execute(`VACUUM INTO '${escaped}'`);
+    if (existsSync(tempPath)) return tempPath;
+  } catch {
+    await checkpointWal("TRUNCATE");
   }
+  return null;
 }
 
 interface PartDef {
@@ -82,8 +84,8 @@ interface PartDef {
 }
 
 /**
- * GET /api/backup — downloads a full backup as a single ZIP archive:
- * database (edms.db + -wal + -shm), storage/** , scripts/** and config/env,
+ * GET /api/backup — streams a full backup as a single ZIP archive:
+ * atomic database snapshot (`VACUUM INTO`), storage/**, scripts/**,
  * with a parts manifest at the zip root so restore can offer per-part
  * selection. Admin only.
  */
@@ -93,9 +95,10 @@ export async function GET() {
     return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
   }
 
-  await tryCheckpoint();
-
   const dirs = runtimeDirs();
+  const liveDbFile = join(dirs.data, "edms.db");
+  const cleanTempDb = await createCleanDbBackupTemp(liveDbFile);
+
   const parts: PartDef[] = [
     { id: "database", name: "قاعدة البيانات", dir: dirs.data, file: null },
     { id: "storage", name: "ملفات التخزين", dir: dirs.storage, file: null },
@@ -104,20 +107,54 @@ export async function GET() {
   ];
 
   const archive = new ZipArchive({ zlib: { level: 9 } });
-  const stream = new (await import("node:stream")).PassThrough();
+  const stream = new PassThrough();
 
-  archive.on("error", () => {
-    stream.destroy();
+  const cleanupTemp = () => {
+    if (cleanTempDb) {
+      try {
+        rmSync(cleanTempDb, { force: true });
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+  archive.on("error", (err: Error) => {
+    cleanupTemp();
+    stream.destroy(err);
   });
+  stream.on("close", cleanupTemp);
+  stream.on("end", cleanupTemp);
+  stream.on("error", cleanupTemp);
+
   archive.pipe(stream);
 
   const manifestParts: Array<{ id: string; name: string; size: number; count: number }> = [];
 
   for (const part of parts) {
+    if (part.id === "database") {
+      if (cleanTempDb && existsSync(cleanTempDb)) {
+        const ok = appendFileSafe(archive, cleanTempDb, "database/edms.db");
+        if (ok) {
+          const sz = statSync(cleanTempDb).size;
+          manifestParts.push({ id: "database", name: part.name, size: sz, count: 1 });
+        }
+        continue;
+      }
+    }
+
     // Collect candidate files for this part.
     const files: string[] = [];
     if (part.dir && existsSync(part.dir)) {
-      walk(part.dir, (f) => files.push(f));
+      walk(part.dir, (f) => {
+        // Skip internal pre-upgrade backup snapshots and .env files inside data/
+        const rel = relative(part.dir!, f).replace(/\\/g, "/");
+        if (part.id === "database" && (rel.startsWith("backups/") || rel.endsWith(".pending") || rel.endsWith(".tmp"))) {
+          return;
+        }
+        if (basename(f) === ".env" || basename(f).startsWith(".env.")) return;
+        files.push(f);
+      });
     } else if (part.file && existsSync(part.file)) {
       files.push(part.file);
     }
@@ -148,7 +185,22 @@ export async function GET() {
   };
 
   archive.append(JSON.stringify(manifest, null, 2), { name: "manifest.json" });
-  await archive.finalize();
+
+  // Kick off archive.finalize() asynchronously WITHOUT awaiting it before
+  // returning the response — awaiting finalize() before piping to a consumer
+  // deadlocks as soon as the archive exceeds PassThrough's highWaterMark.
+  void Promise.resolve(archive.finalize()).catch((err) => {
+    cleanupTemp();
+    stream.destroy(err instanceof Error ? err : new Error(String(err)));
+  });
+
+  await logAudit({
+    userId: user.id,
+    userName: user.name,
+    action: "system.backup",
+    entityType: "system",
+    details: "تصدير نسخة احتياطية كاملة للنظام",
+  });
 
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -163,7 +215,8 @@ export async function GET() {
   headers.set("Cache-Control", "no-store");
   headers.set("X-Content-Type-Options", "nosniff");
 
-  return new NextResponse(stream as unknown as BodyInit, { headers });
+  const webStream = Readable.toWeb(stream) as ReadableStream<Uint8Array>;
+  return new NextResponse(webStream, { headers });
 }
 
 /**

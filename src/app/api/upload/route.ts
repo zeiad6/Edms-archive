@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { departments, folders, docTypes } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { departments, folders, docTypes, tags as tagsTable } from "@/db/schema";
+import { eq, inArray } from "drizzle-orm";
 import { getCurrentUser, writeKey, genKey } from "@/lib/server";
 import { can } from "@/lib/permissions";
 import { extFromName, mimeFromExt } from "@/lib/format";
-import { runTesseractOcr } from "@/lib/tesseract";
-import { insertDocumentWithFirstVersion } from "@/lib/document-create";
+import { insertDocumentWithFirstVersion, removeStoredKeys } from "@/lib/document-create";
 import { runUploadOcr } from "@/lib/ocr-jobs";
 import { createImageThumbnail } from "@/lib/thumbnails";
+import DOMPurify from "dompurify";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -47,6 +47,117 @@ function isValidDateString(s: string): boolean {
   return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day;
 }
 
+/**
+ * Verify file magic bytes (file signature) against the normalized extension
+ * so an attacker cannot disguise an executable or HTML/script payload as an
+ * image, PDF, or Office document.
+ */
+export function validateMagicBytes(bytes: Buffer, ext: string): boolean {
+  if (bytes.length === 0) return false;
+  switch (ext) {
+    case "pdf":
+      return bytes.length >= 5 && bytes.subarray(0, 5).toString("latin1") === "%PDF-";
+    case "png":
+      return (
+        bytes.length >= 8 &&
+        bytes[0] === 0x89 &&
+        bytes[1] === 0x50 &&
+        bytes[2] === 0x4e &&
+        bytes[3] === 0x47 &&
+        bytes[4] === 0x0d &&
+        bytes[5] === 0x0a &&
+        bytes[6] === 0x1a &&
+        bytes[7] === 0x0a
+      );
+    case "jpg":
+    case "jpeg":
+      return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    case "gif": {
+      if (bytes.length < 6) return false;
+      const sig = bytes.subarray(0, 6).toString("latin1");
+      return sig === "GIF87a" || sig === "GIF89a";
+    }
+    case "webp":
+      return (
+        bytes.length >= 12 &&
+        bytes.subarray(0, 4).toString("latin1") === "RIFF" &&
+        bytes.subarray(8, 12).toString("latin1") === "WEBP"
+      );
+    case "bmp":
+      return bytes.length >= 2 && bytes[0] === 0x42 && bytes[1] === 0x4d;
+    case "tiff":
+    case "tif":
+      return (
+        bytes.length >= 4 &&
+        ((bytes[0] === 0x49 && bytes[1] === 0x49 && bytes[2] === 0x2a && bytes[3] === 0x00) ||
+          (bytes[0] === 0x4d && bytes[1] === 0x4d && bytes[2] === 0x00 && bytes[3] === 0x2a))
+      );
+    case "docx":
+    case "xlsx":
+    case "pptx":
+      return (
+        bytes.length >= 4 &&
+        bytes[0] === 0x50 &&
+        bytes[1] === 0x4b &&
+        (bytes[2] === 0x03 || bytes[2] === 0x05 || bytes[2] === 0x07)
+      );
+    case "doc":
+    case "xls":
+    case "ppt":
+      return (
+        bytes.length >= 4 &&
+        ((bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0) ||
+          (bytes[0] === 0x50 && bytes[1] === 0x4b))
+      );
+    case "rtf":
+      return bytes.length >= 5 && bytes.subarray(0, 5).toString("latin1") === "{\\rtf";
+    case "svg": {
+      const head = bytes.subarray(0, 4096).toString("utf8").trimStart();
+      return (
+        (head.startsWith("<svg") || head.startsWith("<?xml") || head.startsWith("<!DOCTYPE svg")) &&
+        /<svg[\s>]/i.test(head)
+      );
+    }
+    case "txt":
+    case "csv": {
+      // Reject PE/ELF/Mach-O executables or binary blobs with null bytes
+      const sample = bytes.subarray(0, Math.min(bytes.length, 512));
+      for (let i = 0; i < sample.length; i++) {
+        if (sample[i] === 0x00) return false;
+      }
+      return true;
+    }
+    default:
+      return false;
+  }
+}
+
+/**
+ * Sanitize an uploaded SVG buffer via DOMPurify + defense-in-depth stripping
+ * of scripts, event handlers, foreignObject, and dangerous URIs.
+ */
+export async function sanitizeSvgBytes(bytes: Buffer): Promise<Buffer> {
+  let raw = bytes.toString("utf8");
+  try {
+    if (typeof DOMPurify.sanitize === "function") {
+      raw = DOMPurify.sanitize(raw, {
+        USE_PROFILES: { svg: true, svgFilters: true },
+        FORBID_TAGS: ["script", "foreignObject", "iframe", "object", "embed"],
+      });
+    }
+  } catch {
+    /* fallback to regex sanitization below */
+  }
+  // Defense-in-depth regex sanitization
+  raw = raw
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<script[^>]*\/?>/gi, "")
+    .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "")
+    .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/(?:href|xlink:href)\s*=\s*(?:"\s*javascript:[^"]*"|'\s*javascript:[^']*')/gi, "");
+  return Buffer.from(raw, "utf8");
+}
+
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) {
@@ -70,9 +181,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `حجم الملف يتجاوز الحد الأقصى ${MAX_FILE_SIZE / 1024 / 1024} ميجابايت` }, { status: 413 });
   }
 
-  // File extension validation — extension is required (no extensionless files)
-  const ext = extFromName(file.name);
-  if (!ext || !ALLOWED_EXTENSIONS.has(ext.toLowerCase())) {
+  // File extension validation — normalize to lowercase for new uploads
+  const rawExt = extFromName(file.name);
+  const ext = rawExt.toLowerCase();
+  if (!ext || !ALLOWED_EXTENSIONS.has(ext)) {
     return NextResponse.json({ error: "نوع الملف غير مدعوم" }, { status: 400 });
   }
 
@@ -81,10 +193,10 @@ export async function POST(request: NextRequest) {
     title = file.name.replace(/\.[^.]+$/, "").trim();
   }
 
-  // Never trust the client-supplied MIME type — derive it from the file
-  // extension so an SVG/HTML payload cannot be stored as a safe image type.
+  // Never trust the client-supplied MIME type — derive it from the normalized
+  // lowercase extension so an SVG/HTML payload cannot be stored as a safe image type.
   const mime = EXTRA_MIME[ext] || mimeFromExt(ext) || "application/octet-stream";
-  const bytes = Buffer.from(await file.arrayBuffer());
+  let bytes: Buffer = Buffer.from(await file.arrayBuffer());
   if (bytes.length > MAX_FILE_SIZE) {
     return NextResponse.json({ error: `حجم الملف يتجاوز الحد الأقصى ${MAX_FILE_SIZE / 1024 / 1024} ميجابايت` }, { status: 413 });
   }
@@ -174,22 +286,44 @@ export async function POST(request: NextRequest) {
     docDate = new Date().toISOString().slice(0, 10);
   }
 
-  // Every rejection path above has returned already, so this is the first
-  // moment the request is guaranteed to become a document. The document,
-  // its version-1 row, tags and audit entry are written as one atomic batch;
-  // if it fails, the stored bytes and thumbnail are removed again — an
-  // orphaned file in storage/ is invisible in the UI but still occupies disk
-  // and still lands in every backup zip.
-  await writeKey(key, bytes);
-  const thumbKey = await createImageThumbnail(key);
+  // Validate magic bytes (file signature) before touching disk
+  if (!validateMagicBytes(bytes, ext)) {
+    return NextResponse.json({ error: "محتوى الملف لا يتطابق مع امتداده أو الملف تالف" }, { status: 400 });
+  }
 
-  const tagIds = String(form.get("tags") || "")
-    .split(",")
-    .map(Number)
-    .filter((n) => Number.isInteger(n) && n > 0);
+  // Sanitize SVG payloads via DOMPurify before persisting to disk
+  if (ext === "svg") {
+    bytes = await sanitizeSvgBytes(bytes);
+    if (!validateMagicBytes(bytes, "svg")) {
+      return NextResponse.json({ error: "ملف SVG غير صالح بعد التعقيم" }, { status: 400 });
+    }
+  }
 
+  // Deduplicate and verify tag IDs before writing files or DB rows
+  const rawTagIds = Array.from(
+    new Set(
+      String(form.get("tags") || "")
+        .split(",")
+        .map((s) => Number(s.trim()))
+        .filter((n) => Number.isInteger(n) && n > 0),
+    ),
+  );
+  let tagIds: number[] = [];
+  if (rawTagIds.length > 0) {
+    const existingTags = await db
+      .select({ id: tagsTable.id })
+      .from(tagsTable)
+      .where(inArray(tagsTable.id, rawTagIds));
+    const validSet = new Set(existingTags.map((t) => t.id));
+    tagIds = rawTagIds.filter((id) => validSet.has(id));
+  }
+
+  let thumbKey: string | null = null;
   let docId: number;
   try {
+    await writeKey(key, bytes);
+    thumbKey = await createImageThumbnail(key);
+
     docId = await insertDocumentWithFirstVersion({
       doc: {
         title,
@@ -227,6 +361,7 @@ export async function POST(request: NextRequest) {
       writtenKeys: [key, thumbKey],
     });
   } catch (err) {
+    await removeStoredKeys([key, thumbKey]);
     console.error("[upload] failed to save document", err);
     return NextResponse.json({ error: "فشل حفظ المستند" }, { status: 500 });
   }

@@ -17,20 +17,22 @@ export interface SearchItem {
   status: string;
   departmentName: string;
   departmentColor: string;
+  snippet?: string;
 }
 
 /**
- * Smart global search: Fuse.js ranks results by fuzzy match score, Mark.js
- * highlights the typed keywords live inside the dropdown. Keyboard friendly
- * (↑/↓ to move, Enter to open the active result, Esc to close). Pressing Enter
- * with no active result falls back to the full server-side content search.
+ * Smart global search: queries the debounced SQLite FTS5 server endpoint
+ * (`/api/search/spotlight`) on demand, ranks local fallback items with Fuse.js,
+ * and highlights typed keywords live inside the dropdown with Mark.js.
  */
-export function SearchBox({ index }: { index: SearchItem[] }) {
+export function SearchBox({ index = [] }: { index?: SearchItem[] }) {
   useLang(); // re-render on language toggle
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [serverResults, setServerResults] = useState<SearchItem[]>([]);
+  const [loading, setLoading] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -39,9 +41,10 @@ export function SearchBox({ index }: { index: SearchItem[] }) {
   // Fuse.js is loaded on demand (post-hydration) into its own chunk so it never
   // weighs down the initial bundle of every page that renders the shell.
   useEffect(() => {
-    let active = true;
+    if (index.length === 0) return;
+    let activeFlag = true;
     import("fuse.js").then(({ default: FuseCtor }) => {
-      if (!active) return;
+      if (!activeFlag) return;
       setFuse(
         new FuseCtor<SearchItem>(index, {
           keys: [
@@ -50,8 +53,6 @@ export function SearchBox({ index }: { index: SearchItem[] }) {
             { name: "docType", weight: 0.1 },
             { name: "departmentName", weight: 0.05 },
           ],
-          // Normalize Arabic (alef variants, teh marbuta, tashkeel) at match
-          // time so "إلى" matches "الى" and "مؤسسة" matches "موسسه".
           getFn: (item, path) => {
             const keys = Array.isArray(path) ? path : [path];
             const value = keys.reduce((acc: any, key: string) => acc?.[key], item);
@@ -65,15 +66,62 @@ export function SearchBox({ index }: { index: SearchItem[] }) {
       );
     });
     return () => {
-      active = false;
+      activeFlag = false;
     };
   }, [index]);
 
+  // Debounced server search via /api/search/spotlight (SQLite FTS5)
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) {
+      setServerResults([]);
+      setLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setLoading(true);
+    const timer = setTimeout(() => {
+      fetch(`/api/search/spotlight?q=${encodeURIComponent(q)}&limit=8`, {
+        signal: controller.signal,
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (Array.isArray(data?.results)) {
+            setServerResults(data.results);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, 180);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
+
   const results = useMemo(() => {
     const q = query.trim();
-    if (!q || !fuse) return [] as Array<{ item: SearchItem; score?: number }>;
-    return fuse.search(normalizeArabic(q)).slice(0, 8);
-  }, [query, fuse]);
+    if (!q) return [] as Array<{ item: SearchItem; score?: number }>;
+    const localMatches = fuse ? fuse.search(normalizeArabic(q)).slice(0, 8) : [];
+    const seen = new Set<number>();
+    const combined: Array<{ item: SearchItem; score?: number }> = [];
+    for (const s of serverResults) {
+      if (!seen.has(s.id)) {
+        seen.add(s.id);
+        combined.push({ item: s });
+      }
+    }
+    for (const l of localMatches) {
+      if (!seen.has(l.item.id)) {
+        seen.add(l.item.id);
+        combined.push(l);
+      }
+    }
+    return combined.slice(0, 8);
+  }, [query, fuse, serverResults]);
 
   // Highlight matches with Mark.js (loaded on the client only) after each render.
   useEffect(() => {
@@ -161,13 +209,23 @@ export function SearchBox({ index }: { index: SearchItem[] }) {
           className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl shadow-black/10"
         >
           {results.length === 0 ? (
-            <div className="px-4 py-6 text-center text-sm text-muted-foreground">{t("لا توجد نتائج مطابقة لـ «")}<span className="font-semibold text-foreground">{q}</span>»
-              <div className="mt-2">
-                <button
-                  onClick={() => router.push(`/documents?q=${encodeURIComponent(q)}`)}
-                  className="text-xs font-semibold text-primary hover:opacity-80"
-                >{t("جرّب البحث الكامل في المحتوى (OCR) ↗")}</button>
-              </div>
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              {loading ? (
+                <span>{t("جاري البحث في المستندات...")}</span>
+              ) : (
+                <>
+                  {t("لا توجد نتائج مطابقة لـ «")}
+                  <span className="font-semibold text-foreground">{q}</span>»
+                  <div className="mt-2">
+                    <button
+                      onClick={() => router.push(`/documents?q=${encodeURIComponent(q)}`)}
+                      className="text-xs font-semibold text-primary hover:opacity-80"
+                    >
+                      {t("جرّب البحث الكامل في المحتوى (OCR) ↗")}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <>

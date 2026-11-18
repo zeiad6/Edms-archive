@@ -5,7 +5,7 @@ import { useLang } from "@/components/lang-provider";
 import { memo, useMemo } from "react";
 import type { ColDef } from "ag-grid-community";
 import { DataGrid } from "@/components/data-grid";
-import { Lock } from "lucide-react";
+import { Eye, Lock } from "lucide-react";
 import Link from "next/link";
 import {
   STATUS_META,
@@ -30,7 +30,7 @@ export interface DocRow {
 }
 
 /** Column definitions rebuilt when the language toggles (headers + labels). */
-function buildColumns(): ColDef<DocRow>[] {
+function buildColumns(onQuickPreview?: (doc: DocRow) => void): ColDef<DocRow>[] {
   return [
     {
       headerName: t("المستند"),
@@ -41,7 +41,21 @@ function buildColumns(): ColDef<DocRow>[] {
       cellRenderer: (p: any) => {
         const d = p.data as DocRow;
         return (
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
+            {onQuickPreview && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickPreview(d);
+                }}
+                title={t("معاينة سريعة")}
+                aria-label={t("معاينة سريعة")}
+                className="shrink-0 rounded-lg p-1 text-muted-foreground transition hover:bg-primary/10 hover:text-primary"
+              >
+                <Eye className="h-3.5 w-3.5" />
+              </button>
+            )}
             <Link
               href={`/documents/${d.id}`}
               className="truncate font-semibold text-foreground transition-colors hover:text-primary hover:underline hover:underline-offset-4"
@@ -148,9 +162,11 @@ function buildColumns(): ColDef<DocRow>[] {
 export const DocumentsGrid = memo(function DocumentsGrid({
   rows,
   onSelectionChange,
+  onQuickPreview,
 }: {
   rows: DocRow[];
   onSelectionChange?: (selected: DocRow[]) => void;
+  onQuickPreview?: (doc: DocRow) => void;
 }) {
   const { lang } = useLang(); // re-render on language toggle
   const columnDefs = useMemo<ColDef<DocRow>[]>(
@@ -172,14 +188,10 @@ export const DocumentsGrid = memo(function DocumentsGrid({
             } as ColDef<DocRow>,
           ]
         : []),
-      ...buildColumns(),
+      ...buildColumns(onQuickPreview),
     ],
-    // `lang` is a deliberate cache-invalidation key: `buildColumns()` calls `t()`
-    // at build time to translate each headerName, and `t` reads a module-level
-    // store that ESLint cannot see as a dependency. Dropping it would leave the
-    // column headers in the previous language after a toggle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [onSelectionChange, lang]
+    [onSelectionChange, onQuickPreview, lang]
   );
 
   return (

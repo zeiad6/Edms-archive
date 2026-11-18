@@ -5,28 +5,42 @@
 
 ---
 
-## [1.0.7] — 2026-10-23 · ZeidexSoft
+## [1.0.7] — 2026-11-18 · ZeidexSoft
 
-تحصينات أمنية استباقية ومزايا واجهة جديدة، من دون أي تغيير في بنية قاعدة البيانات —
-الترقية من أي إصدار سابق (1.0.0 حتى 1.0.6) آمنة مباشرة ببياناتها كاملة.
+ترقية معمارية وأمنية وبصرية شاملة مع محرك الترقية والترحيل الآمن للبيانات (Safe Upgrade Engine) وتوافق رجعي 100% مع الإصدارات السابقة (`1.0.0` حتى `1.0.7`) دون فقدان أي بيانات.
 
-### 🔐 الأمان
+### 🛡️ المرحلة 0: محرك الترقية الآمن وضمان عدم فقدان البيانات (Zero Data Loss)
 
-- **فرض قيود المفاتيح الأجنبية (Foreign Keys) على SQLite** — `PRAGMA foreign_keys = ON` عند فتح الاتصال (`src/db/index.ts`). SQLite تُطفئها افتراضياً، فكانت مراجع المستندات والمرفقات بلا تحقق كامل. أي فشل في التمكين يُسجَّل ولا يُسقط الإقلاع.
-- **حدّ ضد التخمين (Brute-force) مربوط بالحساب + IP** — مفتاح التقييد أصبح `<الحساب>:<IP العميل>` عبر دالة `loginThrottleKey` الجديدة، مع قراءة IP من `x-forwarded-for` / `x-real-ip` (`src/lib/login-throttle.ts`, `src/actions/auth.ts`). يُعزل من يرشّ أسماء مستخدمين من IP واحد لكل حساب، ويحتوى الحساب المهاجَم من IP دوّار لكل مصدر.
-- **كوكي الجلسة `Secure` في الإنتاج** — `secure` في `SESSION_COOKIE_OPTIONS` = `(NODE_ENV === 'production')` (`src/lib/session.ts`). التطوير على HTTP المحلي يبقى عاملاً، والإنتاج فوق HTTPS يستقبل كوكي مؤمّناً فقط.
-- **تحقق صيغة التوقيع الإلكتروني** — مسار `/api/signatures` يرفض أي Data URL ليس صورة base64 صالحة (PNG/JPEG/WebP) (`src/app/api/signatures/route.ts`).
-- **رفع إصدار المستند (Version Upload)** — الامتداد إلزامي (لا ملفات بلا امتداد)، وMIME يُشتق من الامتداد على الخادم بدل الوثوق بـ `file.type` من العميل (`src/app/api/documents/[id]/versions/route.ts`).
-- **حد أقصى لحجم النسخة الاحتياطية في الاستعادة = 500 ميجابايت** (`src/app/api/restore/route.ts`).
-- **حماية مسارات المسح الضوئي على غير ويندوز** — `/api/scan` و`/api/scan/hardware` تردّ 503 فوراً على Linux/macOS بدل محاولة إطلاق `powershell.exe` (`src/app/api/scan/route.ts`, `src/app/api/scan/hardware/route.ts`).
-- **خدمة ترقيم موحّدة (`clampPagination`)** — استُخرجت من مسار البحث المتقدم إلى `src/lib/services/pagination.ts` مع مجموعة اختبارات، وأصبح البحث المتقدم يستخدمها بدل التحقق المضمّن — حماية موثّقة من DoS عبر `pageSize` سالب أو ضخم.
+- **النسخ الاحتياطي التلقائي قبل الترقية والتراجع الذاتي (`Pre-Upgrade Snapshot & Auto-Rollback`)** — فحص إصدار التطبيق في `data/app-version.json` و`PRAGMA user_version` قبل تشغيل خادم Next.js أو تطبيق الترحيلات (`electron/main.cjs`, `src/lib/upgrade-engine.ts`, `src/lib/seed.ts`). عند اكتشاف ترقية يُنشأ snapshot ذري عبر `VACUUM INTO` في `data/backups/pre-upgrade/` (مع الاحتفاظ بآخر 5 نسخ)، ويُفحص `PRAGMA integrity_check` و`PRAGMA foreign_key_check` قبل وبعد الترحيل مع استرجاع تلقائي فوري عند أي خطأ.
+- **ترحيلات مخطط ذرية متسلسلة (`Sequential Atomic Schema Migrations`)** — توحيد `src/db/schema.ts` و`src/lib/seed.ts` (إضافة `signatures` و`document_templates` و`ocr_text` و`keywords` و`source` و`notes` و`doc_type`)، وتحويل الترحيلات إلى ترحيلات مرقّمة (`user_version 1..3`) داخل معاملات `BEGIN IMMEDIATE ... COMMIT` مع `ROLLBACK` تلقائي.
+- **حماية دورة حياة Electron والتحديث** — إضافة خيار «إنشاء نسخة احتياطية آمنة الآن ثم التحديث» في إشعار التحديث، وتنفيذ `PRAGMA wal_checkpoint(TRUNCATE)` عبر `/api/health?checkpoint=1` عند `before-quit` لضمان إغلاق نظيف لقاعدة البيانات قبل تشغيل مثبّت NSIS.
 
-### ✨ المزايا والواجهة
+### 🔧 المرحلة 1: إصلاح الأعطال الحرجة وحماية الملفات والنسخ الاحتياطي
 
-- **بطاقة أفعال سريعة للمستند** (`DocumentQuickActions`) في الشريط الجانبي لصفحة تفاصيل المستند: رمز QR عبر `@zxing/library`، نسخ البيانات التعريفية، مشاركة، وطباعة (`src/components/documents/document-quick-actions.tsx`).
-- **تصفية سريعة وبحث لحظي في صفحة المستندات** — رقائق تصفية بحسب الحالة (سارية / قيد المراجعة / مؤرشفة / مسودة / سرية) مع عدّادات مباشرة، وبحث نصي فوري في العميل دون رحلة خادم (`src/components/documents-page-client.tsx`).
-- **زر «البحث الذكي» ⌘K في لوحة القيادة** يفتح لوحة الأوامر مباشرة (`src/components/dashboard/dashboard-hero.tsx`).
-- **`StatCard` يدعم `href`** ليتحوّل إلى رابط سريع، مع حركة hover محسّنة (`src/components/ui/index.tsx`).
+- **حماية ملفات المستندات من الحذف الخاطئ** — التحقق الصارم من وجود المستند في سلة المحذوفات (`deletedAt !== null`) ونجاح حذف السجل في قاعدة البيانات قبل حذف ملفات القرص في `forceDeleteDocument`، وتقسيم الحذف الجماعي في `emptyTrash` إلى دفعات آمنة (`DELETE_CHUNK_SIZE = 200`).
+- **إصلاح الجمود (Deadlock) في النسخ الاحتياطي وتحصين الاستعادة** — تحويل `/api/backup` إلى تدفق حقيقي (`Readable.toWeb`) مع لقطة `VACUUM INTO` واستبعاد `.env` وتسجيل التدقيق `system.backup`؛ وتحصين `/api/restore` بفحص سلسلة الروابط الرمزية (`assertNoSymlinkChainBeforeMkdir`) قبل `mkdirSync`، وحدود الحماية من قنابل الضغط (`MAX_BACKUP_SIZE = 500MB`, `MAX_UNCOMPRESSED_SIZE = 1GB`, `MAX_ENTRY_COUNT = 10000`)، وفحص ترويسة `SQLite format 3\0`، وحذف ملفات `-wal`/`-shm` المتبقية.
+- **ذرية إنشاء المستندات وفصل نص OCR عن الوصف** — تغليف إنشاء المستند والإصدار والوسوم والتدقيق داخل `db.transaction(...)` مع تنظيف الملفات اليتيمة عند الفشل، وحفظ نص OCR في عمود `ocr_text` المستقل مع دمج ذكي في `content_text` للبحث وتمييز حالات `ocr_processed` (`0`, `1`, `2`, `-1`).
+
+### 🔐 المرحلة 2: تحصين الصلاحيات (RBAC) والأمان وعزل Electron
+
+- **إحكام صلاحيات RBAC وفحص نشاط الحساب** — إضافة صلاحيتي `documents.update` و`documents.ocr`، والتحقق من `user.active` في جميع العمليات، وتطبيق فلاتر القسم ومستوى السرية و`isNull(documents.deletedAt)` على كافة استعلامات لوحة القيادة (`src/app/page.tsx`) وإجراءات الخادم.
+- **تحصين رفع الملفات ومحدد محاولات الدخول** — فحص التوقيع الثنائي الفعلي (`Magic Bytes`) للملفات المرفوعة، وتطهير ملفات `.svg` عبر `DOMPurify`، وتوحيد الامتدادات إلى أحرف صغيرة، وتطبيع مفاتيح `login-throttle` مع تنظيف دوري للذاكرة (`LOGIN_MAX_KEYS = 5000`).
+- **عزل Electron والمتجر الآمن (`Secure Store`)** — التحقق من المنفذ المحلي الفعلي في `isLocalAppUrl`، وفحص `!win.isDestroyed()` و`event.senderFrame` في قنوات IPC، وتحصين `secure-store` ضد Prototype Pollution (`Object.create(null)`) مع كتابة ذرية عبر ملف `.tmp` وتوافق رجعي مع `secrets.json` و`secure-store.json`.
+- **فرض قيود المفاتيح الأجنبية (Foreign Keys) على SQLite** — `PRAGMA foreign_keys = ON` و`PRAGMA synchronous = NORMAL` عند فتح الاتصال (`src/db/index.ts`).
+- **حدّ ضد التخمين (Brute-force) مربوط بالحساب + IP** — مفتاح التقييد `<الحساب>:<IP العميل>` عبر دالة `loginThrottleKey` (`src/lib/login-throttle.ts`, `src/actions/auth.ts`).
+- **كوكي الجلسة `Secure` في الإنتاج** — `secure` في `SESSION_COOKIE_OPTIONS` = `(NODE_ENV === 'production')` (`src/lib/session.ts`).
+- **تحقق صيغة التوقيع الإلكتروني** — مسار `/api/signatures` يرفض أي Data URL ليس صورة base64 صالحة (PNG/JPEG/WebP).
+- **حماية مسارات المسح الضوئي على غير ويندوز** — `/api/scan` و`/api/scan/hardware` تردّ 503 فوراً على Linux/macOS.
+- **خدمة ترقيم موحّدة (`clampPagination`)** — في `src/lib/services/pagination.ts` لحماية مسارات البحث من `pageSize` سالب أو ضخم.
+
+### ✨ المرحلة 3: الأداء وتجربة المستخدم (UI/UX) وعارض المستندات والبحث الفوري
+
+- **فصل تخطيط الجذر والبحث الفوري الخفيف (SQLite FTS5 Spotlight)** — فصل `RootLayout` عن الجلب الثقيل، وإضافة فهرس البحث النصي الكامل `documents_fts` (FTS5) مع مسار `/api/search/spotlight` وبحث لحظي (`Debounce 250ms`) في الشريط العلوي ولوحة الأوامر `Ctrl+K`، وحصر مبدّل المستخدمين التجريبي بالمديرين فقط.
+- **عارض PDF احترافي بتدفق ثنائي مباشر (`Binary Streaming & Range Requests`)** — دعم `206 Partial Content` و`Accept-Ranges: bytes` في `/api/documents/[id]/file`، وتحميل PDF مباشرة عبر URL التدفق في `DocViewer` مع شريط مصغرات الصفحات، وبحث نصي داخل المستند، وملاءمة العرض (`Fit to Width`)، وتدوير الصفحات، والطباعة المباشرة، ومعالجة `RenderingCancelledException`.
+- **تطوير صفحة المستندات ومنطقة الرفع والإعدادات** — إضافة التبديل بين عرض الجدول (`Table`) وعرض البطاقات (`Cards`)، ودرج المعاينة السريعة (`Quick Preview Drawer`)، وتصدير CSV المصفّى، وشريط تقدم رفع حقيقي عبر `XMLHttpRequest` مع اقتراح تلقائي لبيانات OCR، وبطاقة «حالة الترقية والنسخ الاحتياطية التلقائية» في الإعدادات.
+- **بطاقة أفعال سريعة للمستند** (`DocumentQuickActions`) في الشريط الجانبي لصفحة تفاصيل المستند: رمز QR عبر `@zxing/library`، نسخ البيانات التعريفية، مشاركة، وطباعة.
+- **تصفية سريعة وبحث لحظي في صفحة المستندات** — رقائق تصفية بحسب الحالة مع عدّادات مباشرة (`src/components/documents-page-client.tsx`).
+- **زر «البحث الذكي» ⌘K في لوحة القيادة** وبطاقات `StatCard` التفاعلية.
 
 ### 🏷️ الهوية ومعلومات المطور (ZeidexSoft)
 
@@ -38,10 +52,9 @@
 
 ### 🗄️ قاعدة البيانات والتوافقية
 
-- **لا تغيير في المخطط (Schema)** — مخطط Drizzle (`src/db/schema.ts`) لم يُلمس؛ **لا حاجة لأي إزحة Drizzle (Migration) في هذا الإصدار**.
-- التغيير الوحيد على طبقة الاتصال هو تمكين `PRAGMA foreign_keys` — إعداد ديناميكي وقت التشغيل لا يعيد بناء أي جدول ولا يمسّ البيانات القائمة.
-- **اختبار الأمان عند الترقية (`upgrade-safety`)** يشغّل الإصدار الجديد على قاعدة بيانات موجودة ويشترط ألا يتغيّر أي صف أو ملف — وهو إلزام نشر نافذ في سير العمل.
-- الترقية من 1.0.0 حتى 1.0.6: شغّل المثبّت الجديد مباشرة؛ بيانات `%APPDATA%` (القاعدة، المستندات، الحسابات وكلمات المرور) تبقى كما هي.
+- **ترحيلات إضافية آمنة 100% (Additive-only Migrations)** — كافة الإضافات الجديدة في المخطط (`ocr_text`, `signatures`, `document_templates`, `documents_fts`) تضاف تلقائياً داخل معاملات ذرية دون المساس بأي جدول أو عمود أو ملف قائم.
+- **اختبارات الأمان عند الترقية (`upgrade-safety` و`migration-safety`)** تشغّل الإصدار الجديد على قواعد بيانات من الإصدارات السابقة (`v1.0.0` حتى `v1.0.7`) وتتحقق من سلامة كافة السجلات والملفات واسترجاع اللقطات التلقائية عند الفشل.
+- الترقية من 1.0.0 حتى 1.0.7: شغّل المثبّت الجديد مباشرة؛ بيانات `%APPDATA%` (القاعدة، المستندات، الحسابات وكلمات المرور) تبقى كما هي.
 
 ---
 

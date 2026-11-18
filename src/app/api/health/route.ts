@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { sql } from "drizzle-orm";
 import { ensureSeeded } from "@/lib/seed";
+import { checkpointWal } from "@/lib/db-maintenance";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,15 @@ export async function GET() {
   try {
     await db.run(sql`select 1`);
     await ensureSeededOnce();
+    return Response.json({ ok: true });
+  } catch {
+    return Response.json({ ok: false }, { status: 500 });
+  }
+}
+
+export async function POST() {
+  try {
+    await checkpointWal("TRUNCATE");
     return Response.json({ ok: true });
   } catch {
     return Response.json({ ok: false }, { status: 500 });

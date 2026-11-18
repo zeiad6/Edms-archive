@@ -5,7 +5,7 @@ import { useLang } from "@/components/lang-provider";
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Sparkles, Check } from "lucide-react";
 import { DropZone } from "@/components/upload-zone/drop-zone";
 import { FileList } from "@/components/upload-zone/file-list";
 import { TagSelector } from "@/components/upload-zone/tag-selector";
@@ -21,6 +21,72 @@ interface TagOption {
   id: number;
   name: string;
   color: string;
+}
+
+interface SuggestedMetadata {
+  title?: string;
+  docNumber?: string;
+  docDate?: string;
+  docType?: string;
+  keywords?: string;
+  description?: string;
+}
+
+/**
+ * Extract smart metadata suggestions from filename and/or OCR text snippet.
+ */
+export function extractSuggestedMetadata(fileName: string, ocrText: string = ""): SuggestedMetadata {
+  const cleanBase = fileName.replace(/\.[^.]+$/, "").trim();
+  const combined = `${cleanBase}\n${ocrText}`;
+  const out: SuggestedMetadata = {};
+
+  // Reference number pattern (e.g. ق-2024/102, DOC-2025-01, ع-٢٠٢٤/٠٠٧٨)
+  const refMatch = /(?:[أ-يA-Za-z]{1,4}[-/]\s*[0-9٠-٩]{2,4}(?:[-/][0-9٠-٩]{1,6})?)/.exec(combined);
+  if (refMatch) {
+    out.docNumber = refMatch[0].trim();
+  }
+
+  // Date pattern (YYYY-MM-DD)
+  const dateMatch = /\b(20\d{2})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])\b/.exec(combined);
+  if (dateMatch) {
+    out.docDate = dateMatch[0];
+  }
+
+  // Document type detection
+  const knownTypes: Array<[RegExp, string]> = [
+    [/قرار/i, "قرار إداري"],
+    [/فاتور[ةه]|invoice/i, "فاتورة"],
+    [/عقد|اتفاقي[ةه]|contract/i, "عقد"],
+    [/محضر/i, "محضر اجتماع"],
+    [/تقرير|report/i, "تقرير"],
+    [/خطاب|تعميم|مراسل[ةه]/i, "مراسلة رسمية"],
+  ];
+  for (const [re, label] of knownTypes) {
+    if (re.test(combined)) {
+      out.docType = label;
+      break;
+    }
+  }
+
+  // Extract top keywords from OCR or filename
+  const words = combined
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length >= 4);
+  const uniqueWords = Array.from(new Set(words)).slice(0, 6);
+  if (uniqueWords.length > 0) {
+    out.keywords = uniqueWords.join("، ");
+  }
+
+  if (ocrText.trim().length > 0) {
+    out.description = ocrText.trim().slice(0, 220);
+  }
+  if (cleanBase) {
+    out.title = cleanBase;
+  }
+
+  return out;
 }
 
 export function UploadForm({
@@ -41,96 +107,179 @@ export function UploadForm({
   const [busy, setBusy] = useState(false);
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
   const [err, setErr] = useState("");
+  const [suggestion, setSuggestion] = useState<SuggestedMetadata | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const activeXhrsRef = useRef<Set<XMLHttpRequest>>(new Set());
 
-  // Abort any in-flight upload when the form unmounts — stops the network
-  // request and prevents setState on an unmounted component.
+  // Abort any in-flight XHR uploads when the form unmounts
   useEffect(() => {
-    return () => abortRef.current?.abort();
+    const xhrs = activeXhrsRef.current;
+    return () => {
+      for (const xhr of xhrs) {
+        try {
+          xhr.abort();
+        } catch {
+          /* ignore */
+        }
+      }
+      xhrs.clear();
+    };
   }, []);
 
   const addFiles = useCallback((list: FileList | null) => {
     if (!list || list.length === 0) return;
     setErr("");
-    const newItems: FileItem[] = Array.from(list).map((f) => ({
+    const arr = Array.from(list);
+    const newItems: FileItem[] = arr.map((f) => ({
       file: f,
       preview: f.type.startsWith("image/") ? URL.createObjectURL(f) : "",
       progress: 0,
       done: false,
     }));
     setFiles((prev) => [...prev, ...newItems]);
+
+    if (arr[0]) {
+      const initialSuggestion = extractSuggestedMetadata(arr[0].name);
+      setSuggestion(initialSuggestion);
+    }
   }, []);
+
+  function applySuggestedMetadata(s: SuggestedMetadata) {
+    const form = formRef.current;
+    if (!form) return;
+    const setField = (name: string, val?: string) => {
+      if (!val) return;
+      const el = form.elements.namedItem(name) as HTMLInputElement | HTMLTextAreaElement | null;
+      if (el && !el.value.trim()) {
+        el.value = val;
+      }
+    };
+    setField("title", s.title);
+    setField("docNumber", s.docNumber);
+    setField("docDate", s.docDate);
+    setField("docType", s.docType);
+    setField("keywords", s.keywords);
+    setField("description", s.description);
+    toast.success(t("تم تطبيق البيانات الوصفية المقترحة"));
+  }
 
   function removeFile(i: number) {
     const item = files[i];
-    if (item.preview) URL.revokeObjectURL(item.preview);
+    if (item?.preview) URL.revokeObjectURL(item.preview);
     setFiles((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   function clearAll() {
-    files.forEach((f) => { if (f.preview) URL.revokeObjectURL(f.preview); });
+    files.forEach((f) => {
+      if (f.preview) URL.revokeObjectURL(f.preview);
+    });
     setFiles([]);
     setSelectedTags([]);
+    setSuggestion(null);
     setErr("");
   }
 
   function toggleTag(id: number) {
     setSelectedTags((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((tg) => tg !== id) : [...prev, id],
     );
   }
 
-  async function uploadSingle(item: FileItem, idx: number, meta: Record<string, string>): Promise<string | null> {
-    const fd = new FormData();
-    fd.set("file", item.file);
-    Object.entries(meta).forEach(([k, v]) => { if (v) fd.set(k, v); });
+  function uploadSingleWithRealProgress(
+    item: FileItem,
+    idx: number,
+    meta: Record<string, string>,
+  ): Promise<string | null> {
+    return new Promise((resolve) => {
+      const fd = new FormData();
+      fd.set("file", item.file);
+      Object.entries(meta).forEach(([k, v]) => {
+        if (v) fd.set(k, v);
+      });
 
-    const controller = new AbortController();
-    abortRef.current = controller;
+      const xhr = new XMLHttpRequest();
+      activeXhrsRef.current.add(xhr);
 
-    let interval: ReturnType<typeof setInterval> | null = null;
-    try {
-      // Simulate progress for UX
-      interval = setInterval(() => {
+      xhr.upload.onprogress = (ev) => {
+        if (!ev.lengthComputable) return;
+        const pct = Math.min(99, Math.max(1, Math.round((ev.loaded / ev.total) * 100)));
         setFiles((prev) => {
           const copy = [...prev];
           if (copy[idx] && !copy[idx].done) {
-            copy[idx] = { ...copy[idx], progress: Math.min(95, copy[idx].progress + 8) };
+            copy[idx] = { ...copy[idx], progress: pct };
           }
           return copy;
         });
-      }, 400);
+      };
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: fd,
-        signal: controller.signal,
-      });
+      xhr.onload = () => {
+        activeXhrsRef.current.delete(xhr);
+        let data: { id?: number | string; error?: string } = {};
+        try {
+          data = JSON.parse(xhr.responseText || "{}");
+        } catch {
+          data = {};
+        }
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(t(data.error || "فشل الرفع"));
+        if (xhr.status >= 200 && xhr.status < 300 && data.id) {
+          setFiles((prev) => {
+            const copy = [...prev];
+            if (copy[idx]) {
+              copy[idx] = { ...copy[idx], progress: 100, done: true, error: undefined };
+            }
+            return copy;
+          });
+          resolve(String(data.id));
+        } else {
+          const message = t(data.error || "فشل الرفع");
+          setFiles((prev) => {
+            const copy = [...prev];
+            if (copy[idx]) {
+              copy[idx] = { ...copy[idx], error: message };
+            }
+            return copy;
+          });
+          resolve(null);
+        }
+      };
 
-      setFiles((prev) => {
-        const copy = [...prev];
-        copy[idx] = { ...copy[idx], progress: 100, done: true };
-        return copy;
-      });
+      xhr.onerror = () => {
+        activeXhrsRef.current.delete(xhr);
+        setFiles((prev) => {
+          const copy = [...prev];
+          if (copy[idx]) {
+            copy[idx] = { ...copy[idx], error: t("فشل الرفع") };
+          }
+          return copy;
+        });
+        resolve(null);
+      };
 
-      return data.id;
-    } catch (e: any) {
-      if (e.name === "AbortError") return null;
-      setFiles((prev) => {
-        const copy = [...prev];
-        copy[idx] = { ...copy[idx], error: t(e.message || "فشل الرفع") };
-        return copy;
-      });
-      return null;
-    } finally {
-      // Always stop the progress timer — even when fetch throws or is aborted.
-      if (interval) clearInterval(interval);
-    }
+      xhr.onabort = () => {
+        activeXhrsRef.current.delete(xhr);
+        resolve(null);
+      };
+
+      xhr.open("POST", "/api/upload");
+      xhr.send(fd);
+    });
+  }
+
+  // Poll OCR snippet briefly after upload to enrich metadata suggestions
+  function fetchOcrSuggestions(docId: string, fileName: string) {
+    setTimeout(() => {
+      fetch(`/api/documents/${docId}/summary`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          const snippet = data?.document?.ocrSnippet;
+          if (typeof snippet === "string" && snippet.trim().length > 0) {
+            const enriched = extractSuggestedMetadata(fileName, snippet);
+            setSuggestion(enriched);
+          }
+        })
+        .catch(() => {});
+    }, 1500);
   }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -142,8 +291,9 @@ export function UploadForm({
     const form = formRef.current!;
     const fd = new FormData(form);
     const meta: Record<string, string> = {};
-    fd.forEach((v, k) => { if (k !== "file") meta[k] = String(v); });
-    // append tags
+    fd.forEach((v, k) => {
+      if (k !== "file") meta[k] = String(v);
+    });
     meta["tags"] = selectedTags.join(",");
 
     setBusy(true);
@@ -152,14 +302,19 @@ export function UploadForm({
     let uploaded = 0;
     let lastId: string | null = null;
     for (let i = 0; i < files.length; i++) {
-      if (files[i].done) continue;
-      lastId = await uploadSingle(files[i], i, meta);
-      if (lastId) uploaded++;
+      if (files[i].done) {
+        uploaded++;
+        continue;
+      }
+      lastId = await uploadSingleWithRealProgress(files[i], i, meta);
+      if (lastId) {
+        uploaded++;
+        fetchOcrSuggestions(lastId, files[i].file.name);
+      }
     }
 
     setBusy(false);
     if (uploaded === files.length) {
-      // All succeeded — stay in place, refresh the list, no forced navigation.
       toast.success(t("تم رفع الملفات بنجاح"));
       router.refresh();
     } else if (uploaded > 0) {
@@ -173,7 +328,6 @@ export function UploadForm({
     }
   }
 
-  const pendingCount = files.filter((f) => !f.done).length;
   const doneCount = files.filter((f) => f.done).length;
 
   return (
@@ -207,6 +361,42 @@ export function UploadForm({
           />
         )}
 
+        {suggestion && (suggestion.docNumber || suggestion.docType || suggestion.keywords || suggestion.description) && (
+          <div className="animate-fadein rounded-2xl border border-indigo-500/25 bg-indigo-500/5 p-3.5 text-xs">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 font-bold text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                {t("بيانات وصفية مقترحة تلقائياً (OCR)")}
+              </span>
+              <button
+                type="button"
+                onClick={() => applySuggestedMetadata(suggestion)}
+                className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground shadow-xs transition hover:bg-primary/90"
+              >
+                <Check className="h-3 w-3" />
+                {t("تعبئة الحقول الفارغة")}
+              </button>
+            </div>
+            <div className="space-y-1 text-[11px] text-muted-foreground">
+              {suggestion.docType && (
+                <div>
+                  <span className="font-semibold text-foreground">{t("النوع المقترح:")}</span> {suggestion.docType}
+                </div>
+              )}
+              {suggestion.docNumber && (
+                <div>
+                  <span className="font-semibold text-foreground">{t("الرقم المرجعي:")}</span> {suggestion.docNumber}
+                </div>
+              )}
+              {suggestion.keywords && (
+                <div>
+                  <span className="font-semibold text-foreground">{t("كلمات مفتاحية:")}</span> {suggestion.keywords}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <TagSelector tags={tags} selectedTags={selectedTags} onToggle={toggleTag} />
 
         {err && (
@@ -222,7 +412,7 @@ export function UploadForm({
           onApply={(tpl) => applyTemplateToForm(tpl)}
           onTagNames={(names) => {
             const ids = names
-              .map((n) => tags.find((t) => t.name === n)?.id)
+              .map((n) => tags.find((tg) => tg.name === n)?.id)
               .filter(Boolean) as number[];
             setSelectedTags(ids);
           }}

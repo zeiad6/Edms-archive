@@ -11,6 +11,8 @@ import {
   ShieldCheck,
   PanelRightClose,
   PanelRightOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
   Bell,
   UploadCloud,
   LogOut,
@@ -152,39 +154,66 @@ function LogoutButton() {
 
 export function Shell({
   currentUser,
-  users,
-  searchIndex,
+  users = [],
+  searchIndex = [],
   pendingApprovalCount = 0,
   unreadNotificationCount = 0,
   children,
 }: {
   currentUser: ShellUser;
-  users: ShellUser[];
-  searchIndex: SearchItem[];
+  users?: ShellUser[];
+  searchIndex?: SearchItem[];
   pendingApprovalCount?: number;
   unreadNotificationCount?: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  useLang(); // re-render the whole shell when the language toggles
+  const { lang } = useLang(); // re-render the whole shell when the language toggles
+  const dir = lang === "en" ? "ltr" : "rtl";
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const sidebarHydrated = useRef(false);
+  const [switcherUsers, setSwitcherUsers] = useState<ShellUser[]>(users);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
+  // Unified read + write of `edms_sidebar` in localStorage so initial mount
+  // never overwrites a previously stored "1" value with the default "0".
   useEffect(() => {
     try {
-      if (localStorage.getItem("edms_sidebar") === "1") setCollapsed(true);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-  useEffect(() => {
-    try {
+      if (!sidebarHydrated.current) {
+        sidebarHydrated.current = true;
+        if (localStorage.getItem("edms_sidebar") === "1") {
+          setCollapsed(true);
+          return;
+        }
+      }
       localStorage.setItem("edms_sidebar", collapsed ? "1" : "0");
     } catch {
       /* ignore */
     }
   }, [collapsed]);
+
+  // Fetch user directory on demand ONLY for admin when opening the switcher menu
+  useEffect(() => {
+    if (!menuOpen || currentUser.role !== "admin" || switcherUsers.length > 0) return;
+    let cancelled = false;
+    setLoadingUsers(true);
+    fetch("/api/search/spotlight?users=1")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && Array.isArray(data?.users)) {
+          setSwitcherUsers(data.users);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingUsers(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [menuOpen, currentUser.role, switcherUsers.length]);
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
@@ -288,7 +317,7 @@ export function Shell({
                     return (
                       <Tooltip key={item.href}>
                         <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
-                        <TooltipContent side="left">{t(item.label)}</TooltipContent>
+                        <TooltipContent side={dir === "rtl" ? "left" : "right"}>{t(item.label)}</TooltipContent>
                       </Tooltip>
                     );
                   })}
@@ -389,8 +418,19 @@ export function Shell({
                   size="icon"
                   onClick={() => setCollapsed((c) => !c)}
                   className="hidden lg:inline-flex"
+                  aria-label={collapsed ? t("توسيع القائمة") : t("طي القائمة")}
                 >
-                  {collapsed ? <PanelRightOpen className="h-[18px] w-[18px]" /> : <PanelRightClose className="h-[18px] w-[18px]" />}
+                  {dir === "rtl" ? (
+                    collapsed ? (
+                      <PanelRightOpen className="h-[18px] w-[18px]" />
+                    ) : (
+                      <PanelRightClose className="h-[18px] w-[18px]" />
+                    )
+                  ) : collapsed ? (
+                    <PanelLeftOpen className="h-[18px] w-[18px]" />
+                  ) : (
+                    <PanelLeftClose className="h-[18px] w-[18px]" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">{collapsed ? t("توسيع القائمة") : t("طي القائمة")}</TooltipContent>
@@ -447,9 +487,16 @@ export function Shell({
                             {t("تبديل المُشغّل")}
                           </div>
                           <div className="max-h-72 overflow-y-auto py-1">
-                            {users.map((u) => (
-                              <SwitchRow key={u.id} user={u} isCurrent={u.id === currentUser.id} />
-                            ))}
+                            {loadingUsers && switcherUsers.length === 0 ? (
+                              <div className="flex items-center justify-center py-4 text-xs text-muted-foreground">
+                                <Loader2 className="me-1.5 h-3.5 w-3.5 animate-spin" />
+                                {t("جاري التحميل...")}
+                              </div>
+                            ) : (
+                              switcherUsers.map((u) => (
+                                <SwitchRow key={u.id} user={u} isCurrent={u.id === currentUser.id} />
+                              ))
+                            )}
                             <div className="my-1 border-t border-border" />
                           </div>
                         </>

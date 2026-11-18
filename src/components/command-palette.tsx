@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Search, CornerDownLeft, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, CornerDownLeft, ArrowUp, ArrowDown, FileText, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { NAV_GROUPS } from "@/lib/navigation";
 import { normalizeArabicTerm } from "@/lib/arabic";
 import { cn } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/components/lang-provider";
+import type { SearchItem } from "@/components/search-box";
 
 /**
  * Cmd/Ctrl-K command palette.
@@ -36,6 +37,8 @@ interface PaletteEntry {
   href: string;
   label: string;
   group: string;
+  sublabel?: string;
+  isDoc?: boolean;
   Icon: React.ComponentType<{ className?: string }>;
 }
 
@@ -71,8 +74,43 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
+  const [docHits, setDocHits] = useState<SearchItem[]>([]);
+  const [searchingDocs, setSearchingDocs] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const entries = useMemo(() => buildEntries(), []);
+
+  // Debounced server search via /api/search/spotlight (SQLite FTS5) when open
+  useEffect(() => {
+    if (!open) return;
+    const q = query.trim();
+    if (!q) {
+      setDocHits([]);
+      setSearchingDocs(false);
+      return;
+    }
+    const controller = new AbortController();
+    setSearchingDocs(true);
+    const timer = setTimeout(() => {
+      fetch(`/api/search/spotlight?q=${encodeURIComponent(q)}&limit=6`, {
+        signal: controller.signal,
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (Array.isArray(data?.results)) {
+            setDocHits(data.results);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (!controller.signal.aborted) setSearchingDocs(false);
+        });
+    }, 180);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [open, query]);
 
   // Normalized index is stable for the lifetime of the component, so filtering
   // never re-normalizes 20 labels per keystroke.
@@ -95,11 +133,26 @@ export function CommandPalette() {
       .split(/\s+/)
       .map((tk) => normalizeArabicTerm(tk))
       .filter((tk) => tk.length > 0);
-    if (tokens.length === 0) return index;
-    return index.filter(({ haystack, path }) =>
-      tokens.every((tk) => haystack.includes(tk) || path.includes(tk))
-    );
-  }, [index, query]);
+    const navMatches =
+      tokens.length === 0
+        ? index
+        : index.filter(({ haystack, path }) =>
+            tokens.every((tk) => haystack.includes(tk) || path.includes(tk))
+          );
+    const docEntries = docHits.map((d) => ({
+      entry: {
+        href: `/documents/${d.id}`,
+        label: d.title,
+        group: d.departmentName || "المستندات",
+        sublabel: [d.docNumber, d.docType, d.snippet].filter(Boolean).join(" · "),
+        isDoc: true,
+        Icon: FileText,
+      } satisfies PaletteEntry,
+      haystack: d.title,
+      path: `/documents/${d.id}`,
+    }));
+    return [...navMatches, ...docEntries];
+  }, [index, query, docHits]);
 
   const go = useCallback(
     (href: string) => {
@@ -170,12 +223,16 @@ export function CommandPalette() {
         <DialogTitle className="sr-only">{t("لوحة الأوامر")}</DialogTitle>
 
         <div className="flex items-center gap-2.5 border-b border-border px-4">
-          <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+          {searchingDocs ? (
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" aria-hidden />
+          ) : (
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+          )}
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("ابحث عن صفحة أو إجراء…")}
+            placeholder={t("ابحث عن صفحة أو مستند أو رقم مرجعي…")}
             aria-label={t("ابحث عن صفحة أو إجراء")}
             className="h-12 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
           />
@@ -209,7 +266,12 @@ export function CommandPalette() {
                   <entry.Icon
                     className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground")}
                   />
-                  <span className="min-w-0 flex-1 truncate font-medium">{t(entry.label)}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{entry.isDoc ? entry.label : t(entry.label)}</span>
+                    {entry.sublabel && (
+                      <span className="block truncate text-[11px] text-muted-foreground/80">{entry.sublabel}</span>
+                    )}
+                  </span>
                   {isCurrent ? (
                     <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
                       {t("الحالية")}

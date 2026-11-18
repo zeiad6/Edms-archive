@@ -5,11 +5,13 @@ import { db } from "@/db";
 import { departments, documents, folders, users, documentTemplates } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser, logAudit } from "@/lib/server";
-import { requirePermission } from "@/lib/permissions";
+import { checkPermission } from "@/lib/permissions";
 
-export async function createDepartment(formData: FormData) {
-  const user = await getCurrentUser();
-  requirePermission(user, "departments.manage");
+export async function createDepartment(formData: FormData): Promise<any> {
+  const rawUser = await getCurrentUser();
+  const perm = checkPermission(rawUser, "departments.manage");
+  if (!perm.ok) return perm;
+  const user = perm.user;
   const name = String(formData.get("name") || "").trim();
   if (!name) return;
   const [row] = await db
@@ -34,9 +36,11 @@ export async function createDepartment(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
-export async function updateDepartment(formData: FormData) {
-  const user = await getCurrentUser();
-  requirePermission(user, "departments.manage");
+export async function updateDepartment(formData: FormData): Promise<any> {
+  const rawUser = await getCurrentUser();
+  const perm = checkPermission(rawUser, "departments.manage");
+  if (!perm.ok) return perm;
+  const user = perm.user;
   const id = Number(formData.get("id"));
   if (!id) return;
   const name = String(formData.get("name") || "").trim();
@@ -62,9 +66,11 @@ export async function updateDepartment(formData: FormData) {
   revalidatePath("/departments");
 }
 
-export async function deleteDepartment(formData: FormData) {
-  const user = await getCurrentUser();
-  requirePermission(user, "departments.manage");
+export async function deleteDepartment(formData: FormData): Promise<any> {
+  const rawUser = await getCurrentUser();
+  const perm = checkPermission(rawUser, "departments.manage");
+  if (!perm.ok) return perm;
+  const user = perm.user;
   const id = Number(formData.get("id"));
   if (!id) return;
   // Reassign documents to uncategorised

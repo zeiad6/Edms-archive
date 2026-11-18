@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   LOGIN_MAX_FAILURES,
+  LOGIN_MAX_KEYS,
   LOGIN_WINDOW_MS,
   clearLoginFailures,
+  getLoginThrottleMapSize,
+  loginThrottleKey,
   loginThrottled,
   recordLoginFailure,
 } from "@/lib/login-throttle";
@@ -36,5 +39,29 @@ describe("login throttle", () => {
     for (let i = 0; i < LOGIN_MAX_FAILURES; i++) recordLoginFailure(a);
     expect(loginThrottled(a)).toBe(true);
     expect(loginThrottled(b)).toBe(false);
+  });
+
+  it("normalizes case and whitespace and does not allocate Map entries on loginThrottled", () => {
+    const freshKey = `  Unseen-User-${Date.now()}  `;
+    const sizeBefore = getLoginThrottleMapSize();
+    expect(loginThrottled(freshKey)).toBe(false);
+    expect(getLoginThrottleMapSize()).toBe(sizeBefore);
+
+    const mixedKey = loginThrottleKey("  AdminUser ", " 10.0.0.1 ");
+    expect(mixedKey).toBe("adminuser:10.0.0.1");
+    for (let i = 0; i < LOGIN_MAX_FAILURES; i++) {
+      recordLoginFailure("  ADMINUSER:10.0.0.1  ");
+    }
+    expect(loginThrottled("adminuser:10.0.0.1")).toBe(true);
+    clearLoginFailures("  AdminUser:10.0.0.1 ");
+    expect(loginThrottled("adminuser:10.0.0.1")).toBe(false);
+  });
+
+  it("caps Map size at LOGIN_MAX_KEYS using LRU eviction", () => {
+    const now = Date.now();
+    for (let i = 0; i < LOGIN_MAX_KEYS + 25; i++) {
+      recordLoginFailure(`lru-user-${i}:127.0.0.1`, now);
+    }
+    expect(getLoginThrottleMapSize()).toBeLessThanOrEqual(LOGIN_MAX_KEYS);
   });
 });

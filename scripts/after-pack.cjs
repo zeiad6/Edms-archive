@@ -100,8 +100,9 @@ exports.default = async function afterPack(context) {
     console.log(`afterPack: completed external package ${pkg}`);
   }
 
-  // Prune Next.js SWC binaries for other OS/arch (only win32-x64-msvc can
-  // ever load on the target). Saves ~100 MB of installer weight.
+  // Prune Next.js SWC and native binaries for other OS/arch (only win32-x64
+  // can ever load on the Windows target). Saves ~130 MB of installer weight
+  // and keeps Linux/macOS host binaries out of cross-packaged Windows builds.
   {
     let freed = 0;
     const kill = (p) => {
@@ -111,6 +112,12 @@ exports.default = async function afterPack(context) {
         console.log(`afterPack: pruned ${path.relative(dest, p)}`);
       } catch { /* already gone */ }
     };
+    const isNonWin32PlatformPkg = (rel) => {
+      if (/^@next[\\/]swc-/.test(rel) && !/win32-x64-msvc/.test(rel)) return true;
+      if (/^@libsql[\\/](linux|darwin)-/.test(rel)) return true;
+      if (/^@img[\\/]sharp-(libvips-)?(linux|darwin)/.test(rel)) return true;
+      return false;
+    };
     const walkSwc = (dir) => {
       let entries = [];
       try {
@@ -119,8 +126,8 @@ exports.default = async function afterPack(context) {
       for (const e of entries) {
         const q = path.join(dir, e.name);
         if (e.isDirectory()) {
-          if (/^@next[\\/]swc-/.test(path.relative(stagedModules, q).replace(/\\/g, "/")) && !/win32-x64-msvc/.test(q)) {
-            // Optional-platform SWC package (darwin/linux/...) — never loaded here.
+          const rel = path.relative(stagedModules, q).replace(/\\/g, "/");
+          if (isNonWin32PlatformPkg(rel)) {
             kill(q);
           } else {
             walkSwc(q);
@@ -131,7 +138,7 @@ exports.default = async function afterPack(context) {
       }
     };
     walkSwc(stagedModules);
-    if (freed > 0) console.log(`afterPack: SWC prune freed ${(freed / 1024 / 1024).toFixed(1)} MB`);
+    if (freed > 0) console.log(`afterPack: SWC/native prune freed ${(freed / 1024 / 1024).toFixed(1)} MB`);
   }
 
   const mb = (p) => Math.round((fs.statSync(p).size / 1024 / 1024) * 10) / 10;

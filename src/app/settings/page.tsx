@@ -19,11 +19,19 @@ import { GithubMark } from "@/components/github-mark";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AppearanceSettings } from "@/components/appearance-settings";
 import { BackupRestoreCard } from "@/components/settings/backup-restore-card";
+import { SystemUpgradeCard } from "@/components/settings/system-upgrade-card";
 import { getCurrentUser } from "@/lib/server";
 import { can } from "@/lib/permissions";
 import { formatBytes } from "@/lib/format";
 import { ts } from "@/lib/i18n";
 import { getServerLang } from "@/lib/server-lang";
+import { APP_VERSION } from "@/lib/version";
+import {
+  TARGET_SCHEMA_VERSION,
+  getSchemaUserVersion,
+  listPreUpgradeSnapshots,
+  verifyDatabaseIntegrity,
+} from "@/lib/upgrade-engine";
 
 export const dynamic = "force-dynamic";
 
@@ -43,12 +51,20 @@ export default async function SettingsPage() {
   const user = await getCurrentUser();
   const isAdmin = !!user && can(user, "settings.manage");
 
-  const [docRow, userRow, deptRow, folderRow, sizeRow] = await Promise.all([
+  const [docRow, userRow, deptRow, folderRow, sizeRow, schemaVersion, snapshots, integrity] = await Promise.all([
     db.select({ c: count() }).from(documents),
     db.select({ c: count() }).from(users),
     db.select({ c: count() }).from(departments),
     db.select({ c: count() }).from(folders),
     db.select({ size: sql<string>`coalesce(sum(${documents.fileSize}), 0)` }).from(documents),
+    isAdmin ? getSchemaUserVersion() : Promise.resolve(TARGET_SCHEMA_VERSION),
+    isAdmin ? listPreUpgradeSnapshots() : Promise.resolve([]),
+    isAdmin
+      ? verifyDatabaseIntegrity({ enforceForeignKeys: false }).catch(() => ({
+          integrityOk: false,
+          foreignKeyViolations: -1,
+        }))
+      : Promise.resolve({ integrityOk: true, foreignKeyViolations: 0 }),
   ]);
 
   const storage = Number(sizeRow[0]?.size ?? 0);
@@ -128,14 +144,33 @@ export default async function SettingsPage() {
             <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
               <HardDrive className="h-4 w-4 text-primary" />{ts(lang, "معلومات النظام")}</h3>
             <dl className="grid gap-2.5 text-sm sm:grid-cols-2 lg:gap-3">
-              <Info k="إصدار النظام" v="EDMS 1.0.7 (ZeidexSoft)" />
+              <Info k="إصدار النظام" v={`EDMS ${APP_VERSION} (ZeidexSoft)`} />
+              <Info k="مستوى مخطط قاعدة البيانات" v={`PRAGMA user_version = ${schemaVersion} (المستهدف: ${TARGET_SCHEMA_VERSION})`} />
               <Info k="المحرك" v="Next.js App Router + API Routes" />
-              <Info k="قاعدة البيانات" v="libSQL (SQLite) — ملف محلي" />
-              <Info k="البحث" v="Fuse.js · SQL LIKE (بحث نصي)" />
-              <Info k="الجداول" v="AG Grid" />
-              <Info k="الواجهة" v="React 19.2 · Shadcn UI" />
+              <Info k="قاعدة البيانات" v="libSQL (SQLite WAL) — ملف محلي" />
+              <Info k="البحث" v="SQLite FTS5 · Fuse.js · البحث العربي الذكي" />
+              <Info k="الجداول والعرض" v="AG Grid + عرض البطاقات الشبكية + معاينة سريعة" />
+              <Info k="الواجهة" v="React 19.2 · Radix UI · RTL/LTR" />
             </dl>
           </Card>
+
+          {isAdmin && (
+            <SystemUpgradeCard
+              initialData={{
+                appVersion: APP_VERSION,
+                schemaVersion,
+                targetSchemaVersion: TARGET_SCHEMA_VERSION,
+                integrityOk: integrity.integrityOk,
+                foreignKeyViolations: integrity.foreignKeyViolations,
+                snapshots: snapshots.map((s) => ({
+                  name: s.name,
+                  size: s.size,
+                  createdAt: s.createdAt,
+                  version: s.version,
+                })),
+              }}
+            />
+          )}
 
           {isAdmin && <BackupRestoreCard />}
 

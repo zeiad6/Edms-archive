@@ -1,13 +1,24 @@
 import { drizzle } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
+import { mkdirSync } from "node:fs";
+import path from "node:path";
+import * as schema from "./schema";
 
-const databaseUrl =
+export const databaseUrl =
   process.env.DATABASE_URL ||
   (process.env.EDMS_DATA_DIR
     ? `file:${process.env.EDMS_DATA_DIR.replace(/\\/g, "/")}/edms.db`
     : "file:./data/edms.db");
 
-const client = createClient({
+if (databaseUrl.startsWith("file:") && !databaseUrl.startsWith("file::memory:")) {
+  try {
+    mkdirSync(path.dirname(path.resolve(databaseUrl.slice("file:".length))), { recursive: true });
+  } catch {
+    /* ignore read-only / virtual paths */
+  }
+}
+
+export const client = createClient({
   url: databaseUrl,
 });
 
@@ -22,17 +33,12 @@ const BUSY_TIMEOUT_MS = 5000;
  * connection, not in the seed/DDL path. `journal_mode` is persisted in the
  * file, but re-issuing it keeps a database restored from a non-WAL source
  * (older backup, sqlite3 .dump) in WAL mode before the first write.
- *
- * `db.transaction()` is deliberately avoided in this codebase: libsql hands
- * the shared connection to the transaction and lazily opens a FRESH one for
- * every later query, which drops foreign_keys and busy_timeout. Use
- * `db.batch()` for atomic writes, or call `applyConnectionPragmas()` once the
- * transaction has finished.
  */
 const CONNECTION_PRAGMAS = [
+  "PRAGMA journal_mode = WAL;",
   "PRAGMA foreign_keys = ON;",
   `PRAGMA busy_timeout = ${BUSY_TIMEOUT_MS};`,
-  "PRAGMA journal_mode = WAL;",
+  "PRAGMA synchronous = NORMAL;",
 ] as const;
 
 /**
@@ -60,4 +66,4 @@ export async function applyConnectionPragmas(): Promise<void> {
  */
 export const dbReady: Promise<void> = applyConnectionPragmas();
 
-export const db = drizzle(client);
+export const db = drizzle(client, { schema });

@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { documents, departments, users, auditLogs, approvalRequests, tags, documentTags, docTypes } from "@/db/schema";
-import { count, eq, and, desc, sql, isNull } from "drizzle-orm";
+import { count, eq, and, desc, sql, isNull, or } from "drizzle-orm";
 import { getCurrentUser, canAccessDocument } from "@/lib/server";
 import { ensureSeeded } from "@/lib/seed";
 import { getStatusCount, generateMonthDates, calculateMonthlyTrend, calculateStatusSegments, getGreeting, getTodayFormatted, prepareRecentDocuments } from "@/lib/dashboard-helpers";
@@ -22,8 +22,24 @@ export default async function Dashboard() {
   await ensureSeeded();
   const user = await getCurrentUser();
 
+  // Build RBAC + soft-delete filter applied to every document query on the dashboard
+  const docConditions = [isNull(documents.deletedAt)];
+  if (!user) {
+    docConditions.push(sql`1 = 0`);
+  } else if (user.role !== "admin") {
+    docConditions.push(
+      or(
+        eq(documents.departmentId, user.departmentId ?? -1),
+        eq(documents.uploadedById, user.id)
+      )!
+    );
+    if (user.role === "staff") {
+      docConditions.push(eq(documents.confidential, 0));
+    }
+  }
+  const baseDocFilter = and(...docConditions)!;
+
   // All dashboard queries are independent — run them in a single parallel batch
-  // (was 7 sequential round-trips; now 1).
   const monthDates = generateMonthDates();
 
   const [
@@ -40,21 +56,25 @@ export default async function Dashboard() {
     recentRaw,
     activity,
   ] = await Promise.all([
-    db.select({ total: count() }).from(documents).where(isNull(documents.deletedAt)),
+    db.select({ total: count() }).from(documents).where(baseDocFilter),
     db
       .select({ c: count() })
       .from(documents)
       .where(
         and(
           sql`${documents.createdAt} > ${new Date(Date.now() - 7 * 86400000).toISOString()}`,
-          isNull(documents.deletedAt)
+          baseDocFilter
         )
       ),
-    db.select({ status: documents.status, c: count() }).from(documents).where(isNull(documents.deletedAt)).groupBy(documents.status),
+    db
+      .select({ status: documents.status, c: count() })
+      .from(documents)
+      .where(baseDocFilter)
+      .groupBy(documents.status),
     db
       .select({ size: sql<string>`coalesce(sum(${documents.fileSize}), 0)` })
       .from(documents)
-      .where(isNull(documents.deletedAt)),
+      .where(baseDocFilter),
     user
       ? db
           .select({ c: count() })
@@ -63,7 +83,6 @@ export default async function Dashboard() {
           .then((r) => Number(r[0]?.c ?? 0))
       : Promise.resolve(0),
     // Monthly trend: docs per month over last 6 months — one GROUP BY query
-    // (was 6 per-month COUNT round-trips); the 6 buckets are filled in JS below.
     db
       .select({
         m: sql<string>`strftime('%Y-%m', ${documents.createdAt})`,
@@ -73,24 +92,32 @@ export default async function Dashboard() {
       .where(
         and(
           sql`${documents.createdAt} >= ${monthDates[0].start}`,
-          isNull(documents.deletedAt)
+          baseDocFilter
         )
       )
       .groupBy(sql`strftime('%Y-%m', ${documents.createdAt})`),
-    // Tags cloud
+    // Tags cloud — joined with documents & filtered by isNull(documents.deletedAt) + RBAC
     db
-      .select({ name: tags.name, color: tags.color, c: sql<number>`CAST(count(${documentTags.tagId}) AS INTEGER)` })
+      .select({
+        name: tags.name,
+        color: tags.color,
+        c: sql<number>`CAST(count(${documents.id}) AS INTEGER)`,
+      })
       .from(tags)
       .leftJoin(documentTags, eq(documentTags.tagId, tags.id))
+      .leftJoin(
+        documents,
+        and(eq(documents.id, documentTags.documentId), baseDocFilter)
+      )
       .groupBy(tags.id, tags.name, tags.color)
-      .orderBy(desc(sql`count(${documentTags.tagId})`))
+      .orderBy(desc(sql`count(${documents.id})`))
       .limit(12),
     // Doc type distribution
     db
       .select({ type: documents.docType, c: sql<number>`CAST(count(*) AS INTEGER)`, color: docTypes.color })
       .from(documents)
       .leftJoin(docTypes, eq(documents.docType, docTypes.name))
-      .where(isNull(documents.deletedAt))
+      .where(baseDocFilter)
       .groupBy(documents.docType, docTypes.color)
       .orderBy(desc(sql`count(*)`)),
     // Top uploaders
@@ -98,15 +125,24 @@ export default async function Dashboard() {
       .select({ name: users.name, avatarColor: users.avatarColor, c: sql<number>`CAST(count(*) AS INTEGER)` })
       .from(documents)
       .innerJoin(users, eq(documents.uploadedById, users.id))
-      .where(isNull(documents.deletedAt))
+      .where(baseDocFilter)
       .groupBy(users.id, users.name, users.avatarColor)
       .orderBy(desc(sql`count(*)`))
       .limit(5),
     db
       .select({ name: departments.name, color: departments.color, c: sql<number>`CAST(count(${documents.id}) AS INTEGER)` })
       .from(departments)
-      .leftJoin(documents, eq(documents.departmentId, departments.id))
-      .where(isNull(documents.deletedAt))
+      .leftJoin(
+        documents,
+        and(eq(documents.departmentId, departments.id), baseDocFilter)
+      )
+      .where(
+        user?.role === "admin"
+          ? undefined
+          : user?.departmentId
+            ? eq(departments.id, user.departmentId)
+            : sql`1 = 0`
+      )
       .groupBy(departments.id, departments.name, departments.color)
       .orderBy(desc(sql`count(${documents.id})`)),
     db
@@ -114,10 +150,19 @@ export default async function Dashboard() {
       .from(documents)
       .leftJoin(departments, eq(documents.departmentId, departments.id))
       .leftJoin(users, eq(documents.uploadedById, users.id))
-      .where(isNull(documents.deletedAt))
+      .where(baseDocFilter)
       .orderBy(desc(documents.createdAt))
       .limit(10),
-    db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(7),
+    user?.role === "admin"
+      ? db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(7)
+      : user
+        ? db
+            .select()
+            .from(auditLogs)
+            .where(eq(auditLogs.userId, user.id))
+            .orderBy(desc(auditLogs.createdAt))
+            .limit(7)
+        : Promise.resolve([]),
   ]);
 
   // Fill the 6 monthly buckets from the single grouped query (missing → 0),

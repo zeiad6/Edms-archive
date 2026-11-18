@@ -1,4 +1,4 @@
-import { db, dbReady } from "@/db";
+import { db, dbReady, client, applyConnectionPragmas } from "@/db";
 import {
   departments,
   users,
@@ -14,7 +14,18 @@ import {
 import { ensureStorage, writeKey, genKey } from "@/lib/server";
 import { makeScanSvg } from "@/lib/doc-svg";
 import { hashPassword, seedPassword } from "@/lib/password";
-import { eq, sql } from "drizzle-orm";
+import { APP_VERSION } from "@/lib/version";
+import {
+  TARGET_SCHEMA_VERSION,
+  compareSemver,
+  createPreUpgradeSnapshot,
+  getSchemaUserVersion,
+  readRecordedAppVersion,
+  rollbackFromPreUpgradeSnapshot,
+  verifyDatabaseIntegrity,
+  writeRecordedAppVersion,
+} from "@/lib/upgrade-engine";
+import { sql } from "drizzle-orm";
 
 let running: Promise<void> | null = null;
 
@@ -63,120 +74,242 @@ function buildPdf(title: string, lines: string[]): Buffer {
 }
 
 const DDL = [
-  `CREATE TABLE IF NOT EXISTS departments (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, name_en TEXT, code TEXT, description TEXT, color TEXT NOT NULL DEFAULT '#4f46e5', created_at TEXT NOT NULL DEFAULT (datetime('now')))`,
-  `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, password_hash TEXT, must_change_password INTEGER NOT NULL DEFAULT 0, job_title TEXT, role TEXT NOT NULL DEFAULT 'staff' CHECK(role IN ('admin','manager','staff')), department_id INTEGER REFERENCES departments(id), avatar_color TEXT NOT NULL DEFAULT '#4f46e5', active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (datetime('now')))`,
-  `CREATE TABLE IF NOT EXISTS folders (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, parent_id INTEGER, department_id INTEGER REFERENCES departments(id), description TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+  `CREATE TABLE IF NOT EXISTS departments (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, name_en TEXT, code TEXT, description TEXT, color TEXT NOT NULL DEFAULT '#4f46e5', created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP))`,
+  `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, password_hash TEXT, must_change_password INTEGER NOT NULL DEFAULT 0, job_title TEXT, role TEXT NOT NULL DEFAULT 'staff' CHECK(role IN ('admin','manager','staff')), department_id INTEGER REFERENCES departments(id), avatar_color TEXT NOT NULL DEFAULT '#4f46e5', active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP))`,
+  `CREATE TABLE IF NOT EXISTS folders (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, parent_id INTEGER, department_id INTEGER REFERENCES departments(id), description TEXT, created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP))`,
   `CREATE INDEX IF NOT EXISTS folders_parent_idx ON folders(parent_id)`,
   `CREATE INDEX IF NOT EXISTS folders_dept_idx ON folders(department_id)`,
   `CREATE INDEX IF NOT EXISTS users_dept_idx ON users(department_id)`,
   `CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, color TEXT NOT NULL DEFAULT '#64748b')`,
-  `CREATE TABLE IF NOT EXISTS doc_types (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, name_en TEXT, color TEXT NOT NULL DEFAULT '#64748b', sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+  `CREATE TABLE IF NOT EXISTS doc_types (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, name_en TEXT, color TEXT NOT NULL DEFAULT '#64748b', sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP))`,
   `CREATE INDEX IF NOT EXISTS doc_types_sort_idx ON doc_types(sort_order)`,
-  `CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT, doc_number TEXT, doc_type TEXT, doc_type_id INTEGER REFERENCES doc_types(id), status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('draft','pending_review','active','archived')), confidential INTEGER NOT NULL DEFAULT 0, storage_key TEXT NOT NULL, thumb_key TEXT, original_name TEXT NOT NULL, file_name TEXT NOT NULL, mime_type TEXT NOT NULL, file_ext TEXT, file_size INTEGER NOT NULL, page_count INTEGER DEFAULT 1, content_text TEXT, ocr_processed INTEGER NOT NULL DEFAULT 0, department_id INTEGER REFERENCES departments(id), folder_id INTEGER REFERENCES folders(id), version INTEGER NOT NULL DEFAULT 1, doc_date TEXT, uploaded_by_id INTEGER NOT NULL REFERENCES users(id), deleted_at TEXT, deleted_by_id INTEGER REFERENCES users(id), created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+  `CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT, doc_number TEXT, doc_type TEXT, doc_type_id INTEGER REFERENCES doc_types(id), status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('draft','pending_review','active','archived')), confidential INTEGER NOT NULL DEFAULT 0, storage_key TEXT NOT NULL, thumb_key TEXT, original_name TEXT NOT NULL, file_name TEXT NOT NULL, mime_type TEXT NOT NULL, file_ext TEXT, file_size INTEGER NOT NULL, page_count INTEGER DEFAULT 1, content_text TEXT, ocr_text TEXT, ocr_processed INTEGER NOT NULL DEFAULT 0, department_id INTEGER REFERENCES departments(id), folder_id INTEGER REFERENCES folders(id), version INTEGER NOT NULL DEFAULT 1, doc_date TEXT, keywords TEXT, source TEXT, notes TEXT, uploaded_by_id INTEGER NOT NULL REFERENCES users(id), deleted_at TEXT, deleted_by_id INTEGER REFERENCES users(id), created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP), updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP))`,
   `CREATE INDEX IF NOT EXISTS documents_dept_idx ON documents(department_id)`,
   `CREATE INDEX IF NOT EXISTS documents_folder_idx ON documents(folder_id)`,
   `CREATE INDEX IF NOT EXISTS documents_status_idx ON documents(status)`,
   `CREATE INDEX IF NOT EXISTS documents_uploader_idx ON documents(uploaded_by_id)`,
-  `CREATE INDEX IF NOT EXISTS documents_type_idx ON documents(doc_type)`,
   `CREATE INDEX IF NOT EXISTS documents_created_at_idx ON documents(created_at)`,
   `CREATE INDEX IF NOT EXISTS documents_updated_at_idx ON documents(updated_at)`,
-  `CREATE INDEX IF NOT EXISTS documents_deleted_at_idx ON documents(deleted_at)`,
   `CREATE INDEX IF NOT EXISTS documents_doc_date_idx ON documents(doc_date)`,
-  `CREATE INDEX IF NOT EXISTS documents_doc_type_id_idx ON documents(doc_type_id)`,
   `CREATE TABLE IF NOT EXISTS document_tags (document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE, tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE, PRIMARY KEY (document_id, tag_id))`,
   `CREATE INDEX IF NOT EXISTS doctags_tag_idx ON document_tags(tag_id)`,
-  `CREATE TABLE IF NOT EXISTS document_versions (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE, version INTEGER NOT NULL, storage_key TEXT NOT NULL, original_name TEXT NOT NULL, file_size INTEGER NOT NULL, note TEXT, uploaded_by_id INTEGER NOT NULL REFERENCES users(id), created_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+  `CREATE TABLE IF NOT EXISTS document_versions (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE, version INTEGER NOT NULL, storage_key TEXT NOT NULL, original_name TEXT NOT NULL, file_size INTEGER NOT NULL, note TEXT, uploaded_by_id INTEGER NOT NULL REFERENCES users(id), created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP))`,
   `CREATE INDEX IF NOT EXISTS versions_doc_idx ON document_versions(document_id)`,
-  `CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER REFERENCES users(id), user_name TEXT, action TEXT NOT NULL, entity_type TEXT, entity_id INTEGER, details TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+  `CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER REFERENCES users(id), user_name TEXT, action TEXT NOT NULL, entity_type TEXT, entity_id INTEGER, details TEXT, created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP))`,
   `CREATE INDEX IF NOT EXISTS audit_entity_idx ON audit_logs(entity_type, entity_id)`,
   `CREATE INDEX IF NOT EXISTS audit_user_idx ON audit_logs(user_id)`,
   `CREATE INDEX IF NOT EXISTS audit_created_at_idx ON audit_logs(created_at)`,
-  `CREATE TABLE IF NOT EXISTS approval_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE, requested_by_id INTEGER NOT NULL REFERENCES users(id), assigned_to_id INTEGER NOT NULL REFERENCES users(id), status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')), comment TEXT, response_note TEXT, responded_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+  `CREATE TABLE IF NOT EXISTS approval_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE, requested_by_id INTEGER NOT NULL REFERENCES users(id), assigned_to_id INTEGER NOT NULL REFERENCES users(id), status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')), comment TEXT, response_note TEXT, responded_at TEXT, created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP), updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP))`,
   `CREATE INDEX IF NOT EXISTS approval_doc_idx ON approval_requests(document_id)`,
   `CREATE INDEX IF NOT EXISTS approval_assigned_idx ON approval_requests(assigned_to_id)`,
   `CREATE INDEX IF NOT EXISTS approval_status_idx ON approval_requests(status)`,
   `CREATE INDEX IF NOT EXISTS approval_created_at_idx ON approval_requests(created_at)`,
-  `CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id), type TEXT NOT NULL CHECK(type IN ('approval_requested','approval_approved','approval_rejected')), title TEXT NOT NULL, message TEXT NOT NULL, document_id INTEGER REFERENCES documents(id) ON DELETE SET NULL, reference_id INTEGER, read_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+  `CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id), type TEXT NOT NULL CHECK(type IN ('approval_requested','approval_approved','approval_rejected')), title TEXT NOT NULL, message TEXT NOT NULL, document_id INTEGER REFERENCES documents(id) ON DELETE SET NULL, reference_id INTEGER, read_at TEXT, created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP))`,
   `CREATE INDEX IF NOT EXISTS notif_user_idx ON notifications(user_id)`,
   `CREATE INDEX IF NOT EXISTS notif_read_idx ON notifications(user_id, read_at)`,
   `CREATE INDEX IF NOT EXISTS notif_created_at_idx ON notifications(created_at)`,
-  `CREATE TABLE IF NOT EXISTS signatures (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id), label TEXT DEFAULT 'توقيع', data_url TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+  `CREATE TABLE IF NOT EXISTS signatures (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id), label TEXT DEFAULT 'توقيع', data_url TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP))`,
   `CREATE INDEX IF NOT EXISTS sig_doc_idx ON signatures(document_id)`,
   `CREATE INDEX IF NOT EXISTS sig_user_idx ON signatures(user_id)`,
-  `CREATE TABLE IF NOT EXISTS document_templates (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, description TEXT, title_pattern TEXT NOT NULL DEFAULT '{{title}}', department_id INTEGER REFERENCES departments(id), folder_id INTEGER REFERENCES folders(id), doc_type TEXT, default_tags TEXT, status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('draft','active','archived')), sort_order INTEGER NOT NULL DEFAULT 0, created_by_id INTEGER REFERENCES users(id), created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+  `CREATE TABLE IF NOT EXISTS document_templates (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, description TEXT, title_pattern TEXT NOT NULL DEFAULT '{{title}}', department_id INTEGER REFERENCES departments(id), folder_id INTEGER REFERENCES folders(id), doc_type TEXT, default_tags TEXT, status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('draft','active','archived')), sort_order INTEGER NOT NULL DEFAULT 0, created_by_id INTEGER REFERENCES users(id), created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP), updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP))`,
   `CREATE INDEX IF NOT EXISTS templates_status_idx ON document_templates(status)`,
   `CREATE INDEX IF NOT EXISTS templates_sort_idx ON document_templates(sort_order)`,
 ];
 
-async function ensureSchema(): Promise<void> {
-  // Connection settings (foreign_keys, busy_timeout, journal_mode) live in
-  // src/db/index.ts. This used to set two of them again here, which made the
-  // DDL path look like the owner of settings it never applied to new
-  // connections.
-  for (const stmt of DDL) {
-    try {
-      await db.run(sql.raw(stmt));
-    } catch (e) {
-      // ignore - table already exists
-      console.error("[seed] DDL failed:", e);
-    }
+async function getTableColumns(tableName: string): Promise<Set<string>> {
+  const rows = (await db.all(sql.raw(`PRAGMA table_info("${tableName}")`))) as Array<{ name: string }>;
+  return new Set(rows.map((r) => r.name));
+}
+
+interface NumberedMigration {
+  version: number;
+  description: string;
+  up: () => Promise<void>;
+}
+
+const MIGRATIONS: NumberedMigration[] = [
+  {
+    version: 1,
+    description: "Base schema DDL + users authentication columns (password_hash, must_change_password, username)",
+    up: async () => {
+      for (const stmt of DDL) {
+        await client.execute(stmt);
+      }
+      const userCols = await getTableColumns("users");
+      if (!userCols.has("password_hash")) {
+        await client.execute("ALTER TABLE users ADD COLUMN password_hash TEXT");
+      }
+      if (!userCols.has("must_change_password")) {
+        await client.execute("ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0");
+      }
+      if (!userCols.has("username")) {
+        await client.execute("ALTER TABLE users ADD COLUMN username TEXT");
+      }
+      await client.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_username_idx ON users(username)");
+      await client.execute(
+        "UPDATE users SET username = substr(email, 1, instr(email, '@') - 1) WHERE username IS NULL AND email LIKE '%@%'",
+      );
+      await client.execute(
+        "UPDATE users SET username = 'user_' || id WHERE username IS NULL OR trim(username) = ''",
+      );
+    },
+  },
+  {
+    version: 2,
+    description: "Additive documents soft-delete and metadata columns (deleted_at, deleted_by_id, keywords, source, notes, doc_type, doc_type_id)",
+    up: async () => {
+      const docCols = await getTableColumns("documents");
+      if (!docCols.has("doc_type")) {
+        await client.execute("ALTER TABLE documents ADD COLUMN doc_type TEXT");
+      }
+      if (!docCols.has("doc_type_id")) {
+        await client.execute("ALTER TABLE documents ADD COLUMN doc_type_id INTEGER REFERENCES doc_types(id)");
+      }
+      if (!docCols.has("deleted_at")) {
+        await client.execute("ALTER TABLE documents ADD COLUMN deleted_at TEXT");
+      }
+      if (!docCols.has("deleted_by_id")) {
+        await client.execute("ALTER TABLE documents ADD COLUMN deleted_by_id INTEGER REFERENCES users(id)");
+      }
+      if (!docCols.has("keywords")) {
+        await client.execute("ALTER TABLE documents ADD COLUMN keywords TEXT");
+      }
+      if (!docCols.has("source")) {
+        await client.execute("ALTER TABLE documents ADD COLUMN source TEXT");
+      }
+      if (!docCols.has("notes")) {
+        await client.execute("ALTER TABLE documents ADD COLUMN notes TEXT");
+      }
+      await client.execute("CREATE INDEX IF NOT EXISTS documents_deleted_at_idx ON documents(deleted_at)");
+      await client.execute("CREATE INDEX IF NOT EXISTS documents_type_idx ON documents(doc_type)");
+      await client.execute("CREATE INDEX IF NOT EXISTS documents_doc_type_id_idx ON documents(doc_type_id)");
+    },
+  },
+  {
+    version: 3,
+    description: "Additive documents.ocr_text column + repair literal CURRENT_TIMESTAMP defaults + backfill doc_type_id",
+    up: async () => {
+      const docCols = await getTableColumns("documents");
+      if (!docCols.has("ocr_text")) {
+        await client.execute("ALTER TABLE documents ADD COLUMN ocr_text TEXT");
+      }
+
+      // Repair any legacy rows where literal string 'CURRENT_TIMESTAMP' was stored
+      const tablesWithCreatedAt = [
+        "departments",
+        "users",
+        "folders",
+        "doc_types",
+        "documents",
+        "document_versions",
+        "audit_logs",
+        "approval_requests",
+        "notifications",
+        "signatures",
+        "document_templates",
+      ];
+      for (const tbl of tablesWithCreatedAt) {
+        await client.execute(
+          `UPDATE "${tbl}" SET created_at = datetime('now') WHERE created_at = 'CURRENT_TIMESTAMP'`,
+        );
+      }
+      const tablesWithUpdatedAt = ["documents", "approval_requests", "document_templates"];
+      for (const tbl of tablesWithUpdatedAt) {
+        await client.execute(
+          `UPDATE "${tbl}" SET updated_at = COALESCE(NULLIF(created_at, 'CURRENT_TIMESTAMP'), datetime('now')) WHERE updated_at = 'CURRENT_TIMESTAMP'`,
+        );
+      }
+
+      // Backfill doc_type_id for documents created before doc_types existed
+      await client.execute(`
+        UPDATE documents
+        SET doc_type_id = (SELECT id FROM doc_types WHERE doc_types.name = documents.doc_type)
+        WHERE doc_type_id IS NULL AND doc_type IS NOT NULL
+          AND EXISTS (SELECT 1 FROM doc_types WHERE doc_types.name = documents.doc_type)
+      `);
+    },
+  },
+];
+
+export async function ensureSchema(): Promise<void> {
+  await dbReady;
+
+  const existingTables = (await db.all(
+    sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`,
+  )) as Array<{ name: string }>;
+  const hasExistingData = existingTables.some((t) => t.name === "users" || t.name === "documents");
+
+  const currentSchemaVersion = await getSchemaUserVersion();
+  const recordedApp = await readRecordedAppVersion();
+  const isVersionUpgrade =
+    hasExistingData &&
+    ((recordedApp !== null && compareSemver(APP_VERSION, recordedApp.version) > 0) ||
+      currentSchemaVersion < TARGET_SCHEMA_VERSION);
+
+  let snapshotPath: string | null = null;
+
+  if (hasExistingData) {
+    // Pre-migration integrity check
+    await verifyDatabaseIntegrity({ enforceForeignKeys: false });
   }
-  // Migrate existing databases: add columns that newer DDL introduced.
-  try {
-    const cols = (await db.all(sql`PRAGMA table_info(users)`)) as Array<{ name: string }>;
-    if (!cols.some((c) => c.name === "password_hash")) {
-      await db.run(sql`ALTER TABLE users ADD COLUMN password_hash TEXT`);
-      console.log("[seed] added users.password_hash column");
-    }
-    if (!cols.some((c) => c.name === "must_change_password")) {
-      await db.run(sql`ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0`);
-      console.log("[seed] added users.must_change_password column");
-    }
-    if (!cols.some((c) => c.name === "username")) {
-      await db.run(sql`ALTER TABLE users ADD COLUMN username TEXT`);
-      await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS users_username_idx ON users(username)`);
-      // Backfill username from the local part of the email (unique because email is unique)
-      await db.run(sql`UPDATE users SET username = substr(email, 1, instr(email, '@') - 1) WHERE username IS NULL AND email LIKE '%@%'`);
-      console.log("[seed] added users.username column + backfill");
-    }
-  } catch (e) {
-    console.error("[seed] user columns migration failed:", e);
+
+  if (isVersionUpgrade) {
+    snapshotPath = await createPreUpgradeSnapshot(recordedApp?.version ?? `schema-v${currentSchemaVersion}`);
   }
-  // Migrate existing databases: add soft-delete columns that newer DDL introduced.
+
   try {
-    const docCols = (await db.all(sql`PRAGMA table_info(documents)`)) as Array<{ name: string }>;
-    if (!docCols.some((c) => c.name === "deleted_at")) {
-      await db.run(sql`ALTER TABLE documents ADD COLUMN deleted_at TEXT`);
-      console.log("[seed] added documents.deleted_at column");
+    // Ensure base tables always exist even if user_version was already set
+    if (!hasExistingData && currentSchemaVersion >= TARGET_SCHEMA_VERSION) {
+      for (const stmt of DDL) {
+        await client.execute(stmt);
+      }
+      await client.execute("CREATE INDEX IF NOT EXISTS documents_deleted_at_idx ON documents(deleted_at)");
     }
-    if (!docCols.some((c) => c.name === "deleted_by_id")) {
-      await db.run(sql`ALTER TABLE documents ADD COLUMN deleted_by_id INTEGER REFERENCES users(id)`);
-      console.log("[seed] added documents.deleted_by_id column");
+
+    for (const migration of MIGRATIONS) {
+      if (migration.version <= currentSchemaVersion && hasExistingData) continue;
+
+      await client.execute("BEGIN IMMEDIATE");
+      try {
+        await migration.up();
+        await client.execute(`PRAGMA user_version = ${migration.version}`);
+        await client.execute("COMMIT");
+      } catch (migErr) {
+        try {
+          await client.execute("ROLLBACK");
+        } catch {
+          /* ignore rollback error */
+        }
+        throw migErr;
+      }
     }
-    // The index creation in the DDL loop above fails on pre-migration DBs
-    // (column did not exist yet) — create it now that the column exists.
-    await db.run(sql`CREATE INDEX IF NOT EXISTS documents_deleted_at_idx ON documents(deleted_at)`);
-  } catch (e) {
-    console.error("[seed] documents columns migration failed:", e);
-  }
-  // Migrate existing databases: add descriptive metadata columns
-  // (keywords, source, notes) that newer DDL introduced.
-  try {
-    const docCols = (await db.all(sql`PRAGMA table_info(documents)`)) as Array<{ name: string }>;
-    if (!docCols.some((c) => c.name === "keywords")) {
-      await db.run(sql`ALTER TABLE documents ADD COLUMN keywords TEXT`);
-      console.log("[seed] added documents.keywords column");
+
+    // Re-apply connection PRAGMAs and verify post-migration integrity
+    await applyConnectionPragmas();
+    await verifyDatabaseIntegrity({ enforceForeignKeys: true });
+
+    if (
+      !recordedApp ||
+      recordedApp.version !== APP_VERSION ||
+      recordedApp.schemaVersion !== TARGET_SCHEMA_VERSION
+    ) {
+      await writeRecordedAppVersion({
+        version: APP_VERSION,
+        schemaVersion: TARGET_SCHEMA_VERSION,
+        updatedAt: new Date().toISOString(),
+        lastSnapshot: snapshotPath ? snapshotPath.split(/[\\/]/).pop() ?? null : recordedApp?.lastSnapshot ?? null,
+      });
     }
-    if (!docCols.some((c) => c.name === "source")) {
-      await db.run(sql`ALTER TABLE documents ADD COLUMN source TEXT`);
-      console.log("[seed] added documents.source column");
+  } catch (err) {
+    if (snapshotPath) {
+      await rollbackFromPreUpgradeSnapshot(snapshotPath);
     }
-    if (!docCols.some((c) => c.name === "notes")) {
-      await db.run(sql`ALTER TABLE documents ADD COLUMN notes TEXT`);
-      console.log("[seed] added documents.notes column");
-    }
-  } catch (e) {
-    console.error("[seed] documents metadata columns migration failed:", e);
+    const reason = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      snapshotPath
+        ? `فشل ترحيل قاعدة البيانات وتمت استعادة النسخة الاحتياطية التلقائية بنجاح: ${reason}`
+        : `فشل تهيئة أو ترحيل مخطط قاعدة البيانات: ${reason}`,
+    );
   }
 }
 
@@ -191,8 +324,13 @@ async function ensureSchema(): Promise<void> {
  * always paired with `must_change_password = 1`.
  */
 async function backfillPasswords(): Promise<void> {
-  const { password, disclose } = seedPassword();
   try {
+    const missing = (await db.all(
+      sql`SELECT id FROM users WHERE password_hash IS NULL LIMIT 1`,
+    )) as Array<{ id: number }>;
+    if (missing.length === 0) return;
+
+    const { password, disclose } = seedPassword();
     const pwHash = await hashPassword(password);
     await db.run(sql`UPDATE users SET password_hash = ${pwHash}, must_change_password = 1 WHERE password_hash IS NULL`);
     if (disclose) {
@@ -207,13 +345,6 @@ async function backfillPasswords(): Promise<void> {
   } catch (e) {
     console.error("[seed] password backfill failed:", e);
   }
-  // NOTE: the legacy "Password@123" → DEFAULT_PASSWORD migration that used to
-  // live here was removed. It ran on every boot and only ever *weakened*
-  // accounts — it reset any user still on the old shared default (admins
-  // included) to the 8-digit constant published in src/lib/password.ts, and
-  // re-armed must_change_password. Accounts on a real chosen password were
-  // never touched, so nothing is lost by dropping it; an operator who still
-  // has an account on the old default should reset it from the admin UI.
 }
 
 async function doSeed(): Promise<void> {
@@ -222,17 +353,6 @@ async function doSeed(): Promise<void> {
   await dbReady;
   await ensureSchema();
   await ensureStorage();
-
-  // Backfill docTypeId for documents created before doc_types existed
-  try {
-    await db.run(sql`
-      UPDATE documents
-      SET doc_type_id = (SELECT id FROM doc_types WHERE doc_types.name = documents.doc_type)
-      WHERE doc_type_id IS NULL AND doc_type IS NOT NULL
-    `);
-  } catch (e) {
-    console.error("[seed] docTypeId backfill failed:", e);
-  }
 
   // Backfill password hashes for users created before password auth existed.
   // `backfillPasswords` arms must_change_password on every account it touches,
@@ -727,6 +847,7 @@ export function ensureSeeded(): Promise<void> {
     running = doSeed().catch((e) => {
       console.error("[seed] failed:", e);
       running = null;
+      throw e;
     });
   }
   return running;

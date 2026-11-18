@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { documents, approvalRequests, notifications, users } from "@/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { getCurrentUser, logAudit, canAccessDocument } from "@/lib/server";
-import { requirePermission } from "@/lib/permissions";
+import { checkPermission } from "@/lib/permissions";
 
 async function createNotification(userId: number, type: string, title: string, message: string, documentId?: number, referenceId?: number) {
   await db.insert(notifications).values({
@@ -96,9 +96,11 @@ export async function submitForApproval(formData: FormData) {
   revalidatePath("/approvals");
 }
 
-export async function approveDocument(formData: FormData) {
-  const user = await getCurrentUser();
-  requirePermission(user, "approvals.manage");
+export async function approveDocument(formData: FormData): Promise<any> {
+  const rawUser = await getCurrentUser();
+  const perm = checkPermission(rawUser, "approvals.manage");
+  if (!perm.ok) return perm;
+  const user = perm.user;
 
   const requestId = Number(formData.get("requestId"));
   const responseNote = String(formData.get("responseNote") || "");
@@ -171,9 +173,11 @@ export async function approveDocument(formData: FormData) {
   revalidatePath(`/documents/${req.documentId}`);
 }
 
-export async function rejectDocument(formData: FormData) {
-  const user = await getCurrentUser();
-  requirePermission(user, "approvals.manage");
+export async function rejectDocument(formData: FormData): Promise<any> {
+  const rawUser = await getCurrentUser();
+  const perm = checkPermission(rawUser, "approvals.manage");
+  if (!perm.ok) return perm;
+  const user = perm.user;
 
   const requestId = Number(formData.get("requestId"));
   const responseNote = String(formData.get("responseNote") || "");

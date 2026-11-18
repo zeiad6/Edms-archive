@@ -31,12 +31,13 @@ function rfc5987(name: string): string {
  *   Thumbnails are server-generated JPEGs and always safe.
  */
 const INLINE_PREVIEWABLE = new Set([
-  "png", "jpg", "jpeg", "webp", "gif", "bmp", "svg",
+  "png", "jpg", "jpeg", "webp", "gif", "bmp",
   "pdf", "txt", "csv",
 ]);
 
 // Streams the stored object directly from disk (no full buffering) — efficient
-// for large PDFs. Every request is gated by the RBAC check and logged.
+// for large PDFs, with full HTTP Range (206 Partial Content) support.
+// Every request is gated by the RBAC check and logged.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -68,7 +69,8 @@ export async function GET(
     return new NextResponse("File Missing", { status: 404 });
   }
 
-  if (!isThumb) {
+  const rangeHeader = request.headers.get("range");
+  if (!isThumb && (!rangeHeader || rangeHeader.startsWith("bytes=0-"))) {
     await logAudit({
       userId: user.id,
       userName: user.name,
@@ -81,44 +83,89 @@ export async function GET(
 
   const filename = doc.originalName || doc.fileName;
 
-  // Inline preview for safe types (images incl. SVG, PDF, plain text) so the
-  // <img>/<iframe> preview and the pdf.js viewer render instead of forcing a
-  // download. Office/TIFF/RTF/... stay as attachment (no native renderer and
-  // must never execute inside the application origin).
+  // SVG is served with Content-Disposition: attachment + CSP sandbox so direct
+  // top-level navigation forces a download and neutralizes scripts, while <img>
+  // tags continue to display SVG previews normally (browsers ignore attachment
+  // disposition for <img> subresources).
   const fileExt = (doc.fileExt || extFromName(doc.originalName || doc.fileName || "")).toLowerCase();
-  const inlineSafe = isThumb || INLINE_PREVIEWABLE.has(fileExt);
-  const disposition = isDownload || !inlineSafe
-    ? `attachment; filename="${(filename || "document").replace(/[^\w\u0600-\u06FF.\- ]/g, "_")}"; filename*=UTF-8''${rfc5987(filename || "document")}`
-    : "inline";
+  const isSvg = fileExt === "svg" || (doc.mimeType || "").toLowerCase().includes("svg");
+  const inlineSafe = (isThumb && !isSvg) || (INLINE_PREVIEWABLE.has(fileExt) && !isSvg);
+  // HTTP header values must be Latin-1 (ByteString <= 255): keep `filename="..."`
+  // strictly ASCII and carry the full UTF-8 Arabic name in `filename*=UTF-8''...`.
+  const asciiFallback =
+    (filename || "document")
+      .replace(/[^\x20-\x7E]/g, "_")
+      .replace(/["\\]/g, "_")
+      .trim() || `document.${fileExt || "bin"}`;
+  const disposition =
+    isDownload || !inlineSafe || isSvg
+      ? `attachment; filename="${asciiFallback}"; filename*=UTF-8''${rfc5987(filename || "document")}`
+      : "inline";
 
-  const stream = Readable.toWeb(createReadStream(absPath)) as ReadableStream<Uint8Array>;
-
-  // Per-type framing/CSP policy:
-  // - PDF: the built-in viewer needs same-origin framing and no sandbox CSP
-  //   (X-Frame-Options: DENY + `sandbox` produced a blank iframe).
-  // - SVG: keep a script-neutralizing CSP; <img> rendering is unaffected
-  //   (scripts never run in image context) while direct opens stay safe.
-  // - Others inline (raster/BMP/text): neutral frame-ancestors, no sandbox.
-  const headers: Record<string, string> = {
+  const baseHeaders: Record<string, string> = {
     "Content-Type": doc.mimeType || "application/octet-stream",
-    "Content-Length": String(size),
     "Accept-Ranges": "bytes",
     "Content-Disposition": disposition,
     "Cache-Control": "private, no-store",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "SAMEORIGIN",
-  };
-  if (disposition === "inline") {
-    headers["Content-Security-Policy"] =
-      fileExt === "svg"
+    "Content-Security-Policy":
+      isSvg || disposition !== "inline"
         ? "default-src 'none'; sandbox"
-        : "frame-ancestors 'self'";
-  } else {
-    headers["Content-Security-Policy"] = "default-src 'none'; sandbox";
+        : "frame-ancestors 'self'",
+  };
+
+  // HTTP Range support (206 Partial Content) for PDF/media streaming
+  if (rangeHeader && size > 0) {
+    const m = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim());
+    if (m) {
+      let start = m[1] ? Number.parseInt(m[1], 10) : 0;
+      let end = m[2] ? Number.parseInt(m[2], 10) : size - 1;
+      if (!m[1] && m[2]) {
+        // suffix-byte-range-spec: bytes=-500 (last 500 bytes)
+        const suffixLen = Number.parseInt(m[2], 10);
+        start = Math.max(0, size - suffixLen);
+        end = size - 1;
+      }
+      if (
+        Number.isNaN(start) ||
+        Number.isNaN(end) ||
+        start < 0 ||
+        start >= size ||
+        end < start
+      ) {
+        return new NextResponse(null, {
+          status: 416,
+          headers: {
+            ...baseHeaders,
+            "Content-Range": `bytes */${size}`,
+          },
+        });
+      }
+      end = Math.min(end, size - 1);
+      const chunkLength = end - start + 1;
+      const partialStream = Readable.toWeb(
+        createReadStream(absPath, { start, end }),
+      ) as ReadableStream<Uint8Array>;
+
+      return new NextResponse(partialStream, {
+        status: 206,
+        headers: {
+          ...baseHeaders,
+          "Content-Range": `bytes ${start}-${end}/${size}`,
+          "Content-Length": String(chunkLength),
+        },
+      });
+    }
   }
+
+  const stream = Readable.toWeb(createReadStream(absPath)) as ReadableStream<Uint8Array>;
 
   return new NextResponse(stream, {
     status: 200,
-    headers,
+    headers: {
+      ...baseHeaders,
+      "Content-Length": String(size),
+    },
   });
 }

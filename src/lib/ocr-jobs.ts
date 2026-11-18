@@ -6,13 +6,59 @@ import { extractDocumentText } from "@/lib/document-text";
 
 type OcrActor = { id: number | null; name: string | null };
 
-/** Text extraction after upload — PDF text layer first, then local Tesseract OCR. */
+/**
+ * Merge newly extracted OCR text with an existing description/contentText
+ * so legacy documents that stored user descriptions in `content_text` never
+ * lose their original text if OCR returns empty or fails.
+ */
+export function mergeContentAndOcrText(
+  existingDescription: string | null | undefined,
+  existingContentText: string | null | undefined,
+  extractedOcrText: string,
+): string | null {
+  const cleanOcr = extractedOcrText.trim();
+  const baseDesc = (existingDescription || existingContentText || "").trim();
+  if (!cleanOcr) {
+    return baseDesc || null;
+  }
+  if (!baseDesc || baseDesc === cleanOcr || cleanOcr.includes(baseDesc)) {
+    return cleanOcr;
+  }
+  if (baseDesc.includes(cleanOcr)) {
+    return baseDesc;
+  }
+  return `${baseDesc}\n\n${cleanOcr}`;
+}
+
+/**
+ * Text extraction after upload — PDF text layer first, then local Tesseract OCR.
+ *
+ * `ocrProcessed` status codes:
+ *   `0`  — unprocessed
+ *   `1`  — processed with extracted text
+ *   `2`  — processed without text (blank / pure image)
+ *   `-1` — extraction failed
+ */
 export async function runUploadOcr(docId: number, storageKey: string, actor: OcrActor): Promise<void> {
+  const [existing] = await db
+    .select({
+      description: documents.description,
+      contentText: documents.contentText,
+    })
+    .from(documents)
+    .where(eq(documents.id, docId))
+    .limit(1);
+
   let text: string;
   try {
     text = await extractDocumentText(resolveKey(storageKey));
   } catch (err) {
-    // Recorded so resumePendingOcr() does not retry an unreadable file on every boot.
+    // Mark ocrProcessed = -1 (failed) while preserving existing content_text.
+    await db
+      .update(documents)
+      .set({ ocrProcessed: -1 })
+      .where(eq(documents.id, docId));
+
     await logAudit({
       userId: actor.id,
       userName: actor.name,
@@ -24,9 +70,21 @@ export async function runUploadOcr(docId: number, storageKey: string, actor: Ocr
     throw err;
   }
 
+  const cleanText = (text || "").trim();
+  const mergedContent = mergeContentAndOcrText(
+    existing?.description,
+    existing?.contentText,
+    cleanText,
+  );
+  const ocrStatus = cleanText.length > 0 ? 1 : 2;
+
   await db
     .update(documents)
-    .set({ contentText: text || null, ocrProcessed: text ? 1 : 0 })
+    .set({
+      ocrText: cleanText || null,
+      contentText: mergedContent,
+      ocrProcessed: ocrStatus,
+    })
     .where(eq(documents.id, docId));
 
   await logAudit({
@@ -35,7 +93,9 @@ export async function runUploadOcr(docId: number, storageKey: string, actor: Ocr
     action: "document.ocr",
     entityType: "document",
     entityId: docId,
-    details: "استخراج النص تلقائياً بعد الرفع",
+    details: cleanText
+      ? "استخراج النص تلقائياً بعد الرفع"
+      : "تمت معالجة المستند ضوئياً (صورة بلا نص مستخرج)",
   });
 }
 

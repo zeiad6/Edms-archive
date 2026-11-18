@@ -3,12 +3,7 @@ import type { ReactNode } from "react";
 import { Cairo, IBM_Plex_Sans_Arabic } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
-import { db } from "@/db";
-import { users, documents, departments } from "@/db/schema";
-import type { Document } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
-import { getCurrentUser, canAccessDocument, getPendingApprovalCount, getUnreadNotificationCount } from "@/lib/server";
-import { ensureSeeded } from "@/lib/seed";
+import { getCurrentUser, getPendingApprovalCount, getUnreadNotificationCount } from "@/lib/server";
 import { Shell } from "@/components/shell";
 import { ElectronTitleBar } from "@/components/electron-titlebar";
 import { Toaster } from "@/components/ui/sonner";
@@ -57,76 +52,17 @@ export async function generateMetadata(): Promise<Metadata> {
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  await ensureSeeded();
-  const serverLang = await getServerLang();
-  // Wave 1: current user + user directory (needed by both Shell and the queries below).
-  const [currentUser, allUsers] = await Promise.all([
+  const [serverLang, currentUser] = await Promise.all([
+    getServerLang(),
     getCurrentUser(),
-    db
-      .select({
-        id: users.id,
-        name: users.name,
-        role: users.role,
-        jobTitle: users.jobTitle,
-        avatarColor: users.avatarColor,
-      })
-      .from(users),
   ]);
 
-  // Wave 2: shell badges + global search index — one parallel batch
-  // (was 3 sequential round-trips). docRows selects only the columns the
-  // search index consumes, not the full row (no content_text).
-  const [pendingApprovalCount, unreadNotificationCount, docRows] = await Promise.all([
-    getPendingApprovalCount(currentUser?.id),
-    getUnreadNotificationCount(currentUser?.id),
-    currentUser
-      ? db
-          .select({
-            d: {
-              id: documents.id,
-              title: documents.title,
-              docNumber: documents.docNumber,
-              docType: documents.docType,
-              status: documents.status,
-              departmentId: documents.departmentId,
-              uploadedById: documents.uploadedById,
-              confidential: documents.confidential,
-              createdAt: documents.createdAt,
-              deletedAt: documents.deletedAt,
-            },
-            deptName: departments.name,
-            deptColor: departments.color,
-          })
-          .from(documents)
-          .leftJoin(departments, eq(documents.departmentId, departments.id))
-          .orderBy(desc(documents.createdAt))
-          .limit(500)
-      : [],
-  ]);
-  // Build the search index in a single pass over docRows (was filter + map,
-  // two passes over up to 500 rows).
-  const searchIndex: Array<{
-    id: number;
-    title: string;
-    docNumber: string;
-    docType: string;
-    status: string;
-    departmentName: string;
-    departmentColor: string;
-  }> = [];
-  for (const r of docRows) {
-    if (r.d.deletedAt) continue; // soft-deleted docs must not appear in search
-    if (!canAccessDocument(currentUser, r.d as unknown as Document)) continue;
-    searchIndex.push({
-      id: r.d.id,
-      title: r.d.title,
-      docNumber: r.d.docNumber ?? "",
-      docType: r.d.docType ?? "",
-      status: r.d.status,
-      departmentName: r.deptName ?? "",
-      departmentColor: r.deptColor ?? "#94a3b8",
-    });
-  }
+  const [pendingApprovalCount, unreadNotificationCount] = currentUser
+    ? await Promise.all([
+        getPendingApprovalCount(currentUser.id),
+        getUnreadNotificationCount(currentUser.id),
+      ])
+    : [0, 0];
 
   return (
     <html lang={serverLang} dir={serverLang === "ar" ? "rtl" : "ltr"} className={`${cairo.variable} ${plexArabic.variable}`} suppressHydrationWarning>
@@ -138,7 +74,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <LangProvider>
           <ElectronTitleBar />
           {currentUser ? (
-            <Shell currentUser={currentUser} users={allUsers} searchIndex={searchIndex} pendingApprovalCount={pendingApprovalCount} unreadNotificationCount={unreadNotificationCount}>
+            <Shell
+              currentUser={currentUser}
+              pendingApprovalCount={pendingApprovalCount}
+              unreadNotificationCount={unreadNotificationCount}
+            >
               {children}
             </Shell>
           ) : (

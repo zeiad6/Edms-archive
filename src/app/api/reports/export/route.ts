@@ -7,9 +7,10 @@ import {
   folders,
   docTypes,
 } from "@/db/schema";
-import { eq, desc, sql, and, isNull } from "drizzle-orm";
+import { eq, desc, sql, and, isNull, or } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/server";
 import { can } from "@/lib/permissions";
+import { sanitizeLikeQuery } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,6 +37,10 @@ const statusLabel: Record<string, string> = {
   active: "نشط",
   archived: "مؤرشف",
 };
+
+function csvDisposition(asciiName: string, arabicName: string): string {
+  return `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(arabicName)}`;
+}
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
@@ -69,7 +74,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(BOM + body, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="تقرير-الأقسام.csv"`,
+        "Content-Disposition": csvDisposition("departments-report.csv", "تقرير-الأقسام.csv"),
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
       },
@@ -105,7 +110,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(BOM + body, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="تقرير-المستخدمين.csv"`,
+        "Content-Disposition": csvDisposition("users-report.csv", "تقرير-المستخدمين.csv"),
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
       },
@@ -133,7 +138,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(BOM + body, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="تقرير-أنواع-المستندات.csv"`,
+        "Content-Disposition": csvDisposition("doc-types-report.csv", "تقرير-أنواع-المستندات.csv"),
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
       },
@@ -160,7 +165,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(BOM + body, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="تقرير-حالة-المستندات.csv"`,
+        "Content-Disposition": csvDisposition("status-report.csv", "تقرير-حالة-المستندات.csv"),
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
       },
@@ -192,15 +197,63 @@ export async function GET(request: NextRequest) {
     return new NextResponse(BOM + body, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="تقرير-المجلدات.csv"`,
+        "Content-Disposition": csvDisposition("folders-report.csv", "تقرير-المجلدات.csv"),
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
       },
     });
   }
 
-  /* ── Full document list ─────────────────────── */
+  /* ── Full document list (with filter & search support) ── */
   if (type === "documents") {
+    const sp = request.nextUrl.searchParams;
+    const q = (sp.get("q") || "").trim();
+    const statusFilter = (sp.get("status") || "").trim();
+    const deptFilter = sp.get("dept") ? Number(sp.get("dept")) : null;
+    const docTypeFilter = (sp.get("docType") || "").trim();
+    const folderFilter = sp.get("folder") ? Number(sp.get("folder")) : null;
+    const confidentialFilter = sp.get("confidential") === "1";
+
+    const conds = [isNull(documents.deletedAt)];
+    if (q) {
+      const like = sanitizeLikeQuery(q);
+      conds.push(
+        or(
+          sql`${documents.title} LIKE ${like} ESCAPE '\\'`,
+          sql`${documents.description} LIKE ${like} ESCAPE '\\'`,
+          sql`${documents.contentText} LIKE ${like} ESCAPE '\\'`,
+          sql`${documents.docNumber} LIKE ${like} ESCAPE '\\'`,
+          sql`${documents.docType} LIKE ${like} ESCAPE '\\'`
+        )!
+      );
+    }
+    if (statusFilter && ["active", "pending_review", "archived", "draft"].includes(statusFilter)) {
+      conds.push(eq(documents.status, statusFilter as "active" | "pending_review" | "archived" | "draft"));
+    }
+    if (deptFilter && Number.isInteger(deptFilter)) {
+      conds.push(eq(documents.departmentId, deptFilter));
+    }
+    if (docTypeFilter) {
+      conds.push(eq(documents.docType, docTypeFilter));
+    }
+    if (folderFilter && Number.isInteger(folderFilter)) {
+      conds.push(eq(documents.folderId, folderFilter));
+    }
+    if (confidentialFilter) {
+      conds.push(eq(documents.confidential, 1));
+    }
+    if (user.role !== "admin") {
+      conds.push(
+        or(
+          eq(documents.departmentId, user.departmentId ?? -1),
+          eq(documents.uploadedById, user.id)
+        )!
+      );
+      if (user.role === "staff") {
+        conds.push(eq(documents.confidential, 0));
+      }
+    }
+
     const rows = await db
       .select({
         id: documents.id,
@@ -225,7 +278,7 @@ export async function GET(request: NextRequest) {
       .leftJoin(departments, eq(documents.departmentId, departments.id))
       .leftJoin(folders, eq(documents.folderId, folders.id))
       .leftJoin(users, eq(documents.uploadedById, users.id))
-      .where(isNull(documents.deletedAt))
+      .where(and(...conds))
       .orderBy(desc(documents.createdAt));
 
     const body = csv(
@@ -272,7 +325,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(BOM + body, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="جميع-المستندات.csv"`,
+        "Content-Disposition": csvDisposition("documents-report.csv", "جميع-المستندات.csv"),
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
       },

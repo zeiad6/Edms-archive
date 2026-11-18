@@ -1,19 +1,27 @@
 import { NextResponse } from "next/server";
-import { mkdirSync, writeFileSync, realpathSync, lstatSync, existsSync } from "node:fs";
+import {
+  mkdirSync,
+  writeFileSync,
+  realpathSync,
+  lstatSync,
+  existsSync,
+  rmSync,
+  readFileSync,
+} from "node:fs";
 import { join, resolve, relative, dirname, isAbsolute, sep } from "node:path";
-// adm-zip ships CJS with bundled types (types.d.ts). A static import (NOT
-// createRequire) is required: createRequire compiles to a SYNCHRONOUS
-// __turbopack_require__ which only resolves modules in the same chunk —
-// packaged builds would throw "p is not a function". Static imports become
-// async chunk loads and work in packaged builds.
 import AdmZip from "adm-zip";
-import { getCurrentUser } from "@/lib/server";
+import { getCurrentUser, logAudit } from "@/lib/server";
 import { can } from "@/lib/permissions";
+import { createPreUpgradeSnapshot } from "@/lib/upgrade-engine";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const PART_IDS = new Set(["database", "storage", "scripts", "config"]);
+const MAX_BACKUP_SIZE = 500 * 1024 * 1024; // 500 MB compressed ZIP
+const MAX_UNCOMPRESSED_SIZE = 1024 * 1024 * 1024; // 1 GB total uncompressed (Zip Bomb guard)
+const MAX_ENTRY_COUNT = 10_000; // max files in archive (Zip Bomb guard)
+const SQLITE_MAGIC_HEADER = "SQLite format 3\0";
 
 /**
  * An error whose message is written for the operator and is therefore safe to
@@ -103,7 +111,6 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    const MAX_BACKUP_SIZE = 500 * 1024 * 1024; // 500 MB
     if ("size" in file && typeof (file as { size?: unknown }).size === "number") {
       if ((file as { size: number }).size > MAX_BACKUP_SIZE) {
         return NextResponse.json(
@@ -113,7 +120,26 @@ export async function POST(request: Request) {
       }
     }
     const buffer = Buffer.from(await file.arrayBuffer());
+    if (buffer.length > MAX_BACKUP_SIZE) {
+      return NextResponse.json(
+        { ok: false, error: "حجم ملف النسخة الاحتياطية يتجاوز الحد المسموح (500 ميجابايت)" },
+        { status: 413 }
+      );
+    }
     zip = new AdmZip(buffer);
+    const entries = zip.getEntries();
+    if (entries.length > MAX_ENTRY_COUNT) {
+      throw new Error(`عدد الملفات في الأرشيف يتجاوز الحد الآمن (${MAX_ENTRY_COUNT} ملف)`);
+    }
+    let declaredUncompressedTotal = 0;
+    for (const entry of entries) {
+      const sz = Number(entry.header?.size ?? 0);
+      if (sz < 0) throw new Error("حجم غير صالح داخل ملف الأرشيف");
+      declaredUncompressedTotal += sz;
+      if (declaredUncompressedTotal > MAX_UNCOMPRESSED_SIZE) {
+        throw new Error("الحجم الإجمالي بعد فك الضغط يتجاوز الحد الآمن المسموح به (حماية من Zip Bomb)");
+      }
+    }
     const manifestEntry = zip.getEntry("manifest.json");
     if (!manifestEntry) {
       throw new Error("الملف لا يحتوي على manifest.json");
@@ -149,31 +175,45 @@ export async function POST(request: Request) {
   const applied: string[] = [];
   const pendingRestart: string[] = [];
   let configPath: string | null = null;
+  const overwrittenBackups = new Map<string, Buffer | null>();
 
   try {
+    // Automatic pre-restore snapshot of current database so user data is safe
+    await createPreUpgradeSnapshot("pre-restore").catch(() => null);
+
+    let extractedBytesTotal = 0;
+    const trackBytes = (len: number) => {
+      extractedBytesTotal += len;
+      if (extractedBytesTotal > MAX_UNCOMPRESSED_SIZE) {
+        throw new UserFacingError("الحجم الفعلي بعد فك الضغط يتجاوز الحد الآمن المسموح به");
+      }
+    };
+
     for (const id of selectedParts) {
       if (!PART_IDS.has(id)) continue; // ignore unknown part ids
 
       if (id === "storage") {
-        extractPartMerge(zip, "storage/", dirs.storage);
+        extractPartMerge(zip, "storage/", dirs.storage, overwrittenBackups, trackBytes);
         applied.push(id);
       } else if (id === "scripts") {
-        extractPartMerge(zip, "scripts/", dirs.scripts);
+        extractPartMerge(zip, "scripts/", dirs.scripts, overwrittenBackups, trackBytes);
         applied.push(id);
       } else if (id === "config") {
         const entry = zip.getEntry("config/env");
         if (!entry) {
           throw new UserFacingError("الملف لا يحتوي على إعدادات النظام (config/env)");
         }
+        const data = entry.getData();
+        trackBytes(data.length);
         // Never write into resources/ live (may be read-only on some
         // installs) — stage next to the data dir; the boot hook copies it
         // to the real env source after a restart.
         configPath = join(dirname(resolve(dirs.data)), "config.env");
         mkdirSync(dirname(configPath), { recursive: true });
-        writeFileSync(configPath, entry.getData());
+        writeFileSync(configPath, data);
         pendingRestart.push(id);
       } else if (id === "database") {
-        const staged = stageDatabasePending(zip, dirs.data);
+        const staged = stageDatabasePending(zip, dirs.data, trackBytes);
         if (!staged) {
           throw new UserFacingError("الملف لا يحتوي على قاعدة بيانات (database/edms.db)");
         }
@@ -202,32 +242,102 @@ export async function POST(request: Request) {
       );
     }
 
+    await logAudit({
+      userId: user.id,
+      userName: user.name,
+      action: "system.restore",
+      entityType: "system",
+      details: `استعادة نسخة احتياطية (${[...applied, ...pendingRestart].join(", ")})`,
+    });
+
     return NextResponse.json({ ok: true, applied, pendingRestart });
   } catch (e) {
-    // Only deliberately-raised messages reach the client. Everything else is
-    // a filesystem/driver failure whose `.message` carries absolute paths and
-    // errno detail (e.g. "EACCES: permission denied, mkdir '/opt/edms/data'"),
-    // so it is logged server-side and replaced with a generic line. `applied`
-    // is still returned so the UI can show that a partial restore is live.
+    // Automatic rollback of any files modified in this restore request
+    for (const [destPath, oldContent] of overwrittenBackups.entries()) {
+      try {
+        if (oldContent === null) {
+          rmSync(destPath, { force: true });
+        } else {
+          writeFileSync(destPath, oldContent);
+        }
+      } catch {
+        /* best-effort rollback */
+      }
+    }
+    if (configPath) {
+      try {
+        rmSync(configPath, { force: true });
+      } catch {
+        /* ignore */
+      }
+    }
+    try {
+      rmSync(join(dirs.data, "edms.db.pending"), { force: true });
+      rmSync(join(dirs.data, "edms.db.pending-wal"), { force: true });
+      rmSync(join(dirs.data, "edms.db.pending-shm"), { force: true });
+      rmSync(join(dirs.data, "restore-pending.json"), { force: true });
+    } catch {
+      /* ignore */
+    }
+
     console.error("[restore] apply failed", e);
     const message =
       e instanceof UserFacingError ? e.message : "فشلت الاستعادة — تحقق من صلاحيات الكتابة";
-    return NextResponse.json({ ok: false, error: message, applied }, { status: 500 });
+    return NextResponse.json({ ok: false, error: message, applied: [] }, { status: 500 });
+  }
+}
+
+/**
+ * Verify that `targetDir` and every existing path segment leading up to `dest`
+ * contains no symlinks and resolves inside `realTarget` BEFORE calling
+ * `mkdirSync`. This closes the Symlink Traversal TOCTOU gap where `mkdirSync`
+ * would otherwise traverse an existing symlink directory before `realpathSync`.
+ */
+function assertNoSymlinkChainBeforeMkdir(realTarget: string, targetDir: string, dest: string): void {
+  const rel = relative(targetDir, dest);
+  const segments = rel.split(/[\\/]/).filter(Boolean);
+  let current = targetDir;
+  for (let i = 0; i < segments.length; i++) {
+    current = join(current, segments[i]);
+    if (existsSync(current)) {
+      const st = lstatSync(current);
+      if (st.isSymbolicLink()) {
+        throw new UserFacingError(
+          i === segments.length - 1
+            ? "تعذّرت الاستعادة: الملف موجود كرابط رمزي (symlink) — تحقّق من مجلد النسخ الاحتياطي"
+            : "تعذّرت الاستعادة: مسار المجلد الهدف يحتوي على رابط رمزي (symlink) — تحقّق من مجلد النسخ الاحتياطي",
+        );
+      }
+      if (st.isDirectory()) {
+        const rp = realpathSync(current);
+        if (rp !== realTarget && !rp.startsWith(realTarget + sep)) {
+          throw new UserFacingError(
+            "تعذّرت الاستعادة: مسار المجلد الهدف يحتوي على رابط رمزي (symlink) — تحقّق من مجلد النسخ الاحتياطي",
+          );
+        }
+      }
+    }
   }
 }
 
 /**
  * Merge-extract a zip directory into a target dir with overwrite — preserves
- * unknown files already on disk (safer than rm-then-copy). Path traversal is
- * blocked by resolving + checking the result stays under the target.
+ * unknown files already on disk (safer than rm-then-copy). Path traversal and
+ * symlink traversal are blocked BEFORE `mkdirSync` and verified again after.
  */
 function extractPartMerge(
   zip: InstanceType<typeof AdmZip>,
   prefix: string,
-  targetDir: string
+  targetDir: string,
+  overwrittenBackups: Map<string, Buffer | null>,
+  trackBytes: (len: number) => void,
 ): void {
-  // Resolve the target once so every containment check below compares real
-  // paths, not lexical ones.
+  mkdirSync(targetDir, { recursive: true });
+  if (lstatSync(targetDir).isSymbolicLink()) {
+    throw new UserFacingError(
+      "تعذّرت الاستعادة: مسار المجلد الهدف يحتوي على رابط رمزي (symlink) — تحقّق من مجلد النسخ الاحتياطي",
+    );
+  }
   const realTarget = realpathSync(targetDir);
 
   for (const entry of zip.getEntries()) {
@@ -240,18 +350,14 @@ function extractPartMerge(
     const check = relative(targetDir, dest);
     if (check.startsWith("..") || isAbsolute(check)) continue; // traversal guard
 
+    // Check symlink chain on all existing ancestors BEFORE mkdirSync
+    assertNoSymlinkChainBeforeMkdir(realTarget, targetDir, dest);
+
     const parent = dirname(dest);
     mkdirSync(parent, { recursive: true });
 
-    // Symlink guard. The lexical check above only proves the *name* stays
-    // under the target; it says nothing about what the path resolves to on
-    // disk. If `storage/documents` (or any parent) is a symlink, `writeFileSync`
-    // follows it and lands the entry anywhere the process can write — the
-    // arbitrary-file-overwrite class of bug (GHSA-vwc7-r8mq-g2x9 in adm-zip,
-    // which applies equally to a hand-rolled writer). Refuse the whole part
-    // rather than skipping one entry, so the operator gets a clear failure
-    // instead of a half-applied restore.
-    if (realpathSync(parent) !== realTarget && !realpathSync(parent).startsWith(realTarget + sep)) {
+    const realParent = realpathSync(parent);
+    if (realParent !== realTarget && !realParent.startsWith(realTarget + sep)) {
       throw new UserFacingError(
         "تعذّرت الاستعادة: مسار المجلد الهدف يحتوي على رابط رمزي (symlink) — تحقّق من مجلد النسخ الاحتياطي"
       );
@@ -262,18 +368,34 @@ function extractPartMerge(
       );
     }
 
-    writeFileSync(dest, entry.getData());
+    const data = entry.getData();
+    trackBytes(data.length);
+
+    if (!overwrittenBackups.has(dest)) {
+      overwrittenBackups.set(dest, existsSync(dest) ? readFileSync(dest) : null);
+    }
+    writeFileSync(dest, data);
   }
 }
 
 /**
+ * Validate that a buffer starts with the 16-byte SQLite format 3 magic header.
+ */
+export function isValidSqliteFormat(buf: Buffer): boolean {
+  if (buf.length < 16) return false;
+  return buf.subarray(0, 16).toString("latin1") === SQLITE_MAGIC_HEADER;
+}
+
+/**
  * Stage the database part as *.pending files next to the live DB. Returns
- * true when at least the main edms.db was staged. The live files are never
- * touched — the boot hook swaps pending → live before the server starts.
+ * true when at least the main edms.db was staged. Validates the SQLite magic
+ * header and removes any stale pending/live WAL & SHM files so old WAL frames
+ * cannot corrupt the restored database.
  */
 function stageDatabasePending(
   zip: InstanceType<typeof AdmZip>,
-  dataDir: string
+  dataDir: string,
+  trackBytes: (len: number) => void,
 ): boolean {
   const map: Record<string, string> = {
     "database/edms.db": "edms.db.pending",
@@ -282,13 +404,28 @@ function stageDatabasePending(
   };
   let stagedMain = false;
   mkdirSync(dataDir, { recursive: true });
+
+  // Clean up any stale pending or live WAL/SHM files before staging
+  rmSync(join(dataDir, "edms.db.pending"), { force: true });
+  rmSync(join(dataDir, "edms.db.pending-wal"), { force: true });
+  rmSync(join(dataDir, "edms.db.pending-shm"), { force: true });
+  rmSync(join(dataDir, "edms.db-wal"), { force: true });
+  rmSync(join(dataDir, "edms.db-shm"), { force: true });
+
   for (const entry of zip.getEntries()) {
     if (entry.isDirectory) continue;
     const name = entry.entryName.replace(/\\/g, "/");
     const pendingName = map[name];
     if (!pendingName) continue;
-    writeFileSync(join(dataDir, pendingName), entry.getData());
-    if (pendingName === "edms.db.pending") stagedMain = true;
+    const data = entry.getData();
+    trackBytes(data.length);
+    if (pendingName === "edms.db.pending") {
+      if (!isValidSqliteFormat(data)) {
+        throw new UserFacingError("ملف قاعدة البيانات داخل النسخة الاحتياطية تالف أو ليس بصيغة SQLite 3 صالحة");
+      }
+      stagedMain = true;
+    }
+    writeFileSync(join(dataDir, pendingName), data);
   }
   return stagedMain;
 }

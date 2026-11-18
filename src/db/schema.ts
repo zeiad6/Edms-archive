@@ -2,10 +2,10 @@ import {
   sqliteTable,
   text,
   integer,
-  real,
   index,
   primaryKey,
 } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 
 /**
  * EDMS — نظام الأرشفة الإلكترونية
@@ -23,7 +23,7 @@ export const departments = sqliteTable("departments", {
   code: text("code"),
   description: text("description"),
   color: text("color").notNull().default("#4f46e5"),
-  createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
+  createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
@@ -50,7 +50,7 @@ export const users = sqliteTable(
     departmentId: integer("department_id").references(() => departments.id),
     avatarColor: text("avatar_color").notNull().default("#4f46e5"),
     active: integer("active").notNull().default(1),
-    createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
+    createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (t) => [index("users_dept_idx").on(t.departmentId)]
 );
@@ -67,7 +67,7 @@ export const folders = sqliteTable(
     parentId: integer("parent_id"),
     departmentId: integer("department_id").references(() => departments.id),
     description: text("description"),
-    createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
+    createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (t) => [
     index("folders_parent_idx").on(t.parentId),
@@ -92,7 +92,7 @@ export const docTypes = sqliteTable("doc_types", {
   nameEn: text("name_en"),
   color: text("color").notNull().default("#64748b"),
   sortOrder: integer("sort_order").notNull().default(0),
-  createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
+  createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 export type DocType = typeof docTypes.$inferSelect;
 
@@ -129,6 +129,8 @@ export const documents = sqliteTable(
 
     // OCR-extracted full text, indexed by the search engine
     contentText: text("content_text"),
+    // Dedicated OCR text column (additive — keeps legacy content_text descriptions intact)
+    ocrText: text("ocr_text"),
     ocrProcessed: integer("ocr_processed").notNull().default(0),
 
     departmentId: integer("department_id").references(() => departments.id),
@@ -150,8 +152,8 @@ export const documents = sqliteTable(
     deletedAt: text("deleted_at"),
     deletedById: integer("deleted_by_id").references(() => users.id),
 
-    createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
-    updatedAt: text("updated_at").notNull().default("CURRENT_TIMESTAMP"),
+    createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text("updated_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (t) => [
     index("documents_dept_idx").on(t.departmentId),
@@ -202,7 +204,7 @@ export const documentVersions = sqliteTable(
     uploadedById: integer("uploaded_by_id")
       .notNull()
       .references(() => users.id),
-    createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
+    createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (t) => [index("versions_doc_idx").on(t.documentId)]
 );
@@ -221,7 +223,7 @@ export const auditLogs = sqliteTable(
     entityType: text("entity_type"),
     entityId: integer("entity_id"),
     details: text("details"),
-    createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
+    createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (t) => [
     index("audit_entity_idx").on(t.entityType, t.entityId),
@@ -260,8 +262,8 @@ export const approvalRequests = sqliteTable(
     comment: text("comment"),
     responseNote: text("response_note"),
     respondedAt: text("responded_at"),
-    createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
-    updatedAt: text("updated_at").notNull().default("CURRENT_TIMESTAMP"),
+    createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text("updated_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (t) => [
     index("approval_doc_idx").on(t.documentId),
@@ -284,7 +286,7 @@ export const notifications = sqliteTable("notifications", {
   documentId: integer("document_id").references(() => documents.id, { onDelete: "set null" }),
   referenceId: integer("reference_id"),
   readAt: text("read_at"),
-  createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
+  createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
 }, (t) => [
   index("notif_user_idx").on(t.userId),
   index("notif_read_idx").on(t.userId, t.readAt),
@@ -305,7 +307,7 @@ export const signatures = sqliteTable("signatures", {
     .references(() => users.id),
   label: text("label").default("توقيع"),
   dataUrl: text("data_url").notNull(),
-  createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
+  createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
 }, (t) => [
   index("sig_doc_idx").on(t.documentId),
   index("sig_user_idx").on(t.userId),
@@ -327,9 +329,12 @@ export const documentTemplates = sqliteTable("document_templates", {
   status: text("status", { enum: ["draft", "active", "archived"] }).default("active"),
   sortOrder: integer("sort_order").default(0),
   createdById: integer("created_by_id").references(() => users.id),
-  createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
-  updatedAt: text("updated_at").notNull().default("CURRENT_TIMESTAMP"),
-});
+  createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: text("updated_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
+}, (t) => [
+  index("templates_status_idx").on(t.status),
+  index("templates_sort_idx").on(t.sortOrder),
+]);
 
 export type DocumentVersion = typeof documentVersions.$inferSelect;
 export type ApprovalRequest = typeof approvalRequests.$inferSelect;

@@ -39,6 +39,11 @@ const PORT_MIN = 43110; // unlikely to collide; verified free before use
 
 let serverProcess = null;
 let win = null;
+let activePort = null;
+let lastPreUpgradeSnapshot = null;
+
+const TARGET_SCHEMA_VERSION = 3;
+const MAX_PRE_UPGRADE_SNAPSHOTS = 5;
 
 // Portable detection: electron-builder portable sets PORTABLE_EXECUTABLE_DIR.
 // Portable must keep ALL writable state beside the exe (edms-data/), never in
@@ -151,16 +156,28 @@ function applyPendingRestore(dataDir) {
     const flag = JSON.parse(fs.readFileSync(flagFile, "utf8"));
     const parts = Array.isArray(flag.parts) ? flag.parts : [];
     if (parts.includes("database")) {
-      const swap = (pendingName, targetName) => {
-        const src = path.join(dataDir, pendingName);
-        if (!fs.existsSync(src)) return;
-        // copy+remove (not rename) so a locked target can't abort the swap
-        fs.copyFileSync(src, path.join(dataDir, targetName));
-        fs.rmSync(src, { force: true });
-      };
-      swap("edms.db.pending", "edms.db");
-      swap("edms.db.pending-wal", "edms.db-wal");
-      swap("edms.db.pending-shm", "edms.db-shm");
+      const pendingDb = path.join(dataDir, "edms.db.pending");
+      if (fs.existsSync(pendingDb)) {
+        // Always remove stale WAL/SHM files before swapping in the restored DB
+        // so leftover WAL frames from the previous DB never corrupt the restored DB.
+        fs.rmSync(path.join(dataDir, "edms.db-wal"), { force: true });
+        fs.rmSync(path.join(dataDir, "edms.db-shm"), { force: true });
+
+        fs.copyFileSync(pendingDb, path.join(dataDir, "edms.db"));
+        fs.rmSync(pendingDb, { force: true });
+
+        const swapOptional = (pendingName, targetName) => {
+          const src = path.join(dataDir, pendingName);
+          if (!fs.existsSync(src)) return;
+          fs.copyFileSync(src, path.join(dataDir, targetName));
+          fs.rmSync(src, { force: true });
+        };
+        swapOptional("edms.db.pending-wal", "edms.db-wal");
+        swapOptional("edms.db.pending-shm", "edms.db-shm");
+      }
+      // Always clean up any leftover pending WAL/SHM files
+      fs.rmSync(path.join(dataDir, "edms.db.pending-wal"), { force: true });
+      fs.rmSync(path.join(dataDir, "edms.db.pending-shm"), { force: true });
     }
     // SECURITY: never restore secrets into resources/env (would reintroduce
     // bundled-secret flaw). Packaged restores touching config are ignored;
@@ -184,6 +201,110 @@ function applyPendingRestore(dataDir) {
 }
 
 // ---------------------------------------------------------------------------
+// Pre-upgrade snapshot & auto-rollback (boot-time).
+// Before spawning Next.js or running migrations, inspect data/app-version.json.
+// If upgrading from an older version, save a clean snapshot of edms.db in
+// data/backups/pre-upgrade/ (retaining the latest 5 snapshots).
+// ---------------------------------------------------------------------------
+function compareSemver(a, b) {
+  const pa = String(a || "0.0.0").replace(/^v/i, "").split(/[.-]/).map((n) => parseInt(n, 10) || 0);
+  const pb = String(b || "0.0.0").replace(/^v/i, "").split(/[.-]/).map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+function createPreUpgradeSnapshotSync(dataDir, label) {
+  try {
+    const dbFile = path.join(dataDir, "edms.db");
+    if (!fs.existsSync(dbFile) || fs.statSync(dbFile).size === 0) return null;
+
+    const backupsDir = path.join(dataDir, "backups", "pre-upgrade");
+    fs.mkdirSync(backupsDir, { recursive: true });
+    const safeLabel = String(label || app.getVersion() || "1.0.0").replace(/[^a-zA-Z0-9._-]/g, "_");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const snapPath = path.join(backupsDir, `edms-pre-v${safeLabel}-${stamp}.db`);
+    fs.copyFileSync(dbFile, snapPath);
+    if (fs.existsSync(`${dbFile}-wal`) && fs.statSync(`${dbFile}-wal`).size > 0) {
+      fs.copyFileSync(`${dbFile}-wal`, `${snapPath}-wal`);
+    }
+
+    // Prune older snapshots beyond MAX_PRE_UPGRADE_SNAPSHOTS (5)
+    const files = fs
+      .readdirSync(backupsDir)
+      .filter((f) => f.endsWith(".db"))
+      .map((f) => {
+        const full = path.join(backupsDir, f);
+        return { f, full, mtime: fs.statSync(full).mtimeMs };
+      })
+      .sort((a, b) => b.mtime - a.mtime || b.f.localeCompare(a.f));
+
+    for (const old of files.slice(MAX_PRE_UPGRADE_SNAPSHOTS)) {
+      fs.rmSync(old.full, { force: true });
+      fs.rmSync(`${old.full}-wal`, { force: true });
+      fs.rmSync(`${old.full}-shm`, { force: true });
+    }
+    logStartup(`upgrade: created pre-upgrade snapshot at ${snapPath}`);
+    return snapPath;
+  } catch (err) {
+    logStartup(`upgrade: snapshot warning — ${err && err.message}`);
+    return null;
+  }
+}
+
+function checkAndPrepareUpgrade(dataDir) {
+  try {
+    const dbFile = path.join(dataDir, "edms.db");
+    if (!fs.existsSync(dbFile) || fs.statSync(dbFile).size === 0) return null;
+
+    const currentVersion = app.getVersion() || "1.0.7";
+    const versionFile = path.join(dataDir, "app-version.json");
+    let recordedVersion = "1.0.0";
+    let recordedSchema = 0;
+    if (fs.existsSync(versionFile)) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(versionFile, "utf8"));
+        if (typeof parsed.version === "string") recordedVersion = parsed.version;
+        if (typeof parsed.schemaVersion === "number") recordedSchema = parsed.schemaVersion;
+      } catch {
+        /* treat as unversioned pre-1.0.7 install */
+      }
+    }
+
+    if (
+      compareSemver(currentVersion, recordedVersion) > 0 ||
+      recordedSchema < TARGET_SCHEMA_VERSION
+    ) {
+      return createPreUpgradeSnapshotSync(dataDir, recordedVersion);
+    }
+    return null;
+  } catch (err) {
+    logStartup(`upgrade: check failed — ${err && err.message}`);
+    return null;
+  }
+}
+
+function rollbackPreUpgradeSnapshotSync(dataDir, snapPath) {
+  if (!snapPath || !fs.existsSync(snapPath)) return false;
+  try {
+    const dbFile = path.join(dataDir, "edms.db");
+    fs.rmSync(`${dbFile}-wal`, { force: true });
+    fs.rmSync(`${dbFile}-shm`, { force: true });
+    fs.copyFileSync(snapPath, dbFile);
+    if (fs.existsSync(`${snapPath}-wal`)) {
+      fs.copyFileSync(`${snapPath}-wal`, `${dbFile}-wal`);
+    }
+    logStartup(`upgrade: rolled back database from ${snapPath}`);
+    return true;
+  } catch (err) {
+    logStartup(`upgrade: rollback failed — ${err && err.message}`);
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Standalone Next server boot.
 // ---------------------------------------------------------------------------
 
@@ -198,18 +319,60 @@ function nextServerDir() {
     : path.join(process.resourcesPath, "standalone");
 }
 
-function waitForServer(port, timeoutMs) {
+function waitForServer(port, timeoutMs, childProc) {
   const url = `http://${HOST}:${port}`;
   return new Promise((resolve, reject) => {
+    let settled = false;
     const deadline = Date.now() + timeoutMs;
+
+    const cleanup = () => {
+      if (childProc) {
+        childProc.removeListener("exit", onChildExit);
+        childProc.removeListener("error", onChildError);
+      }
+    };
+
+    const onChildExit = (code, signal) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error(`Next server exited prematurely (code=${code}, signal=${signal})`));
+    };
+
+    const onChildError = (err) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error(`Next server spawn error: ${err.message}`));
+    };
+
+    if (childProc) {
+      if (childProc.exitCode !== null) {
+        reject(new Error(`Next server already exited (code=${childProc.exitCode})`));
+        return;
+      }
+      childProc.once("exit", onChildExit);
+      childProc.once("error", onChildError);
+    }
+
     const tryOnce = () => {
+      if (settled) return;
       const req = http.get(url, (res) => {
         res.resume();
+        if (settled) return;
+        settled = true;
+        cleanup();
         resolve(url);
       });
       req.on("error", () => {
-        if (Date.now() > deadline) reject(new Error("Next server did not start in time"));
-        else setTimeout(tryOnce, 400);
+        if (settled) return;
+        if (Date.now() > deadline) {
+          settled = true;
+          cleanup();
+          reject(new Error("Next server did not start in time"));
+        } else {
+          setTimeout(tryOnce, 400);
+        }
       });
       req.setTimeout(1500, () => req.destroy());
     };
@@ -219,20 +382,27 @@ function waitForServer(port, timeoutMs) {
 
 async function bootNext(port) {
   const dirs = userDataDir();
+  const activeDataDir = IS_DEV ? path.join(process.cwd(), "data") : dirs.data;
 
   // Boot-time pending-restore swap — MUST run before resources/env is read
   // (AUTH_SECRET below) and before the server spawns. Dev resolves the data
   // dir the same way the dev server does (cwd/data — EDMS_DATA_DIR is only
   // set for the packaged child process).
-  applyPendingRestore(IS_DEV ? path.join(process.cwd(), "data") : dirs.data);
+  applyPendingRestore(activeDataDir);
+
+  // Pre-upgrade snapshot before any migration runs on the database
+  lastPreUpgradeSnapshot = checkAndPrepareUpgrade(activeDataDir);
 
   if (IS_DEV) {
     // dev mode: expect `npm run dev` already running on its own port; we
     // simply skip booting and point the window at it.
-    const devPort = process.env.EDMS_DEV_PORT || "3000";
-    await waitForServer(Number(devPort), 20_000);
+    const devPort = Number(process.env.EDMS_DEV_PORT || "3000");
+    activePort = devPort;
+    await waitForServer(devPort, 20_000, null);
     return `http://${HOST}:${devPort}`;
   }
+
+  activePort = port;
 
   const sdir = nextServerDir();
   const serverJs = path.join(sdir, "server.js");
@@ -301,11 +471,23 @@ async function bootNext(port) {
   });
 
   try {
-    const url = await waitForServer(port, 45_000);
+    const url = await waitForServer(port, 45_000, serverProcess);
     logStartup(`boot: server responding at ${url}`);
     return url;
   } catch (err) {
     logStartup(`boot: FAILED — ${err.message}`);
+    if (lastPreUpgradeSnapshot) {
+      const rolledBack = rollbackPreUpgradeSnapshotSync(activeDataDir, lastPreUpgradeSnapshot);
+      if (rolledBack) {
+        try {
+          const { dialog } = require("electron");
+          dialog.showErrorBox(
+            "فشل الترقية — تمت استعادة بياناتك تلقائياً",
+            "حدث خطأ أثناء ترقية قاعدة البيانات إلى الإصدار الجديد. قام النظام تلقائياً باستعادة النسخة الاحتياطية السليمة (pre-upgrade) دون فقدان أي بيانات."
+          );
+        } catch { /* headless runner */ }
+      }
+    }
     throw err;
   }
 }
@@ -358,7 +540,8 @@ async function createWindow(url) {
       const parsed = new URL(url);
       return (
         (parsed.protocol === "http:" || parsed.protocol === "https:") &&
-        (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost")
+        (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost") &&
+        (activePort === null || parsed.port === String(activePort))
       );
     } catch {
       return false;
@@ -513,28 +696,7 @@ async function createWindow(url) {
       });
     });
 
-  // TEMPORARY diagnostic. Each entry is loaded in turn and the next one only
-  // runs if this one survived, so a single run narrows the 0xC0000005 down to
-  // the first target that dies.
-  // "|" separates entries: a data: URL needs its own comma, so "," cannot.
-  const probe = (process.env.EDMS_BOOT_PROBE || "")
-    .split("|")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-  if (probe.length) {
-    for (const entry of probe) {
-      const target = /^(about:|data:|https?:)/i.test(entry) ? entry : url.replace(/\/$/, "") + entry;
-      await loadOnce(target, 20_000).then(
-        () => logStartup(`window: PROBE OK ${target}`),
-        (err) => {
-          logStartup(`window: PROBE FAIL ${target} — ${err.message}`);
-          throw err;
-        }
-      );
-    }
-  } else {
-    await loadOnce(url, 45_000);
-  }
+  await loadOnce(url, 45_000);
   logStartup("window: page loaded");
   return win;
 }
@@ -543,20 +705,46 @@ async function createWindow(url) {
 // IPC — window controls (the ONLY surface the renderer gets).
 // ---------------------------------------------------------------------------
 
+function isAuthorizedIpcEvent(event) {
+  if (!win || win.isDestroyed()) return false;
+  if (!event || !event.senderFrame) return false;
+  if (event.sender !== win.webContents) return false;
+  const frameUrl = event.senderFrame.url || "";
+  if (!frameUrl) return true;
+  try {
+    const parsed = new URL(frameUrl);
+    return (
+      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost") &&
+      (activePort === null || parsed.port === String(activePort))
+    );
+  } catch {
+    return false;
+  }
+}
+
 function registerIpc() {
-  ipcMain.on("win:minimize", () => win && win.minimize());
-  ipcMain.on("win:maximize-toggle", () => {
-    if (!win || win.isDestroyed()) return;
+  ipcMain.on("win:minimize", (event) => {
+    if (!isAuthorizedIpcEvent(event)) return;
+    win.minimize();
+  });
+  ipcMain.on("win:maximize-toggle", (event) => {
+    if (!isAuthorizedIpcEvent(event)) return;
     if (win.isMaximized()) win.unmaximize();
     else win.maximize();
   });
-  ipcMain.on("win:close", () => win && win.close());
-  ipcMain.handle("win:is-maximized", () => (win && !win.isDestroyed() ? win.isMaximized() : false));
-  ipcMain.handle("win:state", () =>
-    win && !win.isDestroyed()
-      ? { maximized: win.isMaximized(), fullscreen: win.isFullScreen() }
-      : { maximized: false, fullscreen: false }
-  );
+  ipcMain.on("win:close", (event) => {
+    if (!isAuthorizedIpcEvent(event)) return;
+    win.close();
+  });
+  ipcMain.handle("win:is-maximized", (event) => {
+    if (!isAuthorizedIpcEvent(event)) return false;
+    return win.isMaximized();
+  });
+  ipcMain.handle("win:state", (event) => {
+    if (!isAuthorizedIpcEvent(event)) return { maximized: false, fullscreen: false };
+    return { maximized: win.isMaximized(), fullscreen: win.isFullScreen() };
+  });
 
   registerSecureStoreIpc();
 }
@@ -570,40 +758,63 @@ function registerIpc() {
  * with mode 0600, matching `ensureAuthSecret`, and keys are namespaced so a
  * future record type cannot collide with an existing one.
  *
- * Everything is best-effort by design: if the platform has no keychain
- * (headless Linux, a locked session), the handlers report failure and the
- * renderer falls back to its Web Crypto path — see src/lib/credential-store.ts.
+ * Backward Compatibility: preserves both `secure-store.json` and `secrets.json`
+ * so credentials saved in any previous version (v1.0.0 - v1.0.7) remain intact.
  */
 function registerSecureStoreIpc() {
   const { safeStorage } = require("electron");
-  const secretsFile = () => path.join(baseUserData(), "secrets.json");
+  const primaryStoreFile = () => path.join(baseUserData(), "secure-store.json");
+  const legacySecretsFile = () => path.join(baseUserData(), "secrets.json");
+
+  const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
   const readAll = () => {
-    try {
-      if (!fs.existsSync(secretsFile())) return {};
-      return JSON.parse(fs.readFileSync(secretsFile(), "utf8")) || {};
-    } catch {
-      return {};
+    const store = Object.create(null);
+    for (const candidate of [legacySecretsFile(), primaryStoreFile()]) {
+      try {
+        if (!fs.existsSync(candidate)) continue;
+        const parsed = JSON.parse(fs.readFileSync(candidate, "utf8"));
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          for (const [k, v] of Object.entries(parsed)) {
+            if (!FORBIDDEN_KEYS.has(k) && typeof v === "string") {
+              store[k] = v;
+            }
+          }
+        }
+      } catch {
+        /* ignore unreadable file */
+      }
     }
+    return Object.assign(Object.create(null), store);
   };
 
-  const writeAll = (all) => {
-    fs.mkdirSync(path.dirname(secretsFile()), { recursive: true });
-    fs.writeFileSync(secretsFile(), JSON.stringify(all), { mode: 0o600 });
+  const writeAtomicJson = (filePath, dataObj) => {
+    const dir = path.dirname(filePath);
+    fs.mkdirSync(dir, { recursive: true });
+    const tmpPath = `${filePath}.tmp`;
+    fs.writeFileSync(tmpPath, JSON.stringify(dataObj), { mode: 0o600 });
     try {
-      fs.chmodSync(secretsFile(), 0o600);
+      fs.chmodSync(tmpPath, 0o600);
     } catch {
       /* Windows ACL — ignore */
     }
+    fs.renameSync(tmpPath, filePath);
   };
 
-  // Keys are renderer-supplied, so they are constrained to a safe shape rather
-  // than trusted: they become JSON keys and (via the renderer) nothing else,
-  // but a key like "../x" should never be storable regardless.
-  const validKey = (k) => typeof k === "string" && /^[a-z0-9_-]{1,64}$/i.test(k);
+  const writeAll = (all) => {
+    const clean = Object.assign(Object.create(null), all);
+    writeAtomicJson(primaryStoreFile(), clean);
+    writeAtomicJson(legacySecretsFile(), clean);
+  };
 
-  ipcMain.handle("secure:set", (_e, key, value) => {
+  const validKey = (k) =>
+    typeof k === "string" &&
+    !FORBIDDEN_KEYS.has(k) &&
+    /^[a-z0-9_-]{1,64}$/i.test(k);
+
+  ipcMain.handle("secure:set", (event, key, value) => {
     try {
+      if (!isAuthorizedIpcEvent(event)) return false;
       if (!validKey(key) || typeof value !== "string") return false;
       if (!safeStorage.isEncryptionAvailable()) return false;
       const all = readAll();
@@ -616,10 +827,12 @@ function registerSecureStoreIpc() {
     }
   });
 
-  ipcMain.handle("secure:get", (_e, key) => {
+  ipcMain.handle("secure:get", (event, key) => {
     try {
+      if (!isAuthorizedIpcEvent(event)) return null;
       if (!validKey(key)) return null;
-      const blob = readAll()[key];
+      const all = readAll();
+      const blob = Object.prototype.hasOwnProperty.call(all, key) ? all[key] : undefined;
       if (typeof blob !== "string") return null;
       if (!safeStorage.isEncryptionAvailable()) return null;
       return safeStorage.decryptString(Buffer.from(blob, "base64"));
@@ -629,11 +842,12 @@ function registerSecureStoreIpc() {
     }
   });
 
-  ipcMain.handle("secure:delete", (_e, key) => {
+  ipcMain.handle("secure:delete", (event, key) => {
     try {
+      if (!isAuthorizedIpcEvent(event)) return false;
       if (!validKey(key)) return false;
       const all = readAll();
-      if (!(key in all)) return true;
+      if (!Object.prototype.hasOwnProperty.call(all, key)) return true;
       delete all[key];
       writeAll(all);
       return true;
@@ -649,8 +863,9 @@ function registerSecureStoreIpc() {
 // ---------------------------------------------------------------------------
 
 app.disableHardwareAcceleration();
-app.commandLine.appendSwitch('disable-software-rasterizer');
-app.commandLine.appendSwitch('disable-gpu-compositing');
+app.commandLine.appendSwitch("disable-gpu");
+app.commandLine.appendSwitch("disable-software-rasterizer");
+app.commandLine.appendSwitch("disable-gpu-compositing");
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   // A second launch while the first is still running is NORMAL, not a crash:
@@ -717,13 +932,27 @@ if (!gotLock) {
         type: "info",
         title: "تحديث متوفر",
         message: `يتوفر إصدار جديد من البرنامج${ver ? ` (${ver})` : ""}.`,
-        detail: "اضغط «الانتقال إلى التحميل» لفتح صفحة التنزيل في المتصفح، ثم ثبّت النسخة الجديدة.",
-        buttons: ["الانتقال إلى التحميل", "لاحقاً"],
+        detail:
+          "يوصى بإنشاء نسخة احتياطية آمنة لقاعدة البيانات قبل التحديث لضمان عدم فقدان أي بيانات، ثم الانتقال إلى صفحة التنزيل.",
+        buttons: [
+          "إنشاء نسخة احتياطية آمنة الآن ثم التحديث",
+          "الانتقال إلى التحميل",
+          "لاحقاً",
+        ],
         defaultId: 0,
-        cancelId: 1,
+        cancelId: 2,
       })
       .then((r) => {
-        if (r.response === 0) shell.openExternal(RELEASES_URL).catch(() => {});
+        if (r.response === 0) {
+          const dirs = userDataDir();
+          const snap = createPreUpgradeSnapshotSync(dirs.data, `before-update-to-${ver || "latest"}`);
+          if (snap) {
+            logStartup(`updater: created safe backup before update at ${snap}`);
+          }
+          shell.openExternal(RELEASES_URL).catch(() => {});
+        } else if (r.response === 1) {
+          shell.openExternal(RELEASES_URL).catch(() => {});
+        }
       })
       .catch(() => {});
   }
@@ -768,7 +997,39 @@ if (!gotLock) {
     app.quit(); // Windows: quit with the window (no tray).
   });
 
-  app.on("before-quit", () => {
+  let quittingCleanly = false;
+  app.on("before-quit", (e) => {
+    if (!quittingCleanly && activePort && serverProcess && !serverProcess.killed) {
+      quittingCleanly = true;
+      e.preventDefault();
+      // Request clean WAL checkpoint (PRAGMA wal_checkpoint(TRUNCATE)) before
+      // terminating the Next server so edms.db is unlocked for NSIS upgrades.
+      const req = http.request(
+        {
+          hostname: HOST,
+          port: activePort,
+          path: "/api/health?checkpoint=1",
+          method: "POST",
+          timeout: 1500,
+        },
+        (res) => {
+          res.resume();
+          if (serverProcess && !serverProcess.killed) serverProcess.kill();
+          app.quit();
+        },
+      );
+      req.on("error", () => {
+        if (serverProcess && !serverProcess.killed) serverProcess.kill();
+        app.quit();
+      });
+      req.on("timeout", () => {
+        req.destroy();
+        if (serverProcess && !serverProcess.killed) serverProcess.kill();
+        app.quit();
+      });
+      req.end();
+      return;
+    }
     if (serverProcess && !serverProcess.killed) {
       serverProcess.kill();
     }

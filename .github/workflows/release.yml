@@ -37,8 +37,9 @@ jobs:
       - name: ESLint
         run: npx eslint src/ --max-warnings=0
 
-      # Includes src/lib/__tests__/upgrade-safety.test.ts: booting the new
-      # version on an existing database must not change a single row or file.
+      # Includes src/lib/__tests__/upgrade-safety.test.ts and
+      # src/lib/__tests__/migration-safety.test.ts: booting the new version on
+      # an existing v1.0.0+ database migrates cleanly with zero data loss.
       - name: Run tests
         run: npx vitest run
 
@@ -557,7 +558,7 @@ jobs:
           # electron/main.cjs copies it from resources on every boot, so it is
           # not user data and is allowed to change between versions.
           $missing = Compare-Object $before $afterBoot | Where-Object SideIndicator -eq '<=' |
-            Where-Object { $_.InputObject -notmatch '\\data\\edms\.db$' -and $_.InputObject -notmatch '\\scripts\\scan-wia\.ps1$' }
+            Where-Object { $_.InputObject -notmatch '\\data\\edms\.db$' -and $_.InputObject -notmatch '\\data\\app-version\.json$' -and $_.InputObject -notmatch '\\scripts\\scan-wia\.ps1$' }
           if ($missing) { $missing | Format-Table -AutoSize | Out-String | Write-Host; throw 'new version altered or removed existing files' }
           if (-not (Test-Path $marker)) { throw 'user file lost' }
           Write-Host 'Upgrade test OK'

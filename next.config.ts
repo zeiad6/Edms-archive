@@ -57,8 +57,14 @@ const nextConfig: NextConfig = {
           // actually prevents XSS here.
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-          // TODO: picks up 'unsafe-inline' only for Next.js inline styles/scripts. Replace with per-request nonce (headers `script-src 'nonce-...'` + generate in middleware) then drop 'unsafe-inline'. Never re-add 'unsafe-eval'.
-          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" },
+          // Enhanced Content-Security-Policy: allows local/blob workers for
+          // pdf.js and keeps 'unsafe-inline' for Next.js standalone hydration
+          // and first-paint theme/direction initialization in Electron.
+          {
+            key: "Content-Security-Policy",
+            value:
+              "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; child-src 'self' blob:; media-src 'self' blob:; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+          },
         ],
       },
     ];

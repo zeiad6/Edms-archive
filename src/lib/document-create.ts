@@ -1,8 +1,8 @@
 import { unlink } from "node:fs/promises";
-import { sql } from "drizzle-orm";
-import { db } from "@/db";
+import { db, applyConnectionPragmas } from "@/db";
 import { auditLogs, documents, documentTags, documentVersions } from "@/db/schema";
 import { resolveKey } from "@/lib/server";
+import { sql } from "drizzle-orm";
 
 /**
  * Remove storage files written for a request whose DB write failed. Missing
@@ -11,21 +11,21 @@ import { resolveKey } from "@/lib/server";
  */
 export async function removeStoredKeys(keys: Array<string | null | undefined>): Promise<void> {
   await Promise.all(
-    [...new Set(keys.filter((k): k is string => !!k))].map((k) => unlink(resolveKey(k)).catch(() => {})),
+    Array.from(new Set(keys.filter((k): k is string => !!k))).map((k) =>
+      unlink(resolveKey(k)).catch(() => {}),
+    ),
   );
 }
 
 /**
- * Insert a new document, its version-1 row, its tags and its audit entry as
- * ONE atomic batch: a failure can no longer leave a document without its
- * first version. If the batch fails, the files the caller already wrote
- * (`writtenKeys`) are removed and the error is rethrown.
+ * Insert a new document, its version-1 row, its tags and its audit entry inside
+ * a single atomic `db.transaction(...)`. If any step fails, the transaction
+ * rolls back and the files the caller already wrote (`writtenKeys`) are
+ * unlinked so no orphan files accumulate on disk.
  *
- * `db.batch()` and not `db.transaction()`: libsql's `transaction()` hands the
- * shared connection to the transaction and opens a fresh connection for every
- * later query, silently dropping the per-connection PRAGMAs set in
- * `src/db/index.ts` (foreign_keys, busy_timeout). A batch runs BEGIN…COMMIT on
- * the shared connection.
+ * `applyConnectionPragmas()` is called in `finally` so the shared libSQL
+ * connection keeps `foreign_keys = ON` and `busy_timeout = 5000` after the
+ * transaction closes.
  */
 export async function insertDocumentWithFirstVersion(input: {
   doc: typeof documents.$inferInsert;
@@ -36,16 +36,22 @@ export async function insertDocumentWithFirstVersion(input: {
   writtenKeys: Array<string | null | undefined>;
 }): Promise<number> {
   const { doc } = input;
-  // The new id is not known inside a batch, so dependent rows look it up by
-  // the freshly generated random storage key (newest match first).
-  const newDocId = sql<number>`(SELECT id FROM documents WHERE storage_key = ${doc.storageKey} ORDER BY id DESC LIMIT 1)`;
-  const tagIds = [...new Set(input.tagIds ?? [])];
+  const tagIds = Array.from(
+    new Set((input.tagIds ?? []).filter((n) => Number.isInteger(n) && n > 0)),
+  );
 
   try {
-    const [inserted] = await db.batch([
-      db.insert(documents).values(doc).returning({ id: documents.id }),
-      db.insert(documentVersions).values({
-        documentId: newDocId,
+    const newId = await db.transaction(async (tx) => {
+      await tx.run(sql`PRAGMA foreign_keys = ON`);
+
+      const [inserted] = await tx
+        .insert(documents)
+        .values(doc)
+        .returning({ id: documents.id });
+      const docId = inserted.id;
+
+      await tx.insert(documentVersions).values({
+        documentId: docId,
         version: 1,
         storageKey: doc.storageKey,
         originalName: doc.originalName,
@@ -53,22 +59,31 @@ export async function insertDocumentWithFirstVersion(input: {
         note: input.versionNote,
         uploadedById: doc.uploadedById,
         ...(input.versionCreatedAt ? { createdAt: input.versionCreatedAt } : {}),
-      }),
-      db.insert(auditLogs).values({
+      });
+
+      if (tagIds.length > 0) {
+        await tx
+          .insert(documentTags)
+          .values(tagIds.map((tagId) => ({ documentId: docId, tagId })));
+      }
+
+      await tx.insert(auditLogs).values({
         userId: input.audit.userId,
         userName: input.audit.userName,
         action: input.audit.action,
         entityType: "document",
-        entityId: newDocId,
+        entityId: docId,
         details: input.audit.details,
-      }),
-      ...(tagIds.length > 0
-        ? [db.insert(documentTags).values(tagIds.map((tagId) => ({ documentId: newDocId, tagId })))]
-        : []),
-    ]);
-    return inserted[0].id;
+      });
+
+      return docId;
+    });
+
+    return newId;
   } catch (err) {
     await removeStoredKeys(input.writtenKeys);
     throw err;
+  } finally {
+    await applyConnectionPragmas();
   }
 }

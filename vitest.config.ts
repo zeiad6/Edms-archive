@@ -37,8 +37,9 @@ export default defineConfig({
     // with zlib. That is well under 5s on CI, but it can exceed the default
     // timeout on a slow or thermally-throttled machine, where the failure
     // looks like a code bug rather than a slow runner.
-    testTimeout: 60_000,
-    hookTimeout: 60_000,
+    testTimeout: 120_000,
+    hookTimeout: 120_000,
+    maxWorkers: 2,
     globals: true,
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],

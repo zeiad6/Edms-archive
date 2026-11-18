@@ -5,11 +5,13 @@ import { db } from "@/db";
 import { tags } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser, logAudit } from "@/lib/server";
-import { requirePermission } from "@/lib/permissions";
+import { checkPermission } from "@/lib/permissions";
 
-export async function createTag(formData: FormData) {
+export async function createTag(formData: FormData): Promise<any> {
   const user = await getCurrentUser();
-  requirePermission(user, "tags.manage");
+  const perm = checkPermission(user, "tags.manage");
+  if (!perm.ok) return perm;
+  const authedUser = perm.user;
   const name = String(formData.get("name") || "").trim();
   if (!name) return;
   const color = String(formData.get("color") || "#64748b").trim();
@@ -20,8 +22,8 @@ export async function createTag(formData: FormData) {
     return;
   }
   await logAudit({
-    userId: user.id,
-    userName: user.name,
+    userId: authedUser.id,
+    userName: authedUser.name,
     action: "tag.create",
     entityType: "tag",
     details: `إنشاء وسم: ${name} (${color})`,
@@ -29,9 +31,11 @@ export async function createTag(formData: FormData) {
   revalidatePath("/tags");
 }
 
-export async function updateTag(formData: FormData) {
+export async function updateTag(formData: FormData): Promise<any> {
   const user = await getCurrentUser();
-  requirePermission(user, "tags.manage");
+  const perm = checkPermission(user, "tags.manage");
+  if (!perm.ok) return perm;
+  const authedUser = perm.user;
   const id = Number(formData.get("id"));
   const name = String(formData.get("name") || "").trim();
   const color = String(formData.get("color") || "#64748b").trim();
@@ -42,8 +46,8 @@ export async function updateTag(formData: FormData) {
     return;
   }
   await logAudit({
-    userId: user.id,
-    userName: user.name,
+    userId: authedUser.id,
+    userName: authedUser.name,
     action: "tag.update",
     entityType: "tag",
     entityId: id,
@@ -52,15 +56,17 @@ export async function updateTag(formData: FormData) {
   revalidatePath("/tags");
 }
 
-export async function deleteTag(formData: FormData) {
+export async function deleteTag(formData: FormData): Promise<any> {
   const user = await getCurrentUser();
-  requirePermission(user, "tags.manage");
+  const perm = checkPermission(user, "tags.manage");
+  if (!perm.ok) return perm;
+  const authedUser = perm.user;
   const id = Number(formData.get("id"));
   if (!id) return;
   await db.delete(tags).where(eq(tags.id, id));
   await logAudit({
-    userId: user.id,
-    userName: user.name,
+    userId: authedUser.id,
+    userName: authedUser.name,
     action: "tag.delete",
     entityType: "tag",
     entityId: id,

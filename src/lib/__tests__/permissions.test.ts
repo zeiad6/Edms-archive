@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   can,
   requirePermission,
+  checkPermission,
   PERMISSIONS,
   PERMISSION_LABELS,
   ROLE_LABELS,
@@ -125,6 +126,53 @@ describe("can", () => {
     it("denies manager", () => expect(can(manager, "trash.purge")).toBe(false));
     it("denies staff", () => expect(can(staff, "trash.purge")).toBe(false));
   });
+
+  // --- documents.update and documents.ocr (active users of all roles) ---
+  describe("documents.update & documents.ocr", () => {
+    it("allows active admin, manager, and staff", () => {
+      expect(can(admin, "documents.update")).toBe(true);
+      expect(can(manager, "documents.update")).toBe(true);
+      expect(can(staff, "documents.update")).toBe(true);
+      expect(can(admin, "documents.ocr")).toBe(true);
+      expect(can(manager, "documents.ocr")).toBe(true);
+      expect(can(staff, "documents.ocr")).toBe(true);
+    });
+
+    it("denies disabled (active = 0) users across all permissions", () => {
+      const disabledAdmin = makeUser({ id: 9, role: "admin", active: 0 });
+      expect(can(disabledAdmin, "documents.create")).toBe(false);
+      expect(can(disabledAdmin, "documents.update")).toBe(false);
+      expect(can(disabledAdmin, "documents.ocr")).toBe(false);
+    });
+  });
+});
+
+// ─── checkPermission() (structured Server Action result) ─────────────
+
+describe("checkPermission", () => {
+  it("returns { ok: true, user } when permitted", () => {
+    const res = checkPermission(admin, "documents.update");
+    expect(res).toEqual({ ok: true, user: admin });
+  });
+
+  it("returns { ok: false, code: 401 } for unauthenticated caller", () => {
+    const res = checkPermission(null, "documents.update");
+    expect(res).toEqual({ ok: false, error: "يجب تسجيل الدخول", code: 401 });
+  });
+
+  it("returns { ok: false, code: 403 } for unauthorized or disabled caller", () => {
+    expect(checkPermission(staff, "users.manage")).toEqual({
+      ok: false,
+      error: "ليس لديك صلاحية لهذه العملية",
+      code: 403,
+    });
+    const disabled = makeUser({ role: "admin", active: 0 });
+    expect(checkPermission(disabled, "documents.create")).toEqual({
+      ok: false,
+      error: "هذا الحساب معطّل",
+      code: 403,
+    });
+  });
 });
 
 // ─── requirePermission() ─────────────────────────────────────────────
@@ -202,8 +250,8 @@ describe("PERMISSIONS", () => {
     }
   });
 
-  it("has exactly 26 permission keys", () => {
-    expect(Object.keys(PERMISSIONS)).toHaveLength(26);
+  it("has exactly 28 permission keys", () => {
+    expect(Object.keys(PERMISSIONS)).toHaveLength(28);
   });
 
   it("all permission keys have Arabic labels", () => {
