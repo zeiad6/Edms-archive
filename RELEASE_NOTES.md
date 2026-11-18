@@ -2,7 +2,7 @@
      (Windows-1256 / ANSI turns Arabic into question marks on the GitHub release page).
      This file is used as body_path by .github/workflows/release.yml -->
 
-## أرشيف — الإصدار 1.0.7 · ZeidexSoft
+## أرشيف — الإصدار 1.1.0 · ZeidexSoft
 
 ترقية معمارية وأمنية وبصرية شاملة مع **محرك الترقية والترحيل الآمن للبيانات (`Safe Upgrade Engine`)** وتوافق رجعي كامل بنسبة 100% مع الإصدارات السابقة (`1.0.0` حتى `1.0.7`) دون فقدان أي بيانات.
 
@@ -10,7 +10,7 @@
 
 | الملف | الرابط |
 | --- | --- |
-| `EDMS-Archive-1.0.7-Setup-x64.exe` | [تحميل مباشر](https://github.com/zeiad6/Edms-archive/releases/download/v1.0.7/EDMS-Archive-1.0.7-Setup-x64.exe) |
+| `EDMS-Archive-1.1.0-Setup-x64.exe` | [تحميل مباشر](https://github.com/zeiad6/Edms-archive/releases/download/v1.1.0/EDMS-Archive-1.1.0-Setup-x64.exe) |
 
 > يُنشر المثبّت فقط. يتضمن هذا الإصدار هوية المطور المحدثة **ZeidexSoft**.
 

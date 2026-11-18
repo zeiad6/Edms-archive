@@ -148,7 +148,7 @@ export function SystemUpgradeCard({ initialData }: { initialData?: SystemUpgrade
         <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-2.5">
           <div className="text-[11px] text-muted-foreground">{t("إصدار التطبيق والمخطط")}</div>
           <div className="mt-1 font-mono text-sm font-bold text-foreground" dir="ltr">
-            v{data?.appVersion ?? "1.0.7"} · Schema v{data?.schemaVersion ?? 3}/{data?.targetSchemaVersion ?? 3}
+            v{data?.appVersion ?? "1.1.0"} · Schema v{data?.schemaVersion ?? 3}/{data?.targetSchemaVersion ?? 3}
           </div>
         </div>
 

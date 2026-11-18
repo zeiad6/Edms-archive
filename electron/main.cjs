@@ -259,7 +259,7 @@ function checkAndPrepareUpgrade(dataDir) {
     const dbFile = path.join(dataDir, "edms.db");
     if (!fs.existsSync(dbFile) || fs.statSync(dbFile).size === 0) return null;
 
-    const currentVersion = app.getVersion() || "1.0.7";
+    const currentVersion = app.getVersion() || "1.1.0";
     const versionFile = path.join(dataDir, "app-version.json");
     let recordedVersion = "1.0.0";
     let recordedSchema = 0;

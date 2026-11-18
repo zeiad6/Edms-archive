@@ -5,7 +5,37 @@
 
 ---
 
-## [1.0.7] — 2026-11-18 · ZeidexSoft
+## [1.1.0] — 2026-11-18 · ZeidexSoft
+
+ترقية معمارية وأمنية وبصرية شاملة مع محرك الترقية والترحيل الآمن للبيانات (Safe Upgrade Engine) وتوافق رجعي 100% مع الإصدارات السابقة (`1.0.0` حتى `1.0.7`) دون فقدان أي بيانات.
+
+### 🛡️ المرحلة 0: محرك الترقية الآمن وضمان عدم فقدان البيانات (Zero Data Loss)
+
+- **النسخ الاحتياطي التلقائي قبل الترقية والتراجع الذاتي (`Pre-Upgrade Snapshot & Auto-Rollback`)** — فحص إصدار التطبيق في `data/app-version.json` و`PRAGMA user_version` قبل تشغيل خادم Next.js أو تطبيق الترحيلات (`electron/main.cjs`, `src/lib/upgrade-engine.ts`, `src/lib/seed.ts`). عند اكتشاف ترقية يُنشأ snapshot ذري عبر `VACUUM INTO` في `data/backups/pre-upgrade/` (مع الاحتفاظ بآخر 5 نسخ)، ويُفحص `PRAGMA integrity_check` و`PRAGMA foreign_key_check` قبل وبعد الترحيل مع استرجاع تلقائي فوري عند أي خطأ.
+- **ترحيلات مخطط ذرية متسلسلة (`Sequential Atomic Schema Migrations`)** — توحيد `src/db/schema.ts` و`src/lib/seed.ts` (إضافة `signatures` و`document_templates` و`ocr_text` و`keywords` و`source` و`notes` و`doc_type`)، وتحويل الترحيلات إلى ترحيلات مرقّمة (`user_version 1..3`) داخل معاملات `BEGIN IMMEDIATE ... COMMIT` مع `ROLLBACK` تلقائي.
+- **حماية دورة حياة Electron والتحديث** — إضافة خيار «إنشاء نسخة احتياطية آمنة الآن ثم التحديث» في إشعار التحديث، وتنفيذ `PRAGMA wal_checkpoint(TRUNCATE)` عبر `/api/health?checkpoint=1` عند `before-quit` لضمان إغلاق نظيف لقاعدة البيانات قبل تشغيل مثبّت NSIS.
+
+### 🔧 المرحلة 1: إصلاح الأعطال الحرجة وحماية الملفات والنسخ الاحتياطي
+
+- **حماية ملفات المستندات من الحذف الخاطئ** — التحقق الصارم من وجود المستند في سلة المحذوفات (`deletedAt !== null`) ونجاح حذف السجل في قاعدة البيانات قبل حذف ملفات القرص في `forceDeleteDocument`، وتقسيم الحذف الجماعي في `emptyTrash` إلى دفعات آمنة (`DELETE_CHUNK_SIZE = 200`).
+- **إصلاح الجمود (Deadlock) في النسخ الاحتياطي وتحصين الاستعادة** — تحويل `/api/backup` إلى تدفق حقيقي (`Readable.toWeb`) مع لقطة `VACUUM INTO` واستبعاد `.env` وتسجيل التدقيق `system.backup`؛ وتحصين `/api/restore` بفحص سلسلة الروابط الرمزية (`assertNoSymlinkChainBeforeMkdir`) قبل `mkdirSync`، وحدود الحماية من قنابل الضغط (`MAX_BACKUP_SIZE = 500MB`, `MAX_UNCOMPRESSED_SIZE = 1GB`, `MAX_ENTRY_COUNT = 10000`)، وفحص ترويسة `SQLite format 3\0`، وحذف ملفات `-wal`/`-shm` المتبقية.
+- **ذرية إنشاء المستندات وفصل نص OCR عن الوصف** — تغليف إنشاء المستند والإصدار والوسوم والتدقيق داخل `db.transaction(...)` مع تنظيف الملفات اليتيمة عند الفشل، وحفظ نص OCR في عمود `ocr_text` المستقل مع دمج ذكي في `content_text` للبحث وتمييز حالات `ocr_processed` (`0`, `1`, `2`, `-1`).
+
+### 🔐 المرحلة 2: تحصين الصلاحيات (RBAC) والأمان وعزل Electron
+
+- **إحكام صلاحيات RBAC وفحص نشاط الحساب** — إضافة صلاحيتي `documents.update` و`documents.ocr`، والتحقق من `user.active` في جميع العمليات، وتطبيق فلاتر القسم ومستوى السرية و`isNull(documents.deletedAt)` على كافة استعلامات لوحة القيادة (`src/app/page.tsx`) وإجراءات الخادم.
+- **تحصين رفع الملفات ومحدد محاولات الدخول** — فحص التوقيع الثنائي الفعلي (`Magic Bytes`) للملفات المرفوعة، وتطهير ملفات `.svg` عبر `DOMPurify`، وتوحيد الامتدادات إلى أحرف صغيرة، وتطبيع مفاتيح `login-throttle` مع تنظيف دوري للذاكرة (`LOGIN_MAX_KEYS = 5000`).
+- **عزل Electron والمتجر الآمن (`Secure Store`)** — التحقق من المنفذ المحلي الفعلي في `isLocalAppUrl`، وفحص `!win.isDestroyed()` و`event.senderFrame` في قنوات IPC، وتحصين `secure-store` ضد Prototype Pollution (`Object.create(null)`) مع كتابة ذرية عبر ملف `.tmp` وتوافق رجعي مع `secrets.json` و`secure-store.json`.
+
+### ✨ المرحلة 3: الأداء وتجربة المستخدم (UI/UX) وعارض المستندات والبحث الفوري
+
+- **فصل تخطيط الجذر والبحث الفوري الخفيف (SQLite FTS5 Spotlight)** — فصل `RootLayout` عن الجلب الثقيل، وإضافة فهرس البحث النصي الكامل `documents_fts` (FTS5) مع مسار `/api/search/spotlight` وبحث لحظي (`Debounce 250ms`) في الشريط العلوي ولوحة الأوامر `Ctrl+K`، وحصر مبدّل المستخدمين التجريبي بالمديرين فقط.
+- **عارض PDF احترافي بتدفق ثنائي مباشر (`Binary Streaming & Range Requests`)** — دعم `206 Partial Content` و`Accept-Ranges: bytes` في `/api/documents/[id]/file`، وتحميل PDF مباشرة عبر URL التدفق في `DocViewer` مع شريط مصغرات الصفحات، وبحث نصي داخل المستند، وملاءمة العرض (`Fit to Width`)، وتدوير الصفحات، والطباعة المباشرة، ومعالجة `RenderingCancelledException`.
+- **تطوير صفحة المستندات ومنطقة الرفع والإعدادات** — إضافة التبديل بين عرض الجدول (`Table`) وعرض البطاقات (`Cards`)، ودرج المعاينة السريعة (`Quick Preview Drawer`)، وتصدير CSV المصفّى، وشريط تقدم رفع حقيقي عبر `XMLHttpRequest` مع اقتراح تلقائي لبيانات OCR، وبطاقة «حالة الترقية والنسخ الاحتياطية التلقائية» في الإعدادات.
+
+---
+
+## [1.0.7] — 2026-10-23 · ZeidexSoft
 
 ترقية معمارية وأمنية وبصرية شاملة مع محرك الترقية والترحيل الآمن للبيانات (Safe Upgrade Engine) وتوافق رجعي 100% مع الإصدارات السابقة (`1.0.0` حتى `1.0.7`) دون فقدان أي بيانات.
 
